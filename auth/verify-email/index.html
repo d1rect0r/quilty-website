@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Verify Email - Quilty</title>
+    <style>
+        :root {
+            --primary: #14B8A6;
+            --primary-dark: #0D9488;
+            --background: #0F172A;
+            --surface: #1E293B;
+            --text-primary: #F8FAFC;
+            --text-secondary: #94A3B8;
+            --gradient-start: #14B8A6;
+            --gradient-end: #06B6D4;
+            --success: #10B981;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--background);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            background: linear-gradient(135deg, var(--success), var(--gradient-end));
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            color: white;
+        }
+
+        .logo svg {
+            width: 40px;
+            height: 40px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+
+        p {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--success), var(--gradient-end));
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            padding: 16px 48px;
+            border-radius: 12px;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .fallback {
+            margin-top: 24px;
+            padding: 16px;
+            background: var(--surface);
+            border-radius: 12px;
+            display: none;
+        }
+
+        .fallback.show {
+            display: block;
+        }
+
+        .fallback p {
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .fallback a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .fallback a:hover {
+            text-decoration: underline;
+        }
+
+        .spinner {
+            display: none;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading .button {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .loading .button-text {
+            display: none;
+        }
+
+        .loading .spinner {
+            display: block;
+        }
+
+        @media (prefers-color-scheme: light) {
+            :root {
+                --background: #F8FAFC;
+                --surface: #E2E8F0;
+                --text-primary: #0F172A;
+                --text-secondary: #475569;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+        </div>
+        <h1>Verify Your Email</h1>
+        <p>Tap the button below to verify your email and complete your Quilty account setup.</p>
+
+        <button class="button" onclick="openApp()" id="continue-btn">
+            <span class="button-text">Open Quilty</span>
+            <div class="spinner"></div>
+        </button>
+
+        <div class="fallback" id="fallback">
+            <p>If the app didn't open, make sure you have Quilty installed.</p>
+            <p>
+                <a href="https://apps.apple.com/app/quilty" target="_blank">Download for iOS</a>
+                <span style="color: var(--text-secondary); margin: 0 8px;">|</span>
+                <a href="https://play.google.com/store/apps/details?id=app.quilty.myquilty" target="_blank">Download for Android</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Preserve the fragment (tokens are in the fragment, not query params)
+        const fragment = window.location.hash;
+
+        function openApp() {
+            const container = document.getElementById('continue-btn');
+            container.classList.add('loading');
+
+            // Construct app URL with fragment
+            const appUrl = 'quilty://auth/verify-email' + fragment;
+
+            // Try to open the app
+            let opened = false;
+
+            // Create hidden iframe to try opening app
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = appUrl;
+            document.body.appendChild(iframe);
+
+            // Check if app opened after timeout
+            const timeout = setTimeout(function() {
+                if (!opened) {
+                    // Show fallback options
+                    document.getElementById('fallback').classList.add('show');
+                    container.classList.remove('loading');
+                }
+            }, 2500);
+
+            // Listen for page visibility change (app opened)
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    opened = true;
+                    clearTimeout(timeout);
+                }
+            });
+
+            // Also try direct navigation
+            window.location.href = appUrl;
+        }
+
+        // Check if on mobile
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (!isMobile) {
+            // Show download options for desktop
+            document.getElementById('fallback').classList.add('show');
+            document.querySelector('.fallback p:first-child').textContent =
+                'Quilty is a mobile app. Download it on your phone to continue.';
+        }
+    </script>
+</body>
+</html>
