@@ -1,0 +1,32 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.quilty.myquilty",
+      "sha256_cert_fingerprints": [
+        "50:0C:AE:2E:D2:E1:18:0F:F5:6F:EC:6E:2D:99:CB:94:C6:E9:71:5F:25:28:15:1A:96:7B:86:DC:FD:58:71:19"
+      ]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.quilty.myquilty.staging",
+      "sha256_cert_fingerprints": [
+        "50:0C:AE:2E:D2:E1:18:0F:F5:6F:EC:6E:2D:99:CB:94:C6:E9:71:5F:25:28:15:1A:96:7B:86:DC:FD:58:71:19"
+      ]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.quilty.myquilty.dev",
+      "sha256_cert_fingerprints": [
+        "50:0C:AE:2E:D2:E1:18:0F:F5:6F:EC:6E:2D:99:CB:94:C6:E9:71:5F:25:28:15:1A:96:7B:86:DC:FD:58:71:19"
+      ]
+    }
+  }
+]

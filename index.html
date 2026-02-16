@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quilty - Your Journey to Freedom</title>
+  <meta name="description" content="Quilty helps you quit vaping with effortless tracking and personalized support. Start your journey to freedom today.">
+  <meta name="theme-color" content="#0D9488">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Quilty - Your Journey to Freedom">
+  <meta property="og:description" content="Quit vaping with effortless tracking and personalized support.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://my-quilty.app">
+
+  <!-- Favicon (inline SVG) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #F8FAFC;
+      overflow: hidden;
+    }
+
+    .container {
+      text-align: center;
+      padding: 2rem;
+      max-width: 480px;
+    }
+
+    .logo {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 2rem;
+      background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%);
+      border-radius: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      box-shadow: 0 20px 40px rgba(20, 184, 166, 0.3);
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .tagline {
+      font-size: 1.25rem;
+      color: #94A3B8;
+      margin-bottom: 2.5rem;
+      line-height: 1.6;
+    }
+
+    .coming-soon {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: rgba(20, 184, 166, 0.1);
+      border-radius: 12px;
+      border: 1px solid rgba(20, 184, 166, 0.2);
+    }
+
+    .coming-soon p {
+      color: #14B8A6;
+      font-size: 0.9rem;
+    }
+
+    /* Deep link redirect message */
+    .redirect-container {
+      display: none;
+    }
+
+    .redirect-container.visible {
+      display: block;
+    }
+
+    .redirect-container h2 {
+      margin-bottom: 1rem;
+      font-size: 1.5rem;
+    }
+
+    .redirect-container p {
+      color: #94A3B8;
+      margin-bottom: 2rem;
+    }
+
+    .redirect-container a {
+      color: #14B8A6;
+      text-decoration: none;
+    }
+
+    .redirect-container a:hover {
+      text-decoration: underline;
+    }
+
+    .landing-container.hidden {
+      display: none;
+    }
+
+    /* Animated background orbs */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.3;
+      animation: float 20s infinite ease-in-out;
+      pointer-events: none;
+    }
+
+    .orb-1 {
+      width: 400px;
+      height: 400px;
+      background: #14B8A6;
+      top: -200px;
+      left: -100px;
+    }
+
+    .orb-2 {
+      width: 300px;
+      height: 300px;
+      background: #06B6D4;
+      bottom: -150px;
+      right: -100px;
+      animation-delay: -10s;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(30px, -30px) scale(1.1); }
+      50% { transform: translate(-20px, 20px) scale(0.9); }
+      75% { transform: translate(20px, 10px) scale(1.05); }
+    }
+  </style>
+</head>
+<body>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <!-- Landing page content -->
+  <div class="container landing-container" id="landing">
+    <div class="logo">Q</div>
+    <h1>Quilty</h1>
+    <p class="tagline">Your journey to freedom starts here.<br>Quit vaping with effortless tracking.</p>
+
+    <div class="coming-soon">
+      <p>Coming soon to App Store and Google Play</p>
+    </div>
+  </div>
+
+  <!-- Deep link redirect message -->
+  <div class="container redirect-container" id="redirect">
+    <h2>Opening Quilty...</h2>
+    <p>If the app doesn't open automatically, make sure Quilty is installed.</p>
+    <a href="/">Go to homepage</a>
+  </div>
+
+  <script>
+    // Handle deep links - redirect to app or show landing page
+    (function() {
+      var path = window.location.pathname;
+
+      // Check if this is a deep link path
+      var isDeepLink = path.indexOf('/auth/') === 0 ||
+                       path.indexOf('/reset-password') === 0 ||
+                       path.indexOf('/verify-email') === 0;
+
+      if (isDeepLink) {
+        // Show redirect message, hide landing
+        document.getElementById('landing').classList.add('hidden');
+        document.getElementById('redirect').classList.add('visible');
+
+        // Try Android intent fallback
+        var isAndroid = /android/i.test(navigator.userAgent);
+        if (isAndroid) {
+          var intentUrl = 'intent:/' + path + window.location.search +
+                          '#Intent;scheme=quilty;package=app.quilty.myquilty;end';
+          window.location.href = intentUrl;
+        }
+        // iOS universal links are handled automatically by the OS
+      }
+    })();
+  </script>
+</body>
+</html>

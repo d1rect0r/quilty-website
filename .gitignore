@@ -1,0 +1,13 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+
+# Node modules (if we add any later)
+node_modules/
+
+# Cloudflare
+.wrangler/

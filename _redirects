@@ -1,0 +1,8 @@
+# Serve index.html for all routes (SPA-style)
+# This allows deep link paths to load the page which then handles the redirect
+/auth/*    /index.html   200
+/reset-password   /index.html   200
+/verify-email   /index.html   200
+
+# Catch-all for future routes
+/*    /index.html   200

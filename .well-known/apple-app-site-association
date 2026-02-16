@@ -1,0 +1,45 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": [
+          "7XGU6BN3K3.app.quilty.myquilty",
+          "7XGU6BN3K3.app.quilty.myquilty.staging",
+          "7XGU6BN3K3.app.quilty.myquilty.dev"
+        ],
+        "paths": [
+          "/auth/*",
+          "/reset-password",
+          "/verify-email",
+          "/magic-link"
+        ],
+        "components": [
+          {
+            "/": "/auth/*",
+            "comment": "All auth-related deep links"
+          },
+          {
+            "/": "/reset-password",
+            "?": {
+              "token": "*"
+            },
+            "comment": "Password reset magic links"
+          },
+          {
+            "/": "/verify-email",
+            "?": {
+              "token": "*"
+            },
+            "comment": "Email verification links"
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "7XGU6BN3K3.app.quilty.myquilty"
+    ]
+  }
+}
