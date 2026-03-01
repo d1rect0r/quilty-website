@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - Quilty</title>
+  <meta name="description" content="Privacy Policy for Quilty, a vaping cessation app by Quilty Tech, LLC.">
+  <meta name="theme-color" content="#0D9488">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #0A0A0F;
+      color: #CBD5E1;
+      line-height: 1.7;
+    }
+
+    a { color: #14B8A6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Nav ── */
+    nav {
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    nav a {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: #E2E8F0;
+    }
+
+    /* ── Content ── */
+    .content {
+      max-width: 740px;
+      margin: 0 auto;
+      padding: 3rem 2rem 4rem;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #F8FAFC;
+      margin-bottom: 0.5rem;
+    }
+
+    .last-updated {
+      color: #64748B;
+      font-size: 0.9rem;
+      margin-bottom: 2.5rem;
+    }
+
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #E2E8F0;
+      margin-top: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    p { margin-bottom: 1rem; }
+
+    ul, ol {
+      margin: 0.5rem 0 1rem 1.5rem;
+      color: #94A3B8;
+    }
+
+    li { margin-bottom: 0.4rem; }
+
+    strong { color: #E2E8F0; }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      border-top: 1px solid rgba(148, 163, 184, 0.08);
+      color: #475569;
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 600px) {
+      .content { padding: 2rem 1.5rem 3rem; }
+      h1 { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav><a href="/">Quilty</a></nav>
+
+  <div class="content">
+    <h1>Privacy Policy</h1>
+    <p class="last-updated">Last updated: March 1, 2026</p>
+
+    <p>Quilty Tech, LLC ("we", "our", or "us") operates the Quilty mobile application (the "App"). This Privacy Policy explains how we collect, use, and protect your information when you use our App.</p>
+
+    <h2>1. Information We Collect</h2>
+
+    <p><strong>Account Information:</strong> When you create an account, we collect your email address and, optionally, your name. You may also sign in using Google or Apple, in which case we receive a limited profile from that provider (name and email).</p>
+
+    <p><strong>Usage Data:</strong> The App records puff logs that you create, including timestamps, the input method used, and optional tags you assign (such as craving, social, or stress). If you choose to enable location tracking, approximate location may be attached to puff logs to help you identify patterns.</p>
+
+    <p><strong>Goals and Progress:</strong> Information about your reduction plans, daily limits, streaks, points, achievements, and journey progress is stored to provide a personalized experience.</p>
+
+    <p><strong>Device Information:</strong> If you pair a Bluetooth clicker or NFC tag, we store device identifiers and connection metadata to maintain pairing.</p>
+
+    <h2>2. How We Use Your Information</h2>
+    <ul>
+      <li>To provide and personalize the App's core features (tracking, reduction plans, gamification)</li>
+      <li>To sync your data across devices when you are online</li>
+      <li>To send you notifications you have opted into (reminders, achievement alerts)</li>
+      <li>To diagnose crashes and improve App stability</li>
+      <li>To understand aggregate usage patterns and improve the App</li>
+    </ul>
+
+    <h2>3. Data Storage and Security</h2>
+    <p>Your data is stored locally on your device in an <strong>encrypted database</strong> (SQLCipher). When you are online, data syncs to our cloud backend hosted on <strong>Supabase</strong>, which uses PostgreSQL with row-level security policies to ensure only you can access your data.</p>
+    <p>The App supports biometric authentication (Face ID, Touch ID, fingerprint) and two-factor authentication for additional account security.</p>
+
+    <h2>4. Third-Party Services</h2>
+    <p>We use the following third-party services, each with their own privacy policies:</p>
+    <ul>
+      <li><strong>Supabase</strong> — authentication and cloud data storage</li>
+      <li><strong>Sentry</strong> — crash reporting and error tracking (personal information is scrubbed)</li>
+      <li><strong>PostHog</strong> — product analytics to understand feature usage</li>
+      <li><strong>TelemetryDeck</strong> — privacy-safe telemetry with no personally identifiable information</li>
+      <li><strong>OneSignal</strong> — push notification delivery</li>
+      <li><strong>RevenueCat</strong> — subscription and in-app purchase management</li>
+      <li><strong>Cloudflare Turnstile</strong> — bot protection during authentication</li>
+    </ul>
+    <p>We do not sell your personal data to any third party.</p>
+
+    <h2>5. Your Rights</h2>
+    <p>You have the right to:</p>
+    <ul>
+      <li><strong>Access</strong> your data — you can export all of your data in JSON or CSV format at any time from the App settings</li>
+      <li><strong>Delete</strong> your account and all associated data — account deletion is available in the App settings and is completed after a 30-day grace period</li>
+      <li><strong>Opt out</strong> of optional data collection such as location tracking, analytics, and marketing communications</li>
+      <li><strong>Withdraw consent</strong> at any time through the App's privacy settings, managed via Usercentrics</li>
+    </ul>
+
+    <h2>6. Children's Privacy</h2>
+    <p>Quilty is not intended for use by anyone under the age of 18. We do not knowingly collect personal information from children. If we become aware that we have collected data from a child, we will delete it promptly.</p>
+
+    <h2>7. Data Retention</h2>
+    <p>We retain your data for as long as your account is active. If you delete your account, all data is permanently removed from our servers after a 30-day grace period during which you may cancel the deletion.</p>
+
+    <h2>8. Changes to This Policy</h2>
+    <p>We may update this Privacy Policy from time to time. We will notify you of significant changes through the App or by email. Continued use of the App after changes constitutes acceptance of the updated policy.</p>
+
+    <h2>9. Contact Us</h2>
+    <p>If you have questions about this Privacy Policy or your data, contact us at:</p>
+    <p>
+      <strong>Quilty Tech, LLC</strong><br>
+      Email: <a href="mailto:support@my-quilty.app">support@my-quilty.app</a>
+    </p>
+  </div>
+
+  <footer>
+    <p>&copy; 2025–2026 Quilty Tech, LLC. All rights reserved.</p>
+  </footer>
+
+</body>
+</html>

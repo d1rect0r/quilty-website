@@ -4,5 +4,8 @@
 /reset-password   /index.html   200
 /verify-email   /index.html   200
 
+# Privacy policy
+/privacy    /privacy.html   200
+
 # Catch-all for future routes
 /*    /index.html   200
