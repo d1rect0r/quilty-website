@@ -5,9 +5,51 @@ Thumbs.db
 # Editor files
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# Node modules (if we add any later)
+# Node / pnpm
 node_modules/
+.pnpm-store/
+pnpm-debug.log*
 
-# Cloudflare
-.wrangler/
+# Env files (NEVER commit real secrets)
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Turborepo
+.turbo/
+
+# SST 3.x (Pulumi under the hood)
+.sst/
+.open-next/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
+.lighthouseci/
+
+# Logs
+*.log
+logs/
+
+# Claude Code — local-only state
+.claude/settings.local.json
+.claude/.credentials.json
+.claude/projects/
+.claude/todos/
+.claude/shell-snapshots/
+.claude/statsig/
