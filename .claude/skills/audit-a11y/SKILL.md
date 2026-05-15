@@ -1,18 +1,32 @@
 ---
+name: audit-a11y
 description: Full accessibility audit using axe-core, Lighthouse, and a manual WCAG 2.2 AA checklist. Use before milestone push and quarterly thereafter. EAA compliance posture (EU, effective June 2025).
-allowed-tools: Bash(pnpm *), Bash(npx *), Read
+disable-model-invocation: true
+allowed-tools: Bash(pnpm *), Bash(npx @axe-core/cli *), Bash(npx lighthouse *), Bash(curl *), Bash(kill *), Read
 ---
 
 ## Instructions
 
 Run a three-pronged a11y audit against the local production build:
 
-1. **Build + start production server:**
+1. **Build + start production server** with explicit failure handling:
 
    ```bash
-   pnpm build && pnpm start &
+   if ! pnpm --filter web build; then
+     echo "BUILD FAILED — aborting a11y audit"
+     exit 1
+   fi
+   pnpm --filter web start &
    SERVER_PID=$!
-   sleep 5
+   trap "kill $SERVER_PID 2>/dev/null" EXIT
+   for i in 1 2 3 4 5 6 7 8 9 10; do
+     curl -sf http://localhost:3000 >/dev/null && break
+     sleep 1
+   done
+   if ! curl -sf http://localhost:3000 >/dev/null; then
+     echo "server failed to come up after 10s — aborting"
+     exit 1
+   fi
    ```
 
 2. **Automated scan with axe-core:**
@@ -27,7 +41,7 @@ Run a three-pronged a11y audit against the local production build:
    npx lighthouse http://localhost:3000 --only-categories=accessibility --quiet --chrome-flags="--headless"
    ```
 
-4. **Kill the server:** `kill $SERVER_PID`
+4. **Server cleanup**: the `trap` above kills the server on exit.
 
 5. **Apply the manual WCAG 2.2 AA checklist:**
    - Keyboard-only walkthrough of every interactive flow (Tab, Shift+Tab, Enter, ESC)
@@ -39,7 +53,7 @@ Run a three-pronged a11y audit against the local production build:
 
 6. **Report:**
    - axe violations count by severity
-   - Lighthouse score (must be >= 95 for milestone push)
+   - Lighthouse score (must be >= 95 for milestone push — same threshold as `/scaffold-page`)
    - Manual checklist pass/fail per category
 
 Critical failures must be filed as `[A11Y]` issues before push.

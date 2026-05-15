@@ -1,4 +1,5 @@
 ---
+name: update-strategy-doc
 description: Append a dated update-log entry to docs/website_strategy_discussion.md and surface any locked decisions for D-numbering. Use when a session locks a new strategic decision.
 argument-hint: [one-line-summary]
 ---

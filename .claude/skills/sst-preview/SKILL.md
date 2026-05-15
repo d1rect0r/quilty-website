@@ -1,7 +1,8 @@
 ---
+name: sst-preview
 description: Deploy a preview stage with SST 3.x. Reads the current branch name, sanitises it for AWS, and deploys to that stage. Reports the preview URL.
 disable-model-invocation: true
-allowed-tools: Bash(pnpm *), Bash(npx *), Bash(git *), Bash(aws *)
+allowed-tools: Bash(pnpm sst dev *), Bash(pnpm sst deploy *), Bash(pnpm sst diff *), Bash(sst dev *), Bash(sst deploy *), Bash(sst diff *), Bash(git branch *), Bash(git rev-parse *), Bash(aws sts get-caller-identity *), Bash(aws cloudformation describe-stacks *), Bash(open *)
 argument-hint: [optional-stage-suffix]
 ---
 
@@ -14,7 +15,7 @@ argument-hint: [optional-stage-suffix]
 Compute the stage name:
 - Take the current branch above
 - Lowercase, replace non-alphanumerics with `-`, truncate to 30 chars
-- Append `-$0` if an argument was passed
+- Append `-$1` if an argument was passed
 
 Then run:
 
@@ -29,4 +30,4 @@ When the deploy completes:
 
 If the deploy fails, do NOT retry. Print the error and stop.
 
-**Never deploy to a production stage from this skill** — that requires explicit user authorization and goes through CI per `feedback_push_per_phase`.
+**Never deploy to a production stage from this skill** — that requires explicit user authorization and goes through CI per `feedback_push_per_phase`. `guard-bash.sh` enforces this mechanically.

@@ -1,4 +1,5 @@
 ---
+name: generate-adr
 description: Create a new ADR (Architecture Decision Record) in docs/adr/ with the next sequential number and a populated template covering context, decision, consequences, and links. Use when finalising a design choice.
 argument-hint: [adr-title-in-kebab-case]
 ---
@@ -10,10 +11,10 @@ argument-hint: [adr-title-in-kebab-case]
 
 Compute the next ADR number from the highest existing above (e.g. `0007-foo.md` → next is `0008`). If no ADRs exist, start at `0001`.
 
-Create `docs/adr/<NNNN>-$0.md` with this template (replace placeholders, do NOT leave them as TODOs — ask the user if you don't know):
+Create `docs/adr/<NNNN>-$1.md` with this template (replace placeholders, do NOT leave them as TODOs — ask the user if you don't know):
 
 ```markdown
-# <NNNN>. <Title from $0, title-cased>
+# <NNNN>. <Title from $1, title-cased>
 
 Date: <today YYYY-MM-DD>
 Status: Proposed

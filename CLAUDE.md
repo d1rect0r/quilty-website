@@ -25,10 +25,14 @@ The strategy doc is authoritative for D1-D49 with full rationale. The workflow d
 ## Stack (locked)
 
 - **Framework:** Next.js 16 App Router + TypeScript strict (D1)
-- **Styling:** Tailwind v4 with 3-layer token namespace (primitive → semantic → component) + shadcn/ui in `components/ui/` with wrap-don't-edit (D17, D18)
+- **Styling:** Tailwind v4 CSS-first (`@theme` block in `apps/web/app/globals.css`, no `tailwind.config.js`) + 3-layer token namespace (primitive → semantic → component) + shadcn/ui in `apps/web/components/ui/` with wrap-don't-edit (D17, D18)
 - **Icons:** Lucide React (D19)
 - **Deploy:** SST 3.x (OpenNext underneath) to AWS (D2)
-- **Repo structure:** Turborepo + pnpm workspaces (`apps/web` + `packages/ui` + `packages/shared-types`) (D4)
+- **Repo structure:** Turborepo + pnpm workspaces — `apps/web` (the Next.js app) + `packages/ui` (workspace scaffolded EMPTY, populated only at extraction trigger per D49) + `packages/shared-types` (OpenAPI codegen target, empty at scaffold) (D4)
+- **Workspace `package.json` `name:` fields (locked — hooks + skills depend on these):**
+  - `apps/web/package.json` → `"name": "web"`
+  - `packages/ui/package.json` → `"name": "@quilty/ui"`
+  - `packages/shared-types/package.json` → `"name": "@quilty/shared-types"`
 - **Observability:** Sentry Business tier (errors + RUM) from day-one; Amplitude (matches mobile choice) added pre-launch (D42a, D42b)
 - **Logs:** CloudWatch — server-side only, zero PHI (D42d)
 - **Feature flags:** Typed `features.ts` env-var module day-one; GrowthBook self-hosted at trigger point (D43)
@@ -90,20 +94,16 @@ Tokens never reach the browser (BFF pattern, D5). PHI never reaches the website 
 
 ---
 
-## Working patterns (TBD — formalize after M1-M2 lived experience)
+## Working patterns
 
-Initial defaults inherited from `quilty-aws` work patterns:
+- Trunk-based on `main`, feature branches for non-trivial work
+- Atomic commits per logical unit
+- Push only at milestone boundaries (M1, M2, …) per `feedback_push_per_phase`
+- ADRs in `docs/adr/` for non-obvious choices
+- 3-agent QA loops after autonomous milestone closure via `/run-qa-loop`
 
-- **Drive:** Autonomous Claude execution with milestone-boundary checkpoints
-- **Code review:** Broad-trust on autonomous changes (calibrated trust pattern)
-- **3-agent QA loops** after autonomous milestone closure (mirrors W2-B.3 pattern)
-- **Testing:** After-the-fact for UI; before for non-trivial logic
-- **Branch strategy:** Trunk-based on `main`, feature branches for non-trivial work
-- **Commit cadence:** Atomic commits per logical unit
-- **Push authorization:** Per-milestone (M1, M2, ...) per `feedback_push_per_phase` memory
-- **Decision logging:** ADRs in `docs/adr/` for non-obvious choices
-
-Don't formalize these until we have signal from real M1-M2 work — discover the right patterns, then document.
+Patterns to formalize after M1-M2 lived experience are in
+`~/.claude/projects/-Users-d1rect0r-interneta-AppBuilding-quilty-website/memory/project/working_patterns_tbd.md`.
 
 ---
 
@@ -114,7 +114,7 @@ Don't formalize these until we have signal from real M1-M2 work — discover the
 - Atomic commits per logical unit
 - Conventional commit prefixes: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `style`
 - Push only at milestone boundaries per `feedback_push_per_phase` user memory
-- Commit messages end with: `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`
+- Commit messages end with: `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>` (Claude Code's `includeCoAuthoredBy` is set to `false` in this repo's settings.json, so Claude appends the trailer manually in every commit — do not skip it)
 
 ---
 
@@ -125,7 +125,7 @@ Don't formalize these until we have signal from real M1-M2 work — discover the
 - Include PHI in CloudFront cache, Lambda logs, browser state, or third-party scripts
 - Load analytics/marketing SDKs before user consent (D35; the Cerebral $7M lesson)
 - Co-locate marketing site with PHI-handling services in the same AWS account (Phase 1 trigger separates this)
-- Edit `components/ui/` (shadcn primitives) directly — wrap them in `components/app/` instead (D18)
+- Edit `apps/web/components/ui/` (shadcn primitives) directly — wrap them in `apps/web/components/app/` instead (D18; PreToolUse hook enforces this mechanically)
 - Use git submodules for cross-repo type sharing (universally regretted; use OpenAPI codegen or published packages)
 - Adopt Backstage or commercial IDP below ~10 engineers (premature)
 - Build the blog, full CMS, sitewide search, A/B testing, or hosted help center pre-launch (all triggered work)
@@ -145,12 +145,28 @@ Don't formalize these until we have signal from real M1-M2 work — discover the
 
 ## Memory
 
-Project memory currently lives in the `quilty-aws` Claude project memory directory (this repo doesn't have its own memory dir yet). When website work gets its own dedicated Claude session, memory pointer will be at:
+Project memory index: `~/.claude/projects/-Users-d1rect0r-interneta-AppBuilding-quilty-website/memory/MEMORY.md`
 
-`~/.claude/projects/-Users-d1rect0r-interneta-AppBuilding-quilty-website/memory/MEMORY.md`
+Read MEMORY.md first when picking up any task — it indexes locked decisions (D1-D49), M1 pre-scaffold state, inherited feedback (push-per-phase, build-the-good-thing, etc.), and reference notes (Next.js 16 + SST 3.x + HIPAA boundary).
 
-Until bootstrapped, refer to the cross-project memory entry:
-`~/.claude/projects/-Users-d1rect0r-interneta-AppBuilding-quilty-aws/memory/project/website_strategy_locked_2026-05-14.md`
+Cross-repo: `~/.claude/projects/-Users-d1rect0r-interneta-AppBuilding-quilty-aws/memory/project/website_strategy_locked_2026-05-14.md` has the original lock-down context if needed.
+
+---
+
+## First-session bootstrap (one-time per workstation)
+
+Before the first M1 session in this repo:
+
+1. `cp .claude/settings.local.json.template .claude/settings.local.json` (the local file is gitignored)
+2. `aws sso login --profile quilty-dev` (Phase 0 deploys to the `development` account — verify your SSO profile name matches your AWS config)
+3. `export GITHUB_PAT=<fine-grained PAT>` if using the GitHub MCP server
+4. `export CONTEXT7_API_KEY=<key>` if using the Context7 docs MCP server
+5. Confirm signing key: `git config --get user.signingkey` should match `~/.ssh/id_ed25519_signing.pub`
+6. Confirm gitleaks installed: `which gitleaks` (the commit guard depends on it)
+7. Sentry MCP authenticates on first `/mcp` invocation via OAuth — accept the prompt
+8. Open a new Claude Code session in this directory; the SessionStart hook injects git + phase context
+
+The `.claude/CURRENT_PHASE` file is committed at `M1`; bump it at each milestone boundary (`echo M2 > .claude/CURRENT_PHASE && git add … && git commit`).
 
 ---
 
@@ -159,7 +175,7 @@ Until bootstrapped, refer to the cross-project memory entry:
 Will be filled in once Next.js + SST scaffold lands. Will include:
 - `pnpm install` — install deps
 - `pnpm sst dev --stage <name>` — local development with live Lambda
-- `pnpm sst deploy --stage production` — production deploy
-- `pnpm test` — Vitest unit + Playwright e2e + a11y
+- `pnpm sst deploy --stage <stage>` — preview/prod deploys (prod requires explicit human authorization; `guard-bash.sh` blocks `--stage prod`/`production`)
+- `pnpm test` — Vitest unit; `pnpm test:e2e` — Playwright; `pnpm test:a11y` — axe-core
 
 Until then: see `docs/website_workflow_roadmap.md` § M1 for the exact deliverable list.

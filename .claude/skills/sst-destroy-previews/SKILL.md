@@ -1,7 +1,8 @@
 ---
+name: sst-destroy-previews
 description: Destroy stale SST preview stages whose git branch no longer exists on origin. Use periodically to clean up cost-bearing preview deployments.
 disable-model-invocation: true
-allowed-tools: Bash(pnpm *), Bash(npx *), Bash(git *), Bash(aws *)
+allowed-tools: Bash(pnpm sst remove *), Bash(sst remove *), Bash(git ls-remote *), Bash(aws cloudformation list-stacks *), Bash(aws cloudformation describe-stacks *)
 ---
 
 ## Live stages
@@ -19,3 +20,5 @@ allowed-tools: Bash(pnpm *), Bash(npx *), Bash(git *), Bash(aws *)
 7. Report which succeeded and which failed.
 
 **Never destroy `production`, `staging`, or `main`** even if explicitly asked — print an error and stop. Those require manual destruction with explicit user approval through a different process.
+
+Note: `guard-bash.sh` blocks bare `sst remove` / `pnpm sst remove` (without `--stage` constraints) at the PreToolUse level as defense-in-depth.

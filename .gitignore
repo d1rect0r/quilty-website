@@ -18,11 +18,21 @@ pnpm-debug.log*
 .env.*
 !.env.example
 !.env.*.example
+*.local
+.dev.vars
 
 # Next.js
 .next/
 out/
 next-env.d.ts
+.swc/
+.cache/
+.next/analyze/
+analyze/
+
+# Vercel / Netlify (foot-guns even though we deploy via SST)
+.vercel/
+.netlify/
 
 # Turborepo
 .turbo/
@@ -36,11 +46,23 @@ dist/
 build/
 *.tsbuildinfo
 
+# OpenAPI codegen target (regenerated from Rust backend)
+packages/shared-types/src/generated/
+
 # Test artifacts
 coverage/
 playwright-report/
 test-results/
 .lighthouseci/
+
+# Storybook (if added)
+storybook-static/
+
+# Sentry CLI auth
+.sentryclirc
+
+# AWS SSO cache (in case anyone runs aws CLI locally)
+.aws-sso/
 
 # Logs
 *.log
@@ -53,3 +75,4 @@ logs/
 .claude/todos/
 .claude/shell-snapshots/
 .claude/statsig/
+.claude/sst-audit.log

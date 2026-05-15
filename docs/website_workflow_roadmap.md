@@ -520,7 +520,7 @@ Full text in `website_strategy_discussion.md`. This is the one-line summary for 
 | D1 | Framework | Next.js 16 App Router + TypeScript |
 | D2 | Deploy | SST (OpenNext) on AWS |
 | D3 | App layout | Single Next.js app for marketing + `/account/*` portal |
-| D4 | Monorepo | Turborepo + pnpm; apps/website + packages/ui + packages/shared-types |
+| D4 | Monorepo | Turborepo + pnpm; apps/web + packages/ui + packages/shared-types |
 | D5 | BFF | Next.js Route Handlers (TS Lambda) — Option A locked |
 | D6 | Auth boundary | Cognito Hosted UI at auth.my-quilty.com |
 | D7 | Cookie scope | `__Host-` prefix, per-subdomain (NOT parent-domain shared) |

@@ -1,14 +1,15 @@
 ---
+name: scaffold-component
 description: Scaffold a new shadcn-wrapped component with our 3-layer token namespace, a11y baseline, and a colocated test. Use when the user asks to create a new UI primitive or feature component.
 argument-hint: [ComponentName] [primitive|feature]
 ---
 
-Scaffold component `$0` as a `$1` (primitive or feature).
+Scaffold component `$1` as a `$2` (primitive or feature).
 
 ## Conventions for this project
 
-- **Primitives** live under `components/ui/<name>.tsx` and wrap a shadcn/radix primitive (these are owned code, wrap-don't-edit rule per D18)
-- **Feature components** live under `components/<area>/<name>.tsx` and compose primitives
+- **Primitives** live under `apps/web/components/ui/<name>.tsx` and wrap a shadcn/radix primitive (owned code, wrap-don't-edit per D18; direct edits to this directory are blocked by `guard-write.sh`)
+- **Feature components** live under `apps/web/components/<area>/<name>.tsx` and compose primitives
 - All `className` uses the 3-layer token namespace per D17: `bg-surface-base`, `text-content-primary`, etc. — never raw Tailwind color utilities like `bg-blue-500`
 - Every component exports a single named component (no default exports) and a types file if props are non-trivial
 - Every interactive primitive supports `asChild` via Radix Slot and forwards refs
@@ -36,4 +37,4 @@ Generate three things:
 
 ## After generating
 
-Run `pnpm typecheck && pnpm test -- <Name>` and report results. Do NOT push.
+Run `pnpm --filter web typecheck && pnpm --filter web test -- <Name>` and report results. Do NOT push.
