@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { JsonLd } from '@/components/seo/JsonLd';
+import { WebVitalsReporter } from '@/lib/observability/web-vitals';
 import { buildOrganizationJsonLd } from '@/lib/seo/schemas';
 import './globals.css';
 
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body>
         <JsonLd data={buildOrganizationJsonLd(siteUrl)} />
+        <WebVitalsReporter />
         {children}
       </body>
     </html>
