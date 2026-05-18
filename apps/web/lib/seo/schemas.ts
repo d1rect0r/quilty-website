@@ -90,13 +90,20 @@ export interface MedicalWebPageInput {
 export function buildMedicalWebPageJsonLd(input: MedicalWebPageInput): JsonLd {
   // Spread-conditional pattern (safer under exactOptionalPropertyTypes than
   // post-declaration mutation — Round-5 TS reviewer finding).
+  //
+  // `medicalAudience: Patient` per Round-5 SEO reviewer — schema.org spec
+  // recommends this for AI-overview grounding (ChatGPT/Claude/Perplexity
+  // weigh medicalAudience when deciding whether to cite). Quilty's clinical
+  // content is patient-facing, not clinician-facing.
   return {
     '@context': 'https://schema.org',
     '@type': 'MedicalWebPage',
+    '@id': input.url,
     url: input.url,
     name: input.name,
     description: input.description,
     inLanguage: 'en-US',
+    medicalAudience: { '@type': 'MedicalAudience', audienceType: 'Patient' },
     ...(input.lastReviewed !== null && { lastReviewed: input.lastReviewed }),
     ...(input.reviewedBy !== null && {
       reviewedBy: { '@type': 'Person', name: input.reviewedBy },
