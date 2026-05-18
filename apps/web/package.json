@@ -1,0 +1,37 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Quilty public website — Next.js 16 App Router + TypeScript strict.",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint --dir app --dir components --dir lib",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'vitest config lands in Commit 8' && exit 0",
+    "test:a11y": "echo 'playwright + axe config lands in Commit 8' && exit 0",
+    "test:e2e": "echo 'playwright config lands in Commit 8' && exit 0",
+    "clean": "rm -rf .next .turbo .velite *.tsbuildinfo"
+  },
+  "dependencies": {
+    "next": "16.2.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "next-intl": "4.0.0",
+    "lucide-react": "0.460.0",
+    "clsx": "2.1.1",
+    "class-variance-authority": "0.7.1",
+    "tailwind-merge": "2.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@types/react": "19.0.2",
+    "@types/react-dom": "19.0.2",
+    "tailwindcss": "4.0.0",
+    "@tailwindcss/postcss": "4.0.0",
+    "postcss": "8.5.0",
+    "typescript": "5.7.2"
+  }
+}

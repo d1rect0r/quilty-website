@@ -1,0 +1,20 @@
+{
+  "name": "@quilty/shared-types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenAPI-emitted TypeScript types from the Rust backend. Empty at M1; populated post-M5 via ADR-0003 pipeline (utoipa -> openapi-typescript -> @quilty/api-types -> re-export here).",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": ["src"],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "echo 'no build at M1' && exit 0",
+    "lint": "echo 'no lint at M1' && exit 0",
+    "test": "echo 'no tests at M1' && exit 0",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo"
+  },
+  "devDependencies": {
+    "typescript": "5.7.2"
+  }
+}
