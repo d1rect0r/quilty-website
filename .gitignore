@@ -37,9 +37,12 @@ analyze/
 # Turborepo
 .turbo/
 
-# SST 3.x (Pulumi under the hood)
+# SST 4.x (Ion engine, Pulumi underneath)
 .sst/
 .open-next/
+
+# Velite (content layer compiler — emits to .velite/ at apps/web/)
+.velite/
 
 # Build outputs
 dist/

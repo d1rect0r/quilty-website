@@ -1,0 +1,23 @@
+# Workspace declarations for Turborepo + pnpm.
+#
+# Per ADR-0001 + D69: M1 ships exactly two workspaces.
+# - apps/web (workspace name "web") — the Next.js 16 product surface
+# - packages/shared-types (workspace name "@quilty/shared-types") — OpenAPI codegen consumer (populated post-M5)
+#
+# packages/ui is intentionally NOT scaffolded at M1; create when the first real
+# extraction trigger fires (per D69 / ADR-0001).
+
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Strictness flags. The audit + Round-5 monorepo agent flagged that lax peer-dep
+# resolution + dedupe drift are the dominant cause of "works on my machine"
+# breakage. These settings keep installs reproducible across dev, CI, and
+# Lambda build environments.
+#
+# `catalog:` block intentionally omitted at M1 — pnpm 10 warns on empty
+# catalogs and some subcommands error. Add the block (with at least one
+# entry) in the same commit that introduces the first shared version pin
+# (typically typescript / @types/node, when apps/web/package.json lands
+# in Commit 4).
