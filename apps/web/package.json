@@ -12,8 +12,10 @@
     "lint": "next lint --dir app --dir components --dir lib",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:a11y": "echo 'playwright + axe config lands in Commit 8' && exit 0",
-    "test:e2e": "echo 'playwright config lands in Commit 8' && exit 0",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:a11y": "playwright test --grep @a11y",
+    "test:e2e": "playwright test",
     "clean": "rm -rf .next .turbo .velite *.tsbuildinfo"
   },
   "dependencies": {
@@ -40,6 +42,13 @@
     "@tailwindcss/postcss": "4.0.0",
     "postcss": "8.5.0",
     "typescript": "5.7.2",
-    "vitest": "2.1.8"
+    "vitest": "2.1.8",
+    "@vitejs/plugin-react": "4.3.4",
+    "@testing-library/react": "16.1.0",
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/user-event": "14.5.2",
+    "jsdom": "25.0.1",
+    "@playwright/test": "1.49.1",
+    "@axe-core/playwright": "4.10.2"
   }
 }
