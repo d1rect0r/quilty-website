@@ -36,7 +36,7 @@ Locked after 2-round research synthesis (Round 1: scope + regulatory + integrati
 | # | Decision | Rationale |
 |---|---|---|
 | D1 | **Next.js 16+ App Router + TypeScript** | Dominant 2025-2026 framework for consumer marketing + portal. Path to Duolingo/Headspace scale without rewrite. Best AI-assist coverage. App Router enables BFF pattern natively. |
-| D2 | **SST (uses OpenNext under hood) on AWS** | Production-viable in 2026 (Gymshark/Udacity/NHS England in production). Maintains primitive control for HIPAA. Next.js 16.2 stable Adapter API. Avoid Amplify Hosting (loses primitive control, muddier HIPAA boundary). |
+| D2 | **SST 4.x (Ion engine, Pulumi underneath) on AWS, pinned to `^4.14`** *(revised Round 5)* | Production-grade in 2026. SST is actively shipping — v4.14.1 released 2026-05-12, 100+ commits in last 90 days (verified at github.com/sst/sst). The "maintenance mode" narrative from one external blog post is false. Next.js 16.2 stable Adapter API. Maintains primitive control for HIPAA. Avoid Amplify Hosting (loses primitive control, muddier HIPAA boundary). |
 | D3 | **Single Next.js app for marketing AND `/account/*` portal** (NOT split into separate SPAs) | Same-app pays off at 1-founder scale (Formcake case study). Cheap to split later if portal becomes real-time SPA-shaped. Splitting later = days; unifying later = SEO debt for years. |
 | D4 | **Turborepo + pnpm workspaces** with `apps/web` + `packages/ui` + `packages/shared-types` (workspace `name:` fields locked: `web`, `@quilty/ui`, `@quilty/shared-types`) | Day-one structure. Shared TypeScript types between website and backend Lambdas (Track A). Nx and Bazel are TRAP at our scale. **Phase 0:** shadcn primitives ship at `apps/web/components/ui/`; `packages/ui/` is the future workspace (exists empty until extraction trigger per D49). |
 | D5 | **BFF pattern via Next.js Route Handlers** (no client→API GW direct) | IETF OAuth Browser-Based Apps BCP (Dec 2025) endorses BFF as default. PHI traverses server-side; retrofitting client-direct calls is a rewrite. Tokens never in browser. |
@@ -45,12 +45,12 @@ Locked after 2-round research synthesis (Round 1: scope + regulatory + integrati
 
 | # | Decision | Rationale |
 |---|---|---|
-| D6 | **Cognito Hosted UI at `auth.my-quilty.com`** | Isolated auth attack surface. WAF/threat-protection built-in. Supports passkeys + TOTP from W2-B.2. OAuth redirect contract is portable. Custom UI = premature differentiation. |
+| D6 | **Cognito Managed Login (Nov 2024 redesign) at `auth.my-quilty.com`** *(wording revised Round 5)* | Isolated auth attack surface. WAF/threat-protection built-in. Managed Login (the redesigned UI shipped Nov 2024, supersedes classic Hosted UI) is the only path to passkeys (WebAuthn), email MFA, choice-based auth, `prompt=login`, and the branding editor — classic Hosted UI lacks these. OAuth redirect contract is portable. Custom UI = premature differentiation. |
 | D7 | **`__Host-` prefix on session cookies + OIDC code flow per subdomain** (REVISED from earlier "parent-domain `.my-quilty.com` cookies") | `__Host-` is browser-enforced binding; mutually exclusive with parent-domain cookies. OIDC-per-subdomain has narrower XSS blast radius and survives Safari ITP edge cases. Operationally slightly more complex; structurally much safer. |
 | D8 | **SameSite=Lax** (not Strict) | Strict breaks consumer email-link-to-logged-in flow. Lax + double-submit CSRF = OWASP compliant. |
-| D9 | **OIDC Backchannel Logout with `sid` claim** | Cognito supports it. Wire endpoint now even if "sign out everywhere" UX ships later — retrofitting `sid` plumbing is painful. |
+| D9 | **Cognito-native logout + BFF-maintained opaque session-ID + EventBridge fan-out** *(revised Round 5 — supersedes the original "OIDC Backchannel Logout with `sid` claim" wording)* | **Cognito does NOT support OIDC Back-Channel Logout** (the `/.well-known/openid-configuration` does not advertise `backchannel_logout_supported`; ID tokens do not emit the `sid` claim). The realistic enterprise pattern: front-channel `/logout` redirect + `AdminUserGlobalSignOut` API + our BFF maintains its own opaque session-ID map in DynamoDB + EventBridge bus (`quilty.auth.sessions_revoked`) fans out revocation to web BFF + Rust backend revocation cache. Reserve `/api/auth/backchannel-logout` Route Handler stub for the day Cognito ships native BCL. See `docs/research/round_5_independent_review/04-auth-session-cognito.md` + ADR-0002. |
 | D10 | **Signed double-submit CSRF token + custom `X-Quilty-CSRF` header** at BFF | OWASP 2025-2026 still requires it; SameSite=Lax is defense-in-depth, not replacement. Cheap. |
-| D11 | **Mobile-web sessions are independent**, joined by `sid`, propagated by backchannel logout. **NOT** OIDC Native SSO (token sharing) | Native SSO = enterprise SSO complexity, premature for our scale. |
+| D11 | **Mobile-web sessions independent, joined by `cognito_sub` + locally-minted `quilty_sid`**, cross-device sign-out propagated via EventBridge bus. **NOT** OIDC Native SSO (token sharing). *(Wording revised Round 5: Cognito does not emit the OIDC spec's `sid` claim, so our session-link identifier is our own — naming it `quilty_sid` avoids future devs conflating with the spec claim.)* | Native SSO = enterprise SSO complexity, premature for our scale. The `quilty_sid` is our BFF-issued opaque session ID; mobile and web sessions share `cognito_sub` (the Cognito user identifier) for cross-device fan-out via EventBridge. |
 
 ### Domain + Routing
 
@@ -66,7 +66,7 @@ Locked after 2-round research synthesis (Round 1: scope + regulatory + integrati
 
 | # | Decision | Rationale |
 |---|---|---|
-| D17 | **Tailwind CSS v4 + `@theme` with 3-layer token namespace** (primitive → semantic → component) | Every enterprise design system converged on 3-layer. Tailwind v4's `@theme` gives both utility class + CSS custom property. Name tokens now even if half empty. |
+| D17 | **Tailwind CSS v4 CSS-first `@theme` block in `apps/web/app/globals.css` (NO `tailwind.config.ts` file) with 3-layer token namespace** (primitive → semantic → component) *(clarified Round 5 — roadmap M1 deliverable list had drifted to mention `tailwind.config.ts`; fixed)* | Every enterprise design system converged on 3-layer. Tailwind v4's `@theme` gives both utility class + CSS custom property. Name tokens now even if half empty. CSS-first = no JS config file; tokens live in `globals.css` and become both utility classes and CSS custom properties at build time. |
 | D18 | **shadcn/ui components in `components/ui/` + wrap-don't-edit rule**; in-house components in `components/app/` | shadcn is code we own. Convention = no code cost; defers monorepo extraction. |
 | D19 | **Lucide React icons** | 29M weekly downloads; tree-shakes per-icon; ~1KB per icon; integrates with shadcn defaults. |
 | D20 | **Dark-mode-ready CSS variable architecture** (light tokens ship now; `[data-theme="dark"]` switch hook ready; dark theme rolls out later) | Retrofit cost of skipping = 2-3 months industry average. Architecture lock = O(1). |
@@ -86,7 +86,7 @@ Locked after 2-round research synthesis (Round 1: scope + regulatory + integrati
 | D24 | **Pages as typed block arrays** (even in MDX): `page = { hero, valueProps[], faq[], cta }` | Ports cleanly to Sanity/Contentful when migration triggers. Free-form .mdx blob does not. |
 | D25 | **next-intl** (App Router) — dominant 2026 choice | next-translate fading; Lingui has bundle-size edge but smaller ecosystem. |
 | D26 | **Metadata baseline**: `metadataBase` in root layout, per-route `generateMetadata`, absolute canonical URLs, `app/sitemap.ts` + `app/robots.ts` at launch | 30 min of work; gate to indexing. |
-| D27 | **Schema.org baseline**: `MedicalWebPage` for any clinical content + `Organization` + `SoftwareApplication` + `FAQPage`; include `lastReviewed` + `reviewedBy` on clinical content | AI-search citation rates rising 78-94% for sites with connected schema graphs. HIPAA-credibility + E-E-A-T signal. |
+| D27 | **Schema.org baseline**: `Organization` + `SoftwareApplication` + `WebSite` + `BreadcrumbList` for SERP weight (still rich-result-eligible). `MedicalWebPage` for any clinical content (including `/science`) with `lastReviewed` + `reviewedBy`. `FAQPage` still emitted *(revised Round 5)* — but understand: **Google retired FAQPage rich-result eligibility on 2026-05-07** for most sites; MedicalWebPage was never a Google-rich-result-supported type. Both now serve AI-overview citation graphs (ChatGPT, Claude, Perplexity read connected JSON-LD heavily in 2026), not SERP rich results. | AI-search citation rates rising 78-94% for sites with connected JSON-LD graphs. HIPAA-credibility + E-E-A-T signal. Reset expectations: FAQPage/MedicalWebPage = AI-overview win, not SERP win. Organization + SoftwareApplication carry the SERP weight. |
 | D28 | **RUM tracking INP/LCP/CLS from day one** | INP replaced FID March 2024. Threshold ≤200ms p75. Can't fix what you don't measure. |
 | D29 | **Marketing-page block library**: Hero, ValueProp, FeatureGrid, FAQ, TestimonialQuote, CTABanner | Non-engineer can compose new landing page later. Same shape as D24. |
 | D30 | **MDX in repo initially**; migrate to Sanity (field-level i18n) or Contentful when content volume + non-engineering authors justify | Migration triggered by need, not premature complexity. CMS day-one = TRAP. |
@@ -98,9 +98,9 @@ Locked after 2-round research synthesis (Round 1: scope + regulatory + integrati
 | D31 | **Zero-PHI website**: marketing + sign-in + account-management surfaces only; PHI stays mobile + sync | Collapses threat surface. Critical anti-OCR control given Cerebral/Monument precedent. |
 | D32 | **CSP nonce + strict-dynamic** plumbing from day one (report-only initially → enforce when clean) | Web Almanac 2025: CSP is the single most retrofit-hostile header (21.9% adoption, only ~10% strict-dynamic). Build inline-script discipline into framework choice. |
 | D33 | **Security headers baseline**: HSTS preload, frame-ancestors deny, Referrer-Policy `strict-origin-when-cross-origin`, Permissions-Policy default-deny `camera`/`microphone`/`geolocation` | One-line ops, large structural protection. |
-| D34 | **SRI on third-party scripts** (Stripe.js + 2-3 analytics scripts) — NOT blanket SRI | Real-world SRI median 2.82% per page; selective coverage is correct. |
+| D34 | **SRI on first-party `_next/static/*` bundled at build time only; Stripe.js and analytics scripts rely on nonce + strict-dynamic + CSP reporting** *(revised Round 5)* | **Stripe explicitly does not publish SRI hashes for `js.stripe.com/v3/`** (they push updates continuously for PCI/fraud compliance — adding SRI to Stripe.js will eventually break checkout silently). Same for Google Analytics/Tag Manager/Meta Pixel/Intercom/Hotjar — Bitsight and SecurityScorecard both maintain explicit SRI-exclusion allowlists. Compliant path per PCI DSS 4.0 §6.4.3 + §11.6.1: `script-src` allowlist + nonce + strict-dynamic + CSP reporting (Sentry sink, D61) as the compensating control. Add Puppeteer-based synthetic tamper-detection at M7 when Stripe.js lands. |
 | D35 | **Server-side ConsentState single source of truth**; SDK-load gated by consent; GPC `Sec-GPC` honored at edge | Cerebral $7M + Monument ban + $100M+ pixel-tracking penalties = consent-gating is the load-bearing control. Banner UI is cosmetic. |
-| D36 | **CycloneDX SBOM generation in CI** (mirrors backend Trivy/checkov) + Dependabot + lockfile pinning | Same Sigstore signing seam as backend. |
+| D36 | **CycloneDX SBOM generation in CI** (mirrors backend Trivy/checkov) + **Renovate (with 72h `minimumReleaseAge` + monorepo grouping)** + lockfile pinning *(Round-5 revised — Dependabot dropped in favor of Renovate as the canonical 2026 enterprise dependency manager; Renovate handles security alerts + routine updates + automerge tiers more flexibly than Dependabot's GitHub-native-only model)* | Same Sigstore signing seam as backend. Renovate's `minimumReleaseAge: 4320` (72h) protects against typosquat-window CVEs; group-by-monorepo reduces PR noise. |
 | D37 | **CloudFront WAF managed rules + Cloudflare Turnstile** on auth/signup forms | Free, privacy-friendly. Custom rate limits = ADDITIVE post-launch. |
 
 ### Observability + Audit
@@ -111,8 +111,8 @@ Locked after 2-round research synthesis (Round 1: scope + regulatory + integrati
 | D39 | **Web mutations use the same `/v1/*` endpoints as mobile** with traceparent + Idempotency-Key + `channel: "web"` tag at API gateway boundary | DDB Streams → Firehose → S3 Object Lock audit pipeline already exists; web is just another client. Do NOT build a web-specific audit sink. |
 | D40 | **Session replay default mask-all, allowlist non-PHI elements only**; document in BAA scope | Mental-health site = high sensitivity. |
 | D42a | **Sentry Business tier for errors + Core Web Vitals (RUM)** day-one + thin `logError()` abstraction module | Best-in-class error monitoring, lowest friction, BAA-eligible at ~$26-80/mo. Will actually get used. |
-| D42b | **Amplitude for product analytics** (pre-launch / Milestone 7-8) + thin `track()` abstraction module | Mobile already on Amplitude; cross-platform consolidation dominates per-platform feature comparison. Single source of truth for product decisions. Industry standard for consumer-health (Headspace, Calm). |
-| D42c | **Session replay decision deferred to pre-launch** — Amplitude Session Replay (consolidate) vs FullStory/LogRocket (specialist) | Amplitude Session Replay matures over time; real debug needs at pre-launch inform the call. |
+| D42b | **Web tier: PostHog Cloud Boost ($250/mo) for analytics + replay + flags + experiments under a single BAA. Mobile keeps Amplitude (separate contract).** Thin `track()` adapter abstracts vendor. *(Revised Round 5 — was "Amplitude pre-launch for web")* | Amplitude HIPAA BAA is **Enterprise-tier only** ($20K-$100K+/yr) — disproportionate cost-cliff for a 1-eng pre-revenue site. Amplitude Session Replay also has a documented HTML-attribute leak (`alt`, `title`, `placeholder`, `aria-label`, `value`, `data-*` remain visible) that is unacceptable on a HIPAA-aligned clinical surface (per Cerebral lesson). PostHog Cloud Boost covers analytics + replay + flags + experiments + error tracking under one BAA at $250/mo, with attribute-masking-by-default. Mobile keeps Amplitude (existing contract, smaller attribute surface). Cross-platform user identity reconciled via shared `user_id` from Rust backend; warehouse-native cohort analysis activates at trigger. |
+| D42c | ~~Session replay decision deferred to pre-launch~~ — **RESOLVED Round 5 by D68**: Sentry replay (error-triggered, mask-all defaults) + PostHog replay (consent-gated, sampled), both with `block`-class on every clinical-state-implying control. FullStory/LogRocket/Amplitude Session Replay rejected (attribute-leak, separate BAAs, no offsetting capability gain). | Sentry SDK already in stack for D42a (zero new BAA); PostHog already chosen for D42b (zero new BAA). |
 | D42d | **CloudWatch for server-side logs** | Already in our AWS substrate; free; integrates with existing observability. |
 
 ### Feature Flags
@@ -120,13 +120,13 @@ Locked after 2-round research synthesis (Round 1: scope + regulatory + integrati
 | # | Decision | Rationale |
 |---|---|---|
 | D41 | **Server-side feature flag evaluation with local cache** (SSR-evaluated flags, NOT client-only) | LaunchDarkly Oct 2025 outage lesson: server-side + local cache survives vendor outages. Client-only flags = TRAP. |
-| D43 | **Typed `features.ts` env-var module day-one; GrowthBook self-hosted at trigger point** | No tool needed until runtime-toggle pain is real (need toggle without redeploy OR non-dev flipping flags OR real A/B testing). GrowthBook keeps flags purpose-built and in our AWS; integrates with Amplitude for experimentation (GrowthBook fires variant-assignment events → Amplitude measures outcomes). |
+| D43 | **Typed `features.ts` env-var module day-one; PostHog flags at trigger point** *(revised Round 5 — was "GrowthBook self-hosted at trigger")* | No tool needed until runtime-toggle pain is real (need toggle without redeploy OR non-dev flipping flags OR real A/B testing). When the trigger fires, **use PostHog flags** — same platform as our analytics + replay + experiments (D42b), zero new infra to operate, single BAA, native A/B-on-flag-exposure, same identity model. GrowthBook self-hosted on ECS was real engineering work (Mongo, web service, scheduler, certs, monitoring) made unnecessary by the D42b vendor consolidation. GrowthBook reconsidered only at 20+ eng with warehouse-native experimentation need (Snowflake/BigQuery). LaunchDarkly Oct 2025 outage lesson: safe-by-default fallbacks, bake snapshot into SST deploy artifact, `/tmp` cache across Lambda warm cycles. |
 
 ### Domain
 
 | # | Decision | Rationale |
 |---|---|---|
-| D45 | **`my-quilty.com` is the public website domain.** `my-quilty.app` is reserved for internal use. `my-quilty.net` held in reserve. Same-origin marketing + `/account/*` portal on `my-quilty.com`; subdomains `auth.my-quilty.com` (Cognito Hosted UI), `help.my-quilty.com` (reserved for hosted help center), `app.my-quilty.com` (reserved if web product surface ever ships). | Public-facing TLD choice. Earlier discussion tentatively used `quilty.app`; user clarified actual owned domains are `my-quilty.{com,app,net}` and the `.com` is the public domain by design. All prior decisions referencing the public domain (D6, D7, D12) have been updated accordingly. |
+| D45 | **`my-quilty.com` is the public website domain.** `my-quilty.app` is reserved for internal use. `my-quilty.net` held in reserve. Same-origin marketing + `/account/*` portal on `my-quilty.com`; subdomains `auth.my-quilty.com` (Cognito Managed Login *— Round-5 wording fix per D6*), `help.my-quilty.com` (reserved for hosted help center per U3), `app.my-quilty.com` (reserved if web product surface ever ships). | Public-facing TLD choice. Earlier discussion tentatively used `quilty.app`; user clarified actual owned domains are `my-quilty.{com,app,net}` and the `.com` is the public domain by design. All prior decisions referencing the public domain (D6, D7, D12) have been updated accordingly. |
 
 ### Repo + Account Placement (Phase 0)
 
@@ -139,12 +139,91 @@ Locked after 2-round research synthesis (Round 1: scope + regulatory + integrati
 
 ---
 
+## Round 5 — Independent Audit Locks (2026-05-17)
+
+Locked after 9-agent independent architecture review (no project context; 2025-2026 sources only; "what would Discord/Stripe/Linear/Cal.com/PostHog do" lens). Full audit at `docs/research/round_5_independent_review/`. See `synthesis.md` for the cross-cutting decision matrix.
+
+### Cognito + auth-session
+
+| # | Decision | Rationale |
+|---|---|---|
+| D50 | **Cognito Essentials tier at M1 (next sprint, lives in `quilty-aws/auth/`); Plus tier gate at M6** for passkeys + adaptive auth | Cost discipline pre-revenue. Plus features (threat protection, compromised-credentials, adaptive scoring) earn their cost when real users + sensitive flows ship at M6. |
+| D51 | **Opaque session-ID cookie (`__Host-quilty_sid`) + DynamoDB session store.** NOT iron-session sealed cookie. | Sealed cookies cannot instantly revoke. HIPAA-aligned site requires immediate "sign out everywhere" — load-bearing. Opaque-ID + server-side store lets the BFF invalidate any session in <100ms. |
+| D52 | Access-token TTL 5 min; refresh-token TTL 8h; rotation enabled via `GetTokensFromRefreshToken` | Standard 2026 enterprise BFF; balances refresh chatter vs blast-radius. Refresh rotation is critical to detect token theft. |
+| D53 | Per-subdomain `__Host-` cookies (confirms D7); SameSite=Lax (confirms D8); **CSRF triple-layer = Origin/Referer check + signed double-submit token + custom `X-Quilty-CSRF` header** | Defense-in-depth per OWASP 2026 + IETF BCP draft-26 §6.3. SameSite=Lax alone is insufficient for state-changing operations. |
+| D54 | Step-up auth via `prompt=login` + server-side `elevated_until` flag with 5-min window | Cognito doesn't expose RFC 9470 step-up error semantics; this is the BFF polyfill. Sensitive actions (email change, account delete, payment method change, MFA mgmt) require elevated session. |
+| D55 | Backup codes in-app (Argon2id-hashed + DynamoDB), not in Cognito | Cognito has no native backup-code surface. Standard fallback for users who lose their primary MFA factor. |
+
+### Observability
+
+| # | Decision | Rationale |
+|---|---|---|
+| D56 | **OpenTelemetry-first instrumentation via `@vercel/otel` + W3C `tracecontext`/`baggage` propagators day-one** | Sentry's JS SDK is OTel-native under the hood since 2024-2025 (`The Sentry SDK uses OpenTelemetry under the hood`). Writing OTel-first costs zero today + future-proofs every vendor swap. Custom Sentry-API spans scattered through the codebase are a high-retrofit-cost trap. |
+
+### Security headers + CSP
+
+| # | Decision | Rationale |
+|---|---|---|
+| D57 | **Trusted Types `require-trusted-types-for 'script'` shipped report-only at M1** | Hit MDN Baseline February 2026. React 19 supports. Web Almanac 2025 shows 12.1% of mobile pages already deploy. Prevents DOM XSS sinks from ever being introduced — cheap now while no `dangerouslySetInnerHTML` exists, painful later. |
+| D58 | Security headers baseline expands to include **`Cross-Origin-Opener-Policy: same-origin-allow-popups` + `Cross-Origin-Resource-Policy: same-origin` + `X-Content-Type-Options: nosniff`** (alongside D33's existing list) | Web Almanac 2025 modern-header set; every reference site (Stripe, Sentry, GitHub, Cloudflare) ships them. Cheap now, brittle later. COOP value `same-origin-allow-popups` avoids breaking OAuth pop-up flows. |
+| D59 | **Two-tier CSP via per-route branching in `proxy.ts`**: marketing routes use static + hash-pinned (preserves CloudFront caching); portal + auth routes use nonce + strict-dynamic | Nonce-everywhere kills marketing CDN caching. Stripe (marketing static / dashboard nonce) and Cal.com (gates CSP enforcement to `/auth/login` + `/login`) both branch by pathname. This is the canonical 2026 pattern. |
+| D60 | **HSTS preload submission deferred to M8 launch gate** (irreversible). M1 ships `max-age=300` ramping over 4-8 weeks: 5min → 1day → 1week → 1year → 1year+includeSubDomains → 2years+preload | hstspreload.org submission is one-way and 6-12 months to remove. Subdomain HTTPS readiness must be verified before flipping `includeSubDomains`. |
+| D61 | **CSP report sink = Sentry's CSP endpoint via `report-uri`** | Already paid for in D42a. Same triage workflow as JS errors. CSP violations land as security events with grouping, fingerprinting, release tagging. Zero new infra. |
+
+### Consent + GPC
+
+| # | Decision | Rationale |
+|---|---|---|
+| D62 | **GPC visible indicator: `<GpcHonoredIndicator>` component renders when `Sec-GPC: 1` was detected**, per CCPA §7025(c)(6) effective 2026-01-01 | Disney $2.75M (Feb 2026) + Ford $375K (Mar 2026) enforcement under amended rule. Required to legally honor GPC in California. Server-side detection at CloudFront Function edge → forced opt-out cookie → visible UI confirmation. |
+| D63 | **Server-side ConsentState in DynamoDB (encrypted at rest, per-user) + `Sec-GPC: 1` detection at CloudFront Function edge** → forced opt-out cookie + DynamoDB row | Cerebral-lesson defense. Client-only consent fails Safari ITP and is bypass-able. Server-side single source of truth is the load-bearing control. Cross-device propagation: for logged-in users, opt-out lives on the account record, not just the cookie. |
+
+### Content layer
+
+| # | Decision | Rationale |
+|---|---|---|
+| D64 | **Content layer = Velite + Zod-validated MDX frontmatter from M1.** CMS pick when D30 triggers = Sanity Enterprise (BAA available; Portable Text matches typed-block discipline) | Schema discipline from day one means migration is a script, not a content rewrite. MDX content drifts into freeform Markdown without enforcement — that's what people regret. Velite + Zod gives runtime validation + build-time type generation. |
+| D65 | **Marketing block library = typed discriminated-union** (`Hero \| ValueProp \| FeatureGrid \| FAQ \| TestimonialQuote \| CTABanner`) rendered by single `<BlockRenderer>` | Maps cleanly to Sanity Portable Text and Contentful at trigger. Pre-defining the schema before the CMS migration is the inverse of the painful path most teams take. |
+
+### SEO crawlers
+
+| # | Decision | Rationale |
+|---|---|---|
+| D66 | **AI crawler policy in `robots.ts`: block training, allow citation** | Block GPTBot, ClaudeBot, Google-Extended, Applebot-Extended, CCBot, Meta-ExternalAgent, Bytespider (training-data ingestion). Allow OAI-SearchBot, Claude-SearchBot, PerplexityBot (live citation/search). 2026 consumer-health peer default — maintains AI-overview presence in ChatGPT/Claude/Perplexity, denies training corpus to LLM operators. Easy to flip per crawler later. |
+
+### Observability hardening (Cerebral-lesson primitives)
+
+| # | Decision | Rationale |
+|---|---|---|
+| D67 | **PHI sanitizer (`lib/observability/sanitize.ts`) + `assertNoPHI()` runtime guard + ESLint `no-console` + ban on direct vendor-SDK imports outside `lib/observability/`** | Cerebral $7M lesson made architectural. Single chokepoint, not call-site discipline. The FTC penalty was for capability and configuration, not intent — "we don't intend PHI to flow there" is not a defense. PHI scrubber wraps every log emission; assertNoPHI throws in dev on suspicious keys; ESLint denies bypass. |
+| D68 | **Replay vendor concrete pick: Sentry replay (error-triggered, `replaysSessionSampleRate: 0`, `replaysOnErrorSampleRate: 1.0`) + PostHog replay (consent-gated, sampled)** — both with `block`-class on every clinical-state-implying control. Resolves D42c deferral. | "Exclude beats Mask" lesson from FullStory docs applied to both vendors. Mask hides text but still captures interaction; Exclude drops both. Any element capturing/displaying/implying clinical state (mood pickers, symptom checkers, condition checkboxes, free-text reflection inputs) uses `block`, not `mask`. Test in staging with PHI-shaped form before flip. |
+
+### Monorepo shape
+
+| # | Decision | Rationale |
+|---|---|---|
+| D69 | **Drop empty `packages/ui` from M1 scaffold.** Keep empty `packages/shared-types` (has near-term OpenAPI codegen consumer). `packages/ui` recreated at first extraction trigger. *(Overrides D49's "scaffold empty" intent for `packages/ui` specifically.)* | Empty packages bloat `pnpm install` graph and signal phantom work. The Round-5 audit flagged this as a smell — both packages were planned empty, but `packages/shared-types` has a real near-term consumer (OpenAPI codegen at M5) while `packages/ui` has no concrete extraction trigger before D49's actual signal fires. Recreate the day a component crosses the apps/packages boundary. |
+
+### UX + sequencing locks (User-answered 2026-05-17)
+
+| # | Decision | Rationale |
+|---|---|---|
+| U1 | **Portal navigation = hybrid top-nav primary + sidebar at complex sub-screens** | Stripe Customer Portal embedded pattern; thin portal (~8-10 pages) uses top-nav like Calm/Oura/Headspace, sub-screens with deeper hierarchies (security, subscription) get a sidebar variant. |
+| U2 | **M1-reserved marketing routes = `/science`, `/for-business`, `/customers`** (NOT `/careers` — deferred) | Locking URL patterns at scaffold prevents painful 301-chains later. `/careers` deferred to a later trigger (likely when hiring opens). |
+| U3 | **Help center reservation = both `/help` path AND `help.my-quilty.com` subdomain** — decide self-host vs Zendesk/Intercom at M9+ trigger | Reserving both costs nothing (1 DNS record + 1 stub route) and keeps both options open for when help-center scope justifies the call. |
+| U4 | **AI crawler policy = block training, allow citation** (per D66) | Per user decision in Round 5 UX questions. |
+| U5 | **Cognito `enable_custom_domain` flip = at M1 cutover** (next sprint work — happens in `quilty-aws/auth/`) | Activates `auth.my-quilty.com` immediately after M1 deploy. No reason to defer; redirect target exists for external systems (Apple Dev, Google OAuth verification). |
+| U6 | **Cross-account DNS coordination = manual PR-coordinated** between SST outputs and `quilty-aws/dns/` PR | "Mostly done and forgotten" framing — one ceremony at cutover, dormant after. Clean audit trail. Pattern B (terraform_remote_state cross-read) rejected because it creates permanent cross-account read dependency on most-sensitive layer. |
+| U7 | **Web Cognito app client = confidential** (client_secret in SSM Parameter Store) | Enables Plus-tier `enable_propagate_additional_user_context_data` for richer adaptive-auth scoring. Mobile is forced public (PKCE-only); web has a real backend (BFF) so can hold a secret. |
+| U8 | **Web tier product analytics = PostHog Cloud Boost** (drop Amplitude from web; mobile keeps Amplitude per D42b) | Per D42b revision. Confirmed by user. |
+
+---
+
 ## Decisions deferred (will lock closer to relevant milestone)
 
 | # | Decision | Options | When to lock |
 |---|---|---|---|
-| D42c | **Session replay vendor** (within D42 stack) | (a) Amplitude Session Replay (single-vendor consolidation), (b) FullStory or LogRocket (specialist, separate vendor) | Pre-launch (Milestone 7-8), informed by real debug needs |
-| D43-upgrade | **Feature flag tool trigger** (when env-var module no longer sufficient) | GrowthBook self-hosted (direction locked in D43); confirm at trigger | Trigger-based (runtime toggle need, non-dev flag flipping, or real A/B testing) |
+| ~~D42c~~ | ~~Session replay vendor~~ — **RESOLVED Round 5 by D68** (Sentry replay error-triggered + PostHog replay consent-gated; FullStory/LogRocket/Amplitude Session Replay rejected; see D68 rationale) | n/a | Resolved 2026-05-17 |
+| ~~D43-upgrade~~ | ~~Feature flag tool trigger~~ — **RESOLVED Round 5 by D43 revision** (PostHog flags replaces GrowthBook at trigger; no new infra to operate; same BAA as D42b PostHog Cloud Boost) | n/a | Trigger-based (runtime toggle need OR non-dev flag flipping OR real A/B testing) — but the VENDOR pick is now locked |
 | D44 | **Subscription provider config** | Stripe + Stripe Customer Portal + RevenueCat for IAP unification (baseline locked); exact Billing setup TBD | Closer to launch (Milestone 7) |
 
 ---
@@ -162,7 +241,7 @@ Locked after 2-round research synthesis (Round 1: scope + regulatory + integrati
 ## What we're explicitly NOT deciding now (and why)
 
 - Backend wiring details — defer until scaffold + few features exist
-- Cognito Hosted UI integration code — defer until account-portal screens exist as static mockups
+- Cognito Managed Login integration code *(wording fixed Round 5 per D6)* — defer until account-portal screens exist as static mockups
 - Help-center content authorship — defer until help platform chosen (Zendesk vs Intercom is ADDITIVE)
 - Real legal copy — placeholders during dev; lawyer-reviewed pre-launch
 - Internationalization activation — route segment reserved (D14), translations deferred
@@ -210,3 +289,4 @@ Captured in `research/regulatory_requirements.md`. 16-item must-have list automa
 - **2026-05-14 (domain lock)** — **D45 locked**: public website domain is `my-quilty.com`. Updated D6/D7/D12 and all subdomain references across the doc from prior tentative `quilty.app` to `my-quilty.com` (cookie scope, Cognito subdomain, help subdomain, optional app subdomain). `my-quilty.app` is now internal use; `my-quilty.net` reserved. **Round-3 research launched on remaining pre-scaffold gates: AWS account placement, SST↔Terraform boundary, and repo strategy** — user emphasized clean architecture over minimum effort.
 - **2026-05-14 (round 4 — system-as-whole research + final pre-scaffold locks)** — Inspected current repo state on disk: `quilty-aws` is overloaded (11 TF layers, ~30 Rust crates, 119GB on disk, dead pnpm scaffolding). 8 active Quilty repos total. Launched 3 enterprise research agents on consumer-app + consumer-health architecture patterns (Duolingo, Headspace, Calm, Cal.com, PostHog, Block, etc.). **Key research findings:** HIPAA isolation is a runtime boundary (account/IAM/VPC), NOT a repo boundary; pre-emptive polyrepo splits are universally regretted (Block, Cash App, Storyblocks); OpenAPI is the canonical multi-language contract spine; Backstage/IDPs premature below 10 engineers. **Phase 0 locks:** D46 (website in separate rebuilt `quilty-website` repo), D47 (Phase 0 home = existing `development` account, $0 incremental cost; Phase 1 trigger = launch/revenue), D48 (backend permanently Rust — TS Track A path closed; OpenAPI as cross-language contract), D49 (all other restructuring deferred — OU split, lambdas extract, contracts repo, workflows repo, corp-IT merge ALL deferred to Phase 1+ with concrete triggers). **Target end-state** (12-24 months, ~10 engineers): ~7 repos (quilty mobile, quilty-rust, quilty-aws core IaC, quilty-web, quilty-contracts, quilty-corp-it merged) + ~12-14 AWS accounts (Security OU, Infrastructure OU, Workloads-HIPAA OU, Workloads-NonHIPAA OU). Documented but not built. **Pre-scaffold gates now CLEAR.** Next: Milestone 1 = Next.js + SST scaffold into `quilty-website` repo, SST deploy to `development` AWS account, DNS at `my-quilty.com`.
 - **2026-05-14 (BFF runtime confirmation)** — Considered alternative architecture: Next.js static export + Rust BFF Lambda behind API Gateway (would have moved D5's BFF runtime from TS to Rust, joining existing `quilty-aws/lambdas/rust/` workspace). **Rejected after analysis showed the TS Lambda is a thin UI rendering layer (~5-15k LOC website-only) that does NOT touch the existing ~100k LOC Rust backend.** Track A's Rust migration was about backend correctness + performance for high-throughput services; the website Lambda is purely React-rendering + thin token-broker, where TS is the native runtime and Next.js ecosystem maturity (SSR, Server Components, Middleware, Image Optimization) justifies a small TS surface in the production runtime. **D5 stays as originally locked: BFF via Next.js Route Handlers (TS Lambda).** Rust backend remains completely untouched by the website work.
+- **2026-05-17 (Round 5 — Independent Audit + UX alignment)** — Launched 9 parallel research agents (6 online enterprise-pattern + 3 codebase/docs) with no project context and 2025-2026 sources only, applying the "what would Discord/Stripe/Linear/Cal.com/PostHog do" lens. **11 decisions revised** (D2 SST 3.x → 4.x verified active mid-May 2026; D9 Cognito doesn't ship OIDC Back-Channel Logout nor emit `sid`; D11 wording updated to reflect Cognito reality; D17 clarified Tailwind v4 CSS-first in `globals.css` — no `tailwind.config.ts`; D27 reset expectations on FAQPage retirement May 7 2026 + MedicalWebPage's role for AI-overview citations only; D34 Stripe explicitly does not publish SRI hashes; D42b drop Amplitude from web tier → PostHog Cloud Boost; D43 GrowthBook → PostHog flags; S3 Node 22 → 24 LTS; S4 `middleware.ts` → `proxy.ts`; S5 keep Husky+lint-staged+ESLint+Prettier+jsx-a11y/strict). **20 new decisions locked (D50-D69)** covering Cognito tier + opaque session-ID + DynamoDB store + CSRF triple-layer + step-up + backup codes + OpenTelemetry-first + Trusted Types report-only + COOP/CORP/nosniff + two-tier CSP per-route + HSTS preload ramp + Sentry as CSP sink + GPC visible indicator + server-side ConsentState + Velite+Zod content layer + typed block discriminated union + AI crawler policy + PHI sanitizer module + replay vendor pick + drop empty `packages/ui`. **8 UX/sequencing locks (U1-U8)** answered by user: hybrid top-nav portal, /science + /for-business + /customers reserved at M1, both /help path + subdomain reserved, block training crawlers + allow citation, Cognito custom domain flip at M1, manual PR-coordinated DNS dance, confidential web Cognito client, PostHog Cloud Boost for web analytics. **Harness gap identified**: `guard-bash.sh` blocks `sst remove` even with `--stage` — `/sst-destroy-previews` skill is dead-on-arrival; patch documented in `docs/runbook/m1_post_scaffold_checklist.md` for user to apply manually (Claude can't edit `.claude/hooks/`). Full audit at `docs/research/round_5_independent_review/` (11 files). M1 scaffold plan executes in 12 commits with per-commit 3-agent QA loop + final 6-agent sweep.

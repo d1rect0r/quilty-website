@@ -6,7 +6,7 @@
 
 ## Status
 
-Pre-scaffold (2026-05-15). Cloudflare Pages scaffold soft-nuked. M1 (Next.js + Tailwind v4 + shadcn + SST scaffold) pending. All structural decisions D1-D49 locked — see `docs/website_strategy_discussion.md`.
+M1 scaffold-in-progress (2026-05-18). Cloudflare Pages scaffold soft-nuked. **Round-5 independent architecture review locked 2026-05-17** (11 decision revisions, 20 new decisions D50-D69, 8 UX locks U1-U8). All structural decisions D1-D49 + Round-5 revisions + D50-D69 + U1-U8 locked — see `docs/website_strategy_discussion.md` and `docs/research/round_5_independent_review/`.
 
 ---
 
@@ -14,28 +14,30 @@ Pre-scaffold (2026-05-15). Cloudflare Pages scaffold soft-nuked. M1 (Next.js + T
 
 | Doc | Purpose |
 |---|---|
-| `docs/website_strategy_discussion.md` | Locked decisions D1-D49 + rationale ("the WHY") |
+| `docs/website_strategy_discussion.md` | Locked decisions D1-D49 + Round-5 revisions + D50-D69 + U1-U8 + rationale ("the WHY") |
 | `docs/website_workflow_roadmap.md` | Milestones M1-M9+, deliverables, decision gates ("the WHAT and WHEN") |
-| `docs/research/` | 8 research reports across 4 rounds informing decisions |
+| `docs/research/` | 8 reports across rounds 1-2 + 11-file Round-5 audit at `docs/research/round_5_independent_review/` |
+| `docs/adr/` | Architecture Decision Records (Nygard format) — landing alongside scaffold |
 
-The strategy doc is authoritative for D1-D49 with full rationale. The workflow doc is the operational playbook including current state inventory, cross-account pattern, integration touchpoints, launch readiness checklist, and trigger watchlist.
+The strategy doc is authoritative for D1-D49 + Round-5 revisions + D50-D69 + U1-U8 with full rationale. The workflow doc is the operational playbook including current state inventory, cross-account pattern, integration touchpoints, launch readiness checklist, and trigger watchlist.
 
 ---
 
 ## Stack (locked)
 
 - **Framework:** Next.js 16 App Router + TypeScript strict (D1)
-- **Styling:** Tailwind v4 CSS-first (`@theme` block in `apps/web/app/globals.css`, no `tailwind.config.js`) + 3-layer token namespace (primitive → semantic → component) + shadcn/ui in `apps/web/components/ui/` with wrap-don't-edit (D17, D18)
+- **Styling:** Tailwind v4 CSS-first (`@theme` block in `apps/web/app/globals.css`, no `tailwind.config.ts` file) + 3-layer token namespace (primitive → semantic → component) + shadcn/ui in `apps/web/components/ui/` with wrap-don't-edit (D17, D18)
 - **Icons:** Lucide React (D19)
-- **Deploy:** SST 3.x (OpenNext underneath) to AWS (D2)
-- **Repo structure:** Turborepo + pnpm workspaces — `apps/web` (the Next.js app) + `packages/ui` (workspace scaffolded EMPTY, populated only at extraction trigger per D49) + `packages/shared-types` (OpenAPI codegen target, empty at scaffold) (D4)
+- **Deploy:** SST 4.x (Ion engine, Pulumi underneath, pinned `^4.14`) to AWS (D2 *— revised Round 5*)
+- **Repo structure:** Turborepo + pnpm workspaces *(Round-5 revised — D69 dropped empty `packages/ui` from M1 scaffold)* — `apps/web` (the Next.js app) + `packages/shared-types` (OpenAPI codegen target, empty at scaffold; populated M5). `packages/ui` NOT scaffolded at M1; recreate at first real extraction trigger.
 - **Workspace `package.json` `name:` fields (locked — hooks + skills depend on these):**
   - `apps/web/package.json` → `"name": "web"`
-  - `packages/ui/package.json` → `"name": "@quilty/ui"`
   - `packages/shared-types/package.json` → `"name": "@quilty/shared-types"`
-- **Observability:** Sentry Business tier (errors + RUM) from day-one; Amplitude (matches mobile choice) added pre-launch (D42a, D42b)
-- **Logs:** CloudWatch — server-side only, zero PHI (D42d)
-- **Feature flags:** Typed `features.ts` env-var module day-one; GrowthBook self-hosted at trigger point (D43)
+  - *(`packages/ui/` not scaffolded at M1 per D69; reserved name `"@quilty/ui"` for when it gets created at extraction trigger)*
+- **Node + pnpm:** Node 24 LTS + pnpm 10 *(revised Round 5 — S3)*; pinned via `packageManager` + `.nvmrc` + `engines`
+- **Observability:** Sentry Business tier (errors + RUM + error-triggered replay) from day-one (D42a); **PostHog Cloud Boost ($250/mo) for web analytics + replay + flags + experiments** from D42b *(Round-5 revised — was Amplitude)*; mobile keeps Amplitude (separate contract); OpenTelemetry-first via `@vercel/otel` (D56)
+- **Logs:** CloudWatch — server-side only, zero PHI (D42d); PHI sanitizer + `assertNoPHI` + ESLint `no-console` + ban-direct-vendor-SDK-imports outside `lib/observability/` (D67)
+- **Feature flags:** Typed `features.ts` env-var module day-one; **PostHog flags at trigger point** (D43 *Round-5 revised — was GrowthBook*)
 - **Performance:** `next/font` variable font + `next/image` priority/sizes discipline (D21)
 - **A11y:** axe-core in CI fail-on-violation + `eslint-plugin-jsx-a11y` in pre-commit; WCAG 2.2 AA target (D22, D23)
 - **i18n:** next-intl with `/[locale]/` route segment reserved, English-only at launch (D14, D25)
@@ -47,7 +49,7 @@ The strategy doc is authoritative for D1-D49 with full rationale. The workflow d
 
 - **Public domain:** `my-quilty.com` (registered at Porkbun, DNS at Route 53 in `quilty-aws` production account) (D45)
 - **Subdomains carved:**
-  - `auth.my-quilty.com` — Cognito Hosted UI (D6, provisioned, activated post-M1)
+  - `auth.my-quilty.com` — Cognito Managed Login (D6 *Round-5 revised — was "Hosted UI"*), provisioned, activated at M1 cutover (next sprint per U5)
   - `help.my-quilty.com` — reserved for hosted help center (Zendesk/Intercom)
   - `app.my-quilty.com` — reserved if web product surface ever ships
 - **Phase 0 AWS account:** existing `development` account (D47, $0 incremental cost)
@@ -85,12 +87,15 @@ Tokens never reach the browser (BFF pattern, D5). PHI never reaches the website 
 
 ## Auth posture
 
-- **BFF pattern via Next.js Route Handlers** (D5). Tokens never in browser. Server-side session in `__Host-` prefixed cookie.
-- **Cognito Hosted UI at `auth.my-quilty.com`** (D6). Isolated auth attack surface.
+- **BFF pattern via Next.js Route Handlers** (D5). Tokens never in browser. Server-side session in `__Host-` prefixed cookie carrying an opaque session ID; the actual session record lives in DynamoDB (D51 *Round-5 lock — NOT iron-session sealed cookies; opaque-ID + server-side store enables instant revocation*).
+- **Cognito Managed Login (Nov 2024 redesign) at `auth.my-quilty.com`** (D6 *Round-5 revised — was "Hosted UI"; Managed Login is the only path to passkeys/email MFA/`prompt=login`/branding editor*). Isolated auth attack surface.
 - **OIDC code flow per subdomain** (D7) — NOT parent-domain `.my-quilty.com` cookies. `__Host-` prefix is mutually exclusive with parent-domain sharing.
-- **SameSite=Lax** + signed double-submit CSRF token + custom `X-Quilty-CSRF` header (D8, D10)
-- **OIDC Backchannel Logout with `sid`** (D9). Wire endpoint during M6.
-- **Mobile + web sessions independent**, joined by `sid` claim, propagated via backchannel logout (D11). NOT OIDC Native SSO (token sharing rejected as premature enterprise complexity).
+- **SameSite=Lax** + signed double-submit CSRF token + custom `X-Quilty-CSRF` header + Origin/Referer check (D8, D10, D53 *Round-5 — CSRF triple-layer*)
+- **Cognito-native logout + BFF-maintained opaque session-ID + EventBridge fan-out** (D9 *Round-5 revised — Cognito does NOT support OIDC Back-Channel Logout or emit `sid` claim; front-channel `/logout` + `AdminUserGlobalSignOut` API + EventBridge `quilty.auth.sessions_revoked` consumed by web BFF + Rust backend revocation cache; `/api/auth/backchannel-logout` Route Handler reserved as 501-stub for the day Cognito ships native BCL*). Wire EventBridge bus during M6.
+- **Mobile + web sessions independent**, joined by `cognito_sub` (Cognito user identifier) + locally-minted `quilty_sid` (NOT the OIDC spec's `sid` claim, which Cognito does not emit), propagated via the EventBridge bus (D11 *Round-5 revised — wording corrected to reflect Cognito reality*). NOT OIDC Native SSO (token sharing rejected as premature enterprise complexity).
+- **Access-token TTL 5 min; refresh-token TTL 8h; rotation via `GetTokensFromRefreshToken`** (D52 *Round-5*).
+- **Step-up auth** via `prompt=login` + server-side `elevated_until` flag (5-min window) for sensitive actions (email change, account delete, payment method change, MFA management) — D54 *Round-5*.
+- **Backup codes in-app** (Argon2id-hashed + DynamoDB), not in Cognito (D55 *Round-5* — Cognito has no native backup-code surface).
 
 ---
 
@@ -128,6 +133,7 @@ Patterns to formalize after M1-M2 lived experience are in
 - Edit `apps/web/components/ui/` (shadcn primitives) directly — wrap them in `apps/web/components/app/` instead (D18; PreToolUse hook enforces this mechanically)
 - Use git submodules for cross-repo type sharing (universally regretted; use OpenAPI codegen or published packages)
 - Adopt Backstage or commercial IDP below ~10 engineers (premature)
+- **Adopt any accessibility overlay product** (accessiBe, UserWay, AudioEye, EqualWeb, etc.) — FTC settled $1M order against accessiBe (April 2025); disability-community consensus rejects overlays; 800+ professionals on the Overlay Fact Sheet; UserWay class action Feb 2026; ~25% of 2024 ADA lawsuits cited overlays as failing to remediate. Overlays do NOT achieve WCAG 2.2 AA compliance; ship native accessibility (D22, D23). *(Added Round 5 — Overlay Prohibition Rule per file 07.)*
 - Build the blog, full CMS, sitewide search, A/B testing, or hosted help center pre-launch (all triggered work)
 - Touch `.well-known/apple-app-site-association` or `.well-known/assetlinks.json` without verifying mobile-app deeplink behavior — these are bound to iOS bundle `7XGU6BN3K3.app.quilty.myquilty` + Android `app.quilty.myquilty`
 
@@ -147,7 +153,19 @@ Patterns to formalize after M1-M2 lived experience are in
 
 Project memory index: `~/.claude/projects/-Users-d1rect0r-interneta-AppBuilding-quilty-website/memory/MEMORY.md`
 
-Read MEMORY.md first when picking up any task — it indexes locked decisions (D1-D49), M1 pre-scaffold state, inherited feedback (push-per-phase, build-the-good-thing, etc.), and reference notes (Next.js 16 + SST 3.x + HIPAA boundary).
+Read MEMORY.md first when picking up any task — it indexes locked decisions (D1-D49 + Round-5 revisions + D50-D69 + U1-U8), M1 scaffold state, inherited feedback (push-per-phase, build-the-good-thing, etc.), and reference notes (Next.js 16 + SST 4.x + HIPAA boundary).
+
+**Round 5 audit (2026-05-17):** 9-agent independent architecture review surfaced 11 decision revisions + 20 new decisions (D50-D69) + 8 UX/sequencing locks (U1-U8). Full audit at `docs/research/round_5_independent_review/`. Key impacts on this orientation:
+- **Tailwind v4 CSS-first** in `apps/web/app/globals.css` `@theme` block — **NO `tailwind.config.ts`** (D17 clarified)
+- **`proxy.ts` not `middleware.ts`** — Next.js 16 renamed the file convention (S4 revised)
+- **Two-tier CSP per-route** — marketing static-hashed / portal nonce + strict-dynamic (D59)
+- **OpenTelemetry-first** via `@vercel/otel`; Sentry consumes OTel spans (D56)
+- **PostHog Cloud Boost** for web analytics + replay + flags (D42b/D43 revised); Amplitude only for mobile
+- **Opaque session-ID + DynamoDB store** for auth sessions; NOT iron-session (D51)
+- **Cognito doesn't support OIDC Back-Channel Logout or emit `sid`** (D9/D11 revised) — use EventBridge fan-out
+- **Velite + Zod** for MDX content (D64), typed discriminated-union block library (D65)
+- **AI crawler policy** in `robots.ts` — block training, allow citation (D66)
+- **Drop empty `packages/ui` at M1** (D69 overrides D49 for that workspace)
 
 Cross-repo: `~/.claude/projects/-Users-d1rect0r-interneta-AppBuilding-quilty-aws/memory/project/website_strategy_locked_2026-05-14.md` has the original lock-down context if needed.
 
