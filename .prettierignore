@@ -1,0 +1,24 @@
+# Generated artifacts
+node_modules/
+.next/
+.velite/
+.turbo/
+.sst/
+.open-next/
+dist/
+build/
+coverage/
+playwright-report/
+test-results/
+
+# Lockfiles + generated TS
+pnpm-lock.yaml
+*.tsbuildinfo
+packages/shared-types/src/generated/
+
+# Auto-formatted by other tools (or intentionally hand-crafted)
+*.svg
+public/
+
+# Plain-text well-known files (preserve byte-for-byte)
+apps/web/public/.well-known/

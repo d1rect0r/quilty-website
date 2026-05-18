@@ -1,0 +1,16 @@
+# ESLint 9 flat config honors `ignores` in eslint.config.mjs, but this
+# file is kept for tools that still scan via the legacy ignore mechanism
+# (e.g., some IDE integrations).
+node_modules/
+.next/
+.velite/
+.turbo/
+.sst/
+.open-next/
+dist/
+build/
+coverage/
+playwright-report/
+test-results/
+packages/shared-types/src/generated/
+*.tsbuildinfo

@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+# Husky pre-commit hook — runs lint-staged on changed files + a sanity
+# typecheck on the affected workspaces.
+#
+# Per the Round-5 plan: this complements (not replaces) the project's
+# .claude/hooks/format-and-lint.sh and typecheck-affected.sh — those
+# fire only inside Claude Code sessions. This hook covers every other
+# contributor (CLI, IDE, GitHub web edits via clone, etc.) so the
+# discipline doesn't depend on a single tool.
+#
+# Critical invariants (CLAUDE.md NEVER list):
+#   - NEVER pass --no-verify; this hook is load-bearing for HIPAA + SSH
+#     signing discipline
+#   - NEVER skip lint-staged; PHI sanitizer + a11y rules + ban-direct-
+#     vendor-SDK-imports rules ALL run via ESLint at this layer
+set -e
+pnpm exec lint-staged
+# Full-graph typecheck at M1 — one workspace (`apps/web`) keeps this fast
+# (~3-5s warm cache). When the monorepo grows past 2 workspaces (likely
+# packages/ui at the D69 extraction trigger), switch to
+# `pnpm exec turbo run typecheck --affected` per Turbo 2.x docs.
+pnpm typecheck
