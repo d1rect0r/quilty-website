@@ -27,12 +27,9 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
             fontFamily: 'system-ui, sans-serif',
           }}
         >
-          <h1 style={{ fontSize: '2rem', fontWeight: 600 }}>
-            Something went wrong
-          </h1>
+          <h1 style={{ fontSize: '2rem', fontWeight: 600 }}>Something went wrong</h1>
           <p style={{ marginTop: '1rem', color: '#666' }}>
-            The page failed to load. Try again, or contact support if the
-            problem persists.
+            The page failed to load. Try again, or contact support if the problem persists.
           </p>
           {error.digest ? (
             <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#999' }}>

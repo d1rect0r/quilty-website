@@ -12,7 +12,7 @@ import Link from 'next/link';
 
 export interface PortalSidebarProps {
   title: string;
-  sections: ReadonlyArray<{ label: string; href: string }>;
+  sections: readonly { label: string; href: string }[];
   children: React.ReactNode;
 }
 
@@ -32,16 +32,16 @@ export function PortalSidebar({ title, sections, children }: PortalSidebarProps)
       <nav aria-label={title}>
         <span
           aria-hidden="true"
-          className="mb-3 block text-xs font-semibold uppercase tracking-wider text-fg-default"
+          className="text-fg-default mb-3 block text-xs font-semibold uppercase tracking-wider"
         >
           {title}
         </span>
-        <ul className="space-y-1 text-sm text-fg-muted">
+        <ul className="text-fg-muted space-y-1 text-sm">
           {sections.map((section) => (
             <li key={section.href}>
               <Link
                 href={section.href}
-                className="flex min-h-11 items-center rounded-md px-3 hover:bg-bg-elevated hover:text-fg-default"
+                className="hover:bg-bg-elevated hover:text-fg-default flex min-h-11 items-center rounded-md px-3"
               >
                 {section.label}
               </Link>

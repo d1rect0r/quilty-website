@@ -51,7 +51,7 @@ function emit(level: LogLevel, msg: string, fields: LogFields): void {
   };
   // ESLint custom rule allows console.log only in this file via a
   // direction-targeted overrride; everywhere else calls logger.*.
-  // eslint-disable-next-line no-console
+
   console.log(JSON.stringify(record));
 }
 

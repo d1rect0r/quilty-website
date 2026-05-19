@@ -14,9 +14,7 @@ test('@smoke .well-known/apple-app-site-association serves as application/json',
   expect(response.headers()['content-type']).toContain('application/json');
 });
 
-test('@smoke .well-known/assetlinks.json serves as application/json', async ({
-  request,
-}) => {
+test('@smoke .well-known/assetlinks.json serves as application/json', async ({ request }) => {
   const response = await request.get('/.well-known/assetlinks.json');
   expect(response.status()).toBe(200);
   expect(response.headers()['content-type']).toContain('application/json');

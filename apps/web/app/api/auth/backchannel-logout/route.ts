@@ -18,7 +18,9 @@ import { NextResponse } from 'next/server';
  */
 export async function POST() {
   return NextResponse.json(
-    { error: 'Cognito does not support OIDC BCL yet. Use EventBridge fan-out via /api/auth/logout.' },
+    {
+      error: 'Cognito does not support OIDC BCL yet. Use EventBridge fan-out via /api/auth/logout.',
+    },
     { status: 501 },
   );
 }

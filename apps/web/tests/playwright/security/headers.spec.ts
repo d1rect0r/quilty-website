@@ -36,9 +36,7 @@ test('@security marketing route carries full headers baseline', async ({ request
   expect(perm).toContain('payment=()');
 });
 
-test('@security CSP report-only header is present on marketing routes', async ({
-  request,
-}) => {
+test('@security CSP report-only header is present on marketing routes', async ({ request }) => {
   const response = await request.get('/en');
   const csp = response.headers()['content-security-policy-report-only'];
   expect(csp).toBeDefined();
@@ -48,9 +46,7 @@ test('@security CSP report-only header is present on marketing routes', async ({
   expect(response.headers()['content-security-policy']).toBeUndefined();
 });
 
-test('@security Trusted Types directive is present in CSP (report-only)', async ({
-  request,
-}) => {
+test('@security Trusted Types directive is present in CSP (report-only)', async ({ request }) => {
   const response = await request.get('/en');
   const csp = response.headers()['content-security-policy-report-only'];
   expect(csp).toContain("require-trusted-types-for 'script'");

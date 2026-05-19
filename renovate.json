@@ -65,10 +65,5 @@
     "minimumReleaseAge": "0 days"
   },
   "rangeStrategy": "bump",
-  "ignorePaths": [
-    "**/node_modules/**",
-    "**/.next/**",
-    "**/.velite/**",
-    "**/.turbo/**"
-  ]
+  "ignorePaths": ["**/node_modules/**", "**/.next/**", "**/.velite/**", "**/.turbo/**"]
 }

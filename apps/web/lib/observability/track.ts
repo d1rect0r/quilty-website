@@ -49,10 +49,7 @@ export interface TrackContext {
   consent: ConsentState;
 }
 
-export async function track<E extends AnalyticsEvent>(
-  event: E,
-  ctx: TrackContext,
-): Promise<void> {
+export async function track<E extends AnalyticsEvent>(event: E, ctx: TrackContext): Promise<void> {
   // Consent gate — Cerebral-lesson defense (D35).
   if (!ctx.consent.analytics) return;
 
@@ -66,10 +63,13 @@ export async function track<E extends AnalyticsEvent>(
   // M3+: replace this with PostHog Cloud Boost emission. The function
   // signature stays — only the body changes — so every call site stays
   // untouched at vendor activation.
+  //
+  // Spread-conditional pattern avoids feeding `undefined` into the
+  // LogFields-typed `extra` arg under exactOptionalPropertyTypes.
   logger.info('analytics:event', {
     event_name: event.name,
     ...(sanitizedProps as Record<string, unknown>),
-    user_id_hash: ctx.user_id_hash,
-    session_id: ctx.session_id,
+    ...(ctx.user_id_hash !== undefined && { user_id_hash: ctx.user_id_hash }),
+    ...(ctx.session_id !== undefined && { session_id: ctx.session_id }),
   });
 }

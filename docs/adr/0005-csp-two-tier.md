@@ -22,6 +22,7 @@ caching (CloudFront can't cache the response if the nonce changes per
 request).
 
 Forces:
+
 - **Production CSP examples verified Round 5** via `curl -sI` on Stripe,
   Sentry, Cal.com, GitHub, Discord, Auth0, Resend, Vercel, accounts.google.com:
   - Stripe.com (marketing) → static + hash-pinned CSP (preserves CDN caching)
@@ -34,7 +35,7 @@ Forces:
   (continuous pushes for PCI/fraud). Same for GA/Tag Manager/Meta Pixel/
   Intercom/Hotjar. Adding SRI to these scripts will silently break payments.
   Compliant path per PCI DSS 4.0 §6.4.3 + §11.6.1: nonce + strict-dynamic
-  + reporting as compensating control.
+  - reporting as compensating control.
 - **Sentry CSP endpoint** (`https://o<org>.ingest.sentry.io/api/<project>/security/`)
   is the natural report sink — Sentry is already in the stack for D42a,
   reports land alongside JS errors with grouping/release-tagging. The
@@ -83,16 +84,16 @@ at the Sentry CSP endpoint. After 2-4 clean weeks of report-only data
 **Security headers baseline** (D33 + D58 — emitted on every response, both
 tiers):
 
-| Header | Value |
-|---|---|
-| `Strict-Transport-Security` | `max-age=300` at M1; ramps to `max-age=63072000; includeSubDomains; preload` at M8 |
-| `X-Content-Type-Options` | `nosniff` |
-| `X-Frame-Options` | `DENY` (belt-and-suspenders with CSP `frame-ancestors 'none'`) |
-| `Cross-Origin-Opener-Policy` | `same-origin-allow-popups` (avoids breaking OAuth pop-ups) |
-| `Cross-Origin-Resource-Policy` | `same-origin` |
-| `Referrer-Policy` | `strict-origin-when-cross-origin` |
-| `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), payment=()` at M1 (M7 adds payment allowlist for Stripe) |
-| `Content-Security-Policy-Report-Only` | per-tier (above) |
+| Header                                | Value                                                                                               |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `Strict-Transport-Security`           | `max-age=300` at M1; ramps to `max-age=63072000; includeSubDomains; preload` at M8                  |
+| `X-Content-Type-Options`              | `nosniff`                                                                                           |
+| `X-Frame-Options`                     | `DENY` (belt-and-suspenders with CSP `frame-ancestors 'none'`)                                      |
+| `Cross-Origin-Opener-Policy`          | `same-origin-allow-popups` (avoids breaking OAuth pop-ups)                                          |
+| `Cross-Origin-Resource-Policy`        | `same-origin`                                                                                       |
+| `Referrer-Policy`                     | `strict-origin-when-cross-origin`                                                                   |
+| `Permissions-Policy`                  | `camera=(), microphone=(), geolocation=(), payment=()` at M1 (M7 adds payment allowlist for Stripe) |
+| `Content-Security-Policy-Report-Only` | per-tier (above)                                                                                    |
 
 **SRI policy (D34 revised):** SRI ONLY on first-party `_next/static/*`
 bundled at build time. Stripe.js + analytics scripts (PostHog, when it
@@ -133,7 +134,7 @@ to avoid CSP-blocking-its-own-reports bootstrap failure.
 - **CSP enforce gate at M8** means M1-M7 are "report-only" with
   the operational risk that a real violation only gets caught when we
   flip enforce. Mitigated by aggressive Sentry alerting on CSP violations
-  + staged enforce flips by route group.
+  - staged enforce flips by route group.
 
 ### Neutral
 

@@ -27,7 +27,13 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Workers must be a string|number (not undefined) under
+  // exactOptionalPropertyTypes. CI runs serial (Turbopack cold-compile
+  // contention causes false-positive timeouts when parallel workers
+  // hammer first-page-load); local also defaults serial since the dev
+  // server is the bottleneck. Override with `--workers N` to run faster
+  // once the build is warm (.next cache present).
+  workers: 1,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   globalSetup: './tests/playwright/global-setup.ts',
   globalTeardown: './tests/playwright/global-teardown.ts',

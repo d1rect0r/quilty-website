@@ -1,4 +1,5 @@
 import { registerOTel } from '@vercel/otel';
+import { isSensitiveKey } from '@/lib/observability/sanitize';
 
 /**
  * OpenTelemetry-first instrumentation (D56). Sentry's JS SDK is OTel-native
@@ -41,7 +42,6 @@ export function register() {
  * x-forwarded-for, cf-connecting-ip — all enumerated in the sanitizer's
  * PHI key denylist.
  */
-import { isSensitiveKey } from '@/lib/observability/sanitize';
 
 export async function onRequestError(
   err: unknown,
@@ -52,10 +52,13 @@ export async function onRequestError(
     routeType: 'render' | 'route' | 'action' | 'middleware';
   },
 ): Promise<void> {
-  const safeHeaders = new Headers();
+  // Sentry 10.x `captureRequestError` expects a plain header record, not
+  // a Headers object. Build a string-record so PHI keys are skipped at
+  // the boundary (Round-5 final-QA HIPAA-CSP MEDIUM).
+  const safeHeaders: Record<string, string> = {};
   for (const [key, value] of request.headers.entries()) {
     if (isSensitiveKey(key)) continue;
-    safeHeaders.set(key, value);
+    safeHeaders[key] = value;
   }
   // Strip query string from path — defense-in-depth alongside D31 design
   // intent (URLs MUST NOT carry PHI; this guards against a future regression).

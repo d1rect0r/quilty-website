@@ -57,10 +57,7 @@ export interface Breadcrumb {
   url: string;
 }
 
-export function buildBreadcrumbsJsonLd(
-  siteUrl: string,
-  crumbs: Breadcrumb[],
-): JsonLd {
+export function buildBreadcrumbsJsonLd(siteUrl: string, crumbs: Breadcrumb[]): JsonLd {
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',

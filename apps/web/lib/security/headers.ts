@@ -20,7 +20,9 @@ export interface SecurityHeaderEntry {
  * a misconfiguration can be rolled back in <5 minutes. M8 launch gate
  * flips this to the preload-eligible value.
  */
-export function buildHstsValue(phase: 'm1' | 'm2-m6' | 'm7' | 'm8-prelaunch' | 'm8-launch'): string {
+export function buildHstsValue(
+  phase: 'm1' | 'm2-m6' | 'm7' | 'm8-prelaunch' | 'm8-launch',
+): string {
   switch (phase) {
     case 'm1':
       return 'max-age=300';

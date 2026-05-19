@@ -22,6 +22,7 @@ Tailwind v4's `@theme` directive lands exactly on this seam. Every token you dec
 **4. Storybook (ADDITIVE, possibly TRAP).** Universal advice: Storybook becomes worthwhile past ~50 components or when designers join. Below that it's documentation overhead. For Quilty in 2026, skip it. Revisit when you hire a designer or when the portal exceeds ~30 distinct components. The accessibility addon is the only piece worth pulling in early — and you can get that from axe-playwright instead.
 
 **5. Accessibility infrastructure (CORE).** This is the single biggest structural decision because of **EAA enforcement on 28 June 2025**: any consumer service with >10 employees offered to EU users must conform to WCAG 2.2 AA, with national regulators already publishing non-compliance lists. For a HIPAA-aligned mental-health product the reputational cost of an EAA finding is asymmetric. Structural setup (do now):
+
 - `@axe-core/playwright` wired into Playwright e2e tests with `AxeBuilder().withTags(['wcag2a','wcag2aa','wcag22aa'])` — fail-the-build on violations
 - ESLint `eslint-plugin-jsx-a11y` in pre-commit
 - Document the 40–43% automation ceiling (Deque's own figure — axe catches ~57% by volume) and budget for a **manual audit before EU launch** by a service like TPGi or Deque
@@ -41,23 +42,23 @@ The audit-fix cycle is the trap — Sheri Byrne-Haber's much-cited "you can't au
 
 ## CORE / ADDITIVE / TRAP
 
-| Decision | Verdict | Do now? |
-|---|---|---|
-| Tailwind v4 + `@theme` with 3-layer token namespace (primitive/semantic/component) | CORE | Yes — name them now even if half are empty |
-| shadcn components in `components/ui/` + wrap-don't-edit rule | CORE | Yes — convention, no code cost |
-| `@axe-core/playwright` + jsx-a11y ESLint + CI fail-on-violation | CORE | Yes — EAA enforces June 2025 |
-| Dark-mode-ready CSS variable architecture (light tokens with `[data-theme]` switch hook) | CORE | Yes — feature ships later, structure now |
-| `next/font` variable font + `next/image` priority/sizes discipline | CORE | Yes — irreversible CLS/LCP cost otherwise |
-| Lucide icons | CORE | Yes — pick once |
-| Style Dictionary + `@quilty/tokens` package | ADDITIVE | Defer until Flutter app needs token parity |
-| Tokens Studio / Figma sync | ADDITIVE | Defer until you hire a designer |
-| Storybook | ADDITIVE / borderline TRAP | Defer past ~50 components |
-| Motion / Framer Motion | ADDITIVE | Install when first real animation lands |
-| View Transitions API | ADDITIVE | Use for route transitions when you want them |
-| Monorepo + extracted UI package | ADDITIVE | Defer until second consuming app exists |
-| Full owned design system (Primer/Polaris-class) | TRAP | Day-one is premature; the 3-layer token seam protects future-you |
-| Manual EU accessibility audit | CORE (deferred) | Budget for pre-EU-launch — automation only catches ~40-57% |
-| WCAG 2.2 AAA targets | TRAP | AA is the legal floor and the industry ceiling for consumer |
+| Decision                                                                                 | Verdict                    | Do now?                                                          |
+| ---------------------------------------------------------------------------------------- | -------------------------- | ---------------------------------------------------------------- |
+| Tailwind v4 + `@theme` with 3-layer token namespace (primitive/semantic/component)       | CORE                       | Yes — name them now even if half are empty                       |
+| shadcn components in `components/ui/` + wrap-don't-edit rule                             | CORE                       | Yes — convention, no code cost                                   |
+| `@axe-core/playwright` + jsx-a11y ESLint + CI fail-on-violation                          | CORE                       | Yes — EAA enforces June 2025                                     |
+| Dark-mode-ready CSS variable architecture (light tokens with `[data-theme]` switch hook) | CORE                       | Yes — feature ships later, structure now                         |
+| `next/font` variable font + `next/image` priority/sizes discipline                       | CORE                       | Yes — irreversible CLS/LCP cost otherwise                        |
+| Lucide icons                                                                             | CORE                       | Yes — pick once                                                  |
+| Style Dictionary + `@quilty/tokens` package                                              | ADDITIVE                   | Defer until Flutter app needs token parity                       |
+| Tokens Studio / Figma sync                                                               | ADDITIVE                   | Defer until you hire a designer                                  |
+| Storybook                                                                                | ADDITIVE / borderline TRAP | Defer past ~50 components                                        |
+| Motion / Framer Motion                                                                   | ADDITIVE                   | Install when first real animation lands                          |
+| View Transitions API                                                                     | ADDITIVE                   | Use for route transitions when you want them                     |
+| Monorepo + extracted UI package                                                          | ADDITIVE                   | Defer until second consuming app exists                          |
+| Full owned design system (Primer/Polaris-class)                                          | TRAP                       | Day-one is premature; the 3-layer token seam protects future-you |
+| Manual EU accessibility audit                                                            | CORE (deferred)            | Budget for pre-EU-launch — automation only catches ~40-57%       |
+| WCAG 2.2 AAA targets                                                                     | TRAP                       | AA is the legal floor and the industry ceiling for consumer      |
 
 The single sentence: **adopt Tailwind v4 + shadcn with three-layer token names, axe-core in CI, and `next/font`/`next/image` discipline on day one; defer everything else until a real trigger fires.**
 

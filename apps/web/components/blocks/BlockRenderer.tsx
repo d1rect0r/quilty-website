@@ -1,10 +1,10 @@
-import type { Block } from '@/lib/content/schemas';
 import { Hero } from '@/components/blocks/Hero';
 import { ValueProp } from '@/components/blocks/ValueProp';
 import { FeatureGrid } from '@/components/blocks/FeatureGrid';
 import { FAQ } from '@/components/blocks/FAQ';
 import { TestimonialQuote } from '@/components/blocks/TestimonialQuote';
 import { CTABanner } from '@/components/blocks/CTABanner';
+import type { Block } from '@/lib/content/schemas';
 
 /**
  * Single dispatch point for every typed block. Exhaustive switch on the
@@ -90,12 +90,7 @@ export function BlocksRenderer({ blocks, pageUrl }: BlocksRendererProps) {
       {blocks.map((block, idx) => {
         const instanceId = `block-${idx}-${block.type.toLowerCase()}`;
         return (
-          <BlockRenderer
-            key={instanceId}
-            block={block}
-            instanceId={instanceId}
-            pageUrl={pageUrl}
-          />
+          <BlockRenderer key={instanceId} block={block} instanceId={instanceId} pageUrl={pageUrl} />
         );
       })}
     </>

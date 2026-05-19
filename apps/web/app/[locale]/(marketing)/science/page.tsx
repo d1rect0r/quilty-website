@@ -1,6 +1,6 @@
-import type { Metadata } from 'next';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { buildMedicalWebPageJsonLd } from '@/lib/seo/schemas';
+import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Science',
@@ -31,10 +31,10 @@ export default function SciencePage() {
           reviewedBy: null,
         })}
       />
-      <h1 className="text-4xl font-semibold text-fg-default">Science</h1>
-      <p className="mt-4 text-fg-muted">
-        Coming soon — content + named clinical reviewer (lastReviewed +
-        reviewedBy per D27) land in M3-M4.
+      <h1 className="text-fg-default text-4xl font-semibold">Science</h1>
+      <p className="text-fg-muted mt-4">
+        Coming soon — content + named clinical reviewer (lastReviewed + reviewedBy per D27) land in
+        M3-M4.
       </p>
     </section>
   );

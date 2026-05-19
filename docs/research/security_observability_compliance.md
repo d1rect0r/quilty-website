@@ -57,18 +57,19 @@ LaunchDarkly's Oct 2025 outage (99% SDK-affected, 24h — [Statsig](https://www.
 
 ## CORE / ADDITIVE / TRAP
 
-| Area | CORE (land now) | ADDITIVE (later) | TRAP (skip) |
-|---|---|---|---|
+| Area             | CORE (land now)                                                                                                                | ADDITIVE (later)                                                                  | TRAP (skip)                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | Security headers | CSP nonce+strict-dynamic plumbing, HSTS preload, frame-ancestors, Permissions-Policy default-deny camera/mic, SRI on Stripe.js | More CSP directives, report-uri dashboards, additional Permissions-Policy entries | COEP/COOP/CORP cross-origin isolation; full strict-CSP enforcement day-one (use report-only first) |
-| Consent | Server-side ConsentState; GPC `Sec-GPC` honoring; SDK-load-gated-by-consent pattern | Granular per-purpose toggles; Iubenda/Cookiebot banner UI; geo-aware banner copy | OneTrust enterprise tier ($10K ACV); building CMP from scratch |
-| Observability | Single vendor with HIPAA BAA (Sentry or Datadog or PostHog); W3C traceparent → x_trace_id propagation; replay mask-all default | More dashboards, custom RUM events, SLO burn-rate alerts | OpenTelemetry browser SDK as primary (not prod-ready); unmasked session replay |
-| Audit pipeline | Web uses same `/v1/*` endpoints, same traceparent + Idempotency-Key, `channel:web` tag | Web-specific event types | Separate web audit sink |
-| HIPAA posture | Zero-PHI website; third-party-script governance via CSP/SRI/tag-manager lockdown; BAA inventory | Vendor risk dashboards; OCR-ready evidence packs | Full SIEM/SOAR on web; zero-trust web microsegmentation |
-| Dep scanning | CycloneDX SBOM in CI; Dependabot; lockfile pinning | Snyk/reachability analysis | Multi-vendor SCA stack |
-| Bot defense | CloudFront WAF managed rules; Turnstile on auth/signup | Custom rate limits; bot-management tiers | DataDome/HUMAN enterprise pre-launch |
-| Feature flags | Server-side SDK with local cache (GrowthBook/Statsig); SSR flag evaluation | Experimentation stats; targeting rules | Client-only flags; LaunchDarkly without Relay Proxy |
+| Consent          | Server-side ConsentState; GPC `Sec-GPC` honoring; SDK-load-gated-by-consent pattern                                            | Granular per-purpose toggles; Iubenda/Cookiebot banner UI; geo-aware banner copy  | OneTrust enterprise tier ($10K ACV); building CMP from scratch                                     |
+| Observability    | Single vendor with HIPAA BAA (Sentry or Datadog or PostHog); W3C traceparent → x_trace_id propagation; replay mask-all default | More dashboards, custom RUM events, SLO burn-rate alerts                          | OpenTelemetry browser SDK as primary (not prod-ready); unmasked session replay                     |
+| Audit pipeline   | Web uses same `/v1/*` endpoints, same traceparent + Idempotency-Key, `channel:web` tag                                         | Web-specific event types                                                          | Separate web audit sink                                                                            |
+| HIPAA posture    | Zero-PHI website; third-party-script governance via CSP/SRI/tag-manager lockdown; BAA inventory                                | Vendor risk dashboards; OCR-ready evidence packs                                  | Full SIEM/SOAR on web; zero-trust web microsegmentation                                            |
+| Dep scanning     | CycloneDX SBOM in CI; Dependabot; lockfile pinning                                                                             | Snyk/reachability analysis                                                        | Multi-vendor SCA stack                                                                             |
+| Bot defense      | CloudFront WAF managed rules; Turnstile on auth/signup                                                                         | Custom rate limits; bot-management tiers                                          | DataDome/HUMAN enterprise pre-launch                                                               |
+| Feature flags    | Server-side SDK with local cache (GrowthBook/Statsig); SSR flag evaluation                                                     | Experimentation stats; targeting rules                                            | Client-only flags; LaunchDarkly without Relay Proxy                                                |
 
 ## Sources
+
 - [Web Almanac 2025: Security](https://almanac.httparchive.org/en/2025/security)
 - [OWASP ASVS 5.0 (May 2025)](https://owasp.org/www-project-application-security-verification-standard/)
 - [Google strict-CSP guidance](https://csp.withgoogle.com/docs/strict-csp.html)

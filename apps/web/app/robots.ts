@@ -16,11 +16,7 @@ const TRAINING_BOTS = [
   'Bytespider',
 ] as const;
 
-const CITATION_BOTS = [
-  'OAI-SearchBot',
-  'Claude-SearchBot',
-  'PerplexityBot',
-] as const;
+const CITATION_BOTS = ['OAI-SearchBot', 'Claude-SearchBot', 'PerplexityBot'] as const;
 
 interface AllowRule {
   userAgent: string;
@@ -59,11 +55,7 @@ export default function robots(): MetadataRoute.Robots {
   });
 
   return {
-    rules: [
-      allowRule('*'),
-      ...CITATION_BOTS.map(allowRule),
-      ...TRAINING_BOTS.map(blockRule),
-    ],
+    rules: [allowRule('*'), ...CITATION_BOTS.map(allowRule), ...TRAINING_BOTS.map(blockRule)],
     sitemap: `${base}/sitemap.xml`,
     host: base,
   };

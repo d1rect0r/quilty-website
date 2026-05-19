@@ -13,7 +13,7 @@ export function SkipLink() {
   return (
     <a
       href="#main"
-      className="skip-link absolute left-2 top-2 z-50 rounded-md bg-bg-elevated px-4 py-2 text-sm font-medium text-fg-default shadow ring-2 ring-ring"
+      className="skip-link bg-bg-elevated text-fg-default ring-ring absolute left-2 top-2 z-50 rounded-md px-4 py-2 text-sm font-medium shadow ring-2"
     >
       Skip to main content
     </a>

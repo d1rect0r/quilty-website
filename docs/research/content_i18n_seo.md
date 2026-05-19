@@ -51,35 +51,36 @@ Enterprise pattern: a versioned `redirects.json` (or `next.config.js` `redirects
 
 ## CORE / ADDITIVE / TRAP table
 
-| Decision | Verdict | Notes |
-|---|---|---|
-| Pages-as-typed-block-arrays (even in MDX) | **CORE** | Enables painless CMS migration; same shape ports to Sanity/Contentful |
-| `/[locale]/` route segment reserved, single-locale launch | **CORE** | Adding 2nd locale becomes copy job, not refactor |
-| next-intl on App Router | **CORE** | Dominant 2026 choice; switching costs later are real |
-| Subdirectory (`/de/`) vs subdomain/ccTLD | **CORE** | SEO authority compounding; reversal is painful |
-| Trailing-slash convention enforced globally | **CORE** | Cheap now, expensive to flip after indexing |
-| Absolute canonical URLs + `metadataBase` | **CORE** | Prevents duplicate-content debt |
-| Schema.org `MedicalWebPage` + `Organization` baseline | **CORE** | Drives AI-search citation, HIPAA-credibility signal |
-| Sitemap.ts + robots.ts at launch | **CORE** | 30 min of work; gate to indexing |
-| Redirect table as versioned artifact | **CORE** | Compounds; SEO debt is asymmetric |
-| Permalink pattern for blog (even unused) | **CORE** | Painful to change post-indexing |
-| RUM for INP/LCP/CLS from day one | **CORE** | Can't fix what you don't measure; 200ms p75 INP gate |
-| Component library = marketing block library | **CORE** | Single design system, two surfaces |
-| Headless CMS at launch (no content yet) | **TRAP** | Pay $100–500/mo + setup time for nothing |
-| Full hreflang + multi-locale at launch | **TRAP** | Hreflang is fragile; add with first real locale |
-| Algolia at launch | **TRAP** | Pagefind/none until >50 pages |
-| Atomic Design as formal methodology | **TRAP** | Vocabulary useful; ceremony slows shipping |
-| A/B testing platform pre-traffic | **TRAP** | Statistical noise <10k weekly visitors |
-| Field-level vs document-level i18n choice | **ADDITIVE** | Decide at CMS-migration time, not launch |
-| CMS choice (Sanity vs Contentful vs Storyblok) | **ADDITIVE** | Made trivial by block-array model if shape is typed |
-| Actual translated content | **ADDITIVE** | Per-locale rollout |
-| Sitewide search | **ADDITIVE** | Pagefind when needed |
-| Blog content cadence | **ADDITIVE** | Process, not structure |
-| Smart app banners (iOS/Android) | **ADDITIVE** | Meta tags; trivial later |
+| Decision                                                  | Verdict      | Notes                                                                 |
+| --------------------------------------------------------- | ------------ | --------------------------------------------------------------------- |
+| Pages-as-typed-block-arrays (even in MDX)                 | **CORE**     | Enables painless CMS migration; same shape ports to Sanity/Contentful |
+| `/[locale]/` route segment reserved, single-locale launch | **CORE**     | Adding 2nd locale becomes copy job, not refactor                      |
+| next-intl on App Router                                   | **CORE**     | Dominant 2026 choice; switching costs later are real                  |
+| Subdirectory (`/de/`) vs subdomain/ccTLD                  | **CORE**     | SEO authority compounding; reversal is painful                        |
+| Trailing-slash convention enforced globally               | **CORE**     | Cheap now, expensive to flip after indexing                           |
+| Absolute canonical URLs + `metadataBase`                  | **CORE**     | Prevents duplicate-content debt                                       |
+| Schema.org `MedicalWebPage` + `Organization` baseline     | **CORE**     | Drives AI-search citation, HIPAA-credibility signal                   |
+| Sitemap.ts + robots.ts at launch                          | **CORE**     | 30 min of work; gate to indexing                                      |
+| Redirect table as versioned artifact                      | **CORE**     | Compounds; SEO debt is asymmetric                                     |
+| Permalink pattern for blog (even unused)                  | **CORE**     | Painful to change post-indexing                                       |
+| RUM for INP/LCP/CLS from day one                          | **CORE**     | Can't fix what you don't measure; 200ms p75 INP gate                  |
+| Component library = marketing block library               | **CORE**     | Single design system, two surfaces                                    |
+| Headless CMS at launch (no content yet)                   | **TRAP**     | Pay $100–500/mo + setup time for nothing                              |
+| Full hreflang + multi-locale at launch                    | **TRAP**     | Hreflang is fragile; add with first real locale                       |
+| Algolia at launch                                         | **TRAP**     | Pagefind/none until >50 pages                                         |
+| Atomic Design as formal methodology                       | **TRAP**     | Vocabulary useful; ceremony slows shipping                            |
+| A/B testing platform pre-traffic                          | **TRAP**     | Statistical noise <10k weekly visitors                                |
+| Field-level vs document-level i18n choice                 | **ADDITIVE** | Decide at CMS-migration time, not launch                              |
+| CMS choice (Sanity vs Contentful vs Storyblok)            | **ADDITIVE** | Made trivial by block-array model if shape is typed                   |
+| Actual translated content                                 | **ADDITIVE** | Per-locale rollout                                                    |
+| Sitewide search                                           | **ADDITIVE** | Pagefind when needed                                                  |
+| Blog content cadence                                      | **ADDITIVE** | Process, not structure                                                |
+| Smart app banners (iOS/Android)                           | **ADDITIVE** | Meta tags; trivial later                                              |
 
 **Bottom line for Quilty:** the working hypothesis (MDX in repo → Sanity/Contentful later; English-only with i18n-ready scaffolding) is exactly correct. The structural work for launch is roughly two days of decisions — block-array page shape, `/[locale]/` segment, trailing-slash convention, sitemap/robots/canonical setup, `MedicalWebPage` schema baseline, redirect table, INP RUM — and everything else can be additive.
 
 ## Sources
+
 - [next-intl docs](https://next-intl.dev/)
 - [Sanity localization docs](https://www.sanity.io/docs/localization)
 - [Web Almanac 2025 — CMS](https://almanac.httparchive.org/en/2025/cms)

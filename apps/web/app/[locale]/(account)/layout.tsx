@@ -1,7 +1,7 @@
-import type { Metadata } from 'next';
 import { SkipLink } from '@/components/site/SkipLink';
 import { PortalNav } from '@/components/account/PortalNav';
 import { FocusOnNavigate } from '@/components/site/FocusOnNavigate';
+import type { Metadata } from 'next';
 
 /**
  * Account portal layout. Hybrid nav per U1: top-nav primary at every level;

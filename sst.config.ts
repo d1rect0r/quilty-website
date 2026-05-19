@@ -138,8 +138,7 @@ function defineSiteResources(stage: string) {
       // SST-emitted `site.url` (the raw CloudFront domain) — fixes the
       // phantom *.preview.my-quilty.com URL flagged in Round-5 IaC
       // reviewer M3 (no wildcard DNS record exists for that pattern).
-      NEXT_PUBLIC_SITE_URL:
-        stage === 'dev' ? 'https://my-quilty.com' : ($site?.url ?? ''),
+      NEXT_PUBLIC_SITE_URL: stage === 'dev' ? 'https://my-quilty.com' : ($site?.url ?? ''),
       NEXT_PUBLIC_SENTRY_DSN: sentryDsn,
     },
     server: {

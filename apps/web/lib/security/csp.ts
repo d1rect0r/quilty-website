@@ -42,7 +42,8 @@ function sanitizeCspValue(raw: string): string {
   return raw;
 }
 
-const SENTRY_INGEST_HOST = sanitizeCspValue(SENTRY_INGEST_HOST_RAW) || 'https://*.ingest.us.sentry.io';
+const SENTRY_INGEST_HOST =
+  sanitizeCspValue(SENTRY_INGEST_HOST_RAW) || 'https://*.ingest.us.sentry.io';
 const SENTRY_REPORT_URI = sanitizeCspValue(SENTRY_REPORT_URI_RAW);
 
 export interface CspOptions {

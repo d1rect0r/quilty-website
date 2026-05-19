@@ -38,13 +38,8 @@ for (const route of ACCOUNT_ROUTES) {
   });
 }
 
-test('@smoke @seo account routes carry noindex meta (inherited from layout)', async ({
-  page,
-}) => {
+test('@smoke @seo account routes carry noindex meta (inherited from layout)', async ({ page }) => {
   await page.goto('/en/account');
-  const robotsMeta = await page
-    .locator('meta[name="robots"]')
-    .first()
-    .getAttribute('content');
+  const robotsMeta = await page.locator('meta[name="robots"]').first().getAttribute('content');
   expect(robotsMeta).toContain('noindex');
 });

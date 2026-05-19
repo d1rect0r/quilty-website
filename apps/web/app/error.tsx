@@ -22,22 +22,20 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   return (
     <main id="main" tabIndex={-1}>
       <section className="mx-auto max-w-2xl px-6 py-24 text-center">
-        <p className="text-sm font-medium text-danger-fg">Something went wrong</p>
-        <h1 className="mt-2 text-4xl font-semibold text-fg-default">
-          Unexpected error
-        </h1>
-        <p className="mt-4 text-fg-muted">
+        <p className="text-danger-fg text-sm font-medium">Something went wrong</p>
+        <h1 className="text-fg-default mt-2 text-4xl font-semibold">Unexpected error</h1>
+        <p className="text-fg-muted mt-4">
           We&apos;ve been notified. Try again, or head back home.
         </p>
         {error.digest ? (
-          <p className="mt-2 text-xs text-fg-subtle">
+          <p className="text-fg-subtle mt-2 text-xs">
             Reference: <code>{error.digest}</code>
           </p>
         ) : null}
         <button
           type="button"
           onClick={reset}
-          className="mt-8 rounded-md bg-accent-primary px-4 py-2.5 text-accent-fg hover:bg-accent-primary-hover"
+          className="bg-accent-primary text-accent-fg hover:bg-accent-primary-hover mt-8 rounded-md px-4 py-2.5"
         >
           Try again
         </button>

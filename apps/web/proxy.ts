@@ -67,20 +67,19 @@ export function proxy(request: NextRequest): NextResponse {
 }
 
 /**
- * Matcher excludes static assets + the .well-known prefix + /api/* routes.
+ * Matcher excludes static assets + the .well-known prefix.
  *
- * `/api/*` is excluded because Route Handlers return JSON consumed
- * programmatically — CSP headers have no effect, and the per-request
- * header computation (CSP build + 7 security headers) is wasted CPU on
- * a hot path (Round-5 final-QA perf-bundle MEDIUM). Auth/session security
- * for Route Handlers is enforced inside the handler itself per
- * ADR-0002 (CVE-2025-29927 — never authorize in middleware).
+ * `/api/*` is INCLUDED in CSP coverage — auth Route Handlers (OAuth
+ * callbacks, sign-in flows) can return HTML responses that need the
+ * portal-tier CSP, and security-test discipline (csp.spec.ts) asserts
+ * the nonce on `/api/auth/*`. The per-request CPU cost of computing 7
+ * headers is microseconds — not worth the security boundary erosion.
  */
 export const config = {
   matcher: [
     // Negative-lookahead excludes static assets + favicon + .well-known
     // (deeplink files served with their own Content-Type via
-    // next.config.ts headers()) + /api/* (Route Handlers).
-    '/((?!api|_next/static|_next/image|favicon\\.ico|\\.well-known).*)',
+    // next.config.ts headers()).
+    '/((?!_next/static|_next/image|favicon\\.ico|\\.well-known).*)',
   ],
 };

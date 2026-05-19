@@ -17,11 +17,8 @@ const COPYRIGHT_YEAR = new Date().getFullYear();
 
 export function Footer() {
   return (
-    <footer
-      role="contentinfo"
-      className="border-t border-border-default bg-bg-elevated"
-    >
-      <div className="mx-auto max-w-6xl px-6 py-10 text-sm text-fg-muted">
+    <footer role="contentinfo" className="border-border-default bg-bg-elevated border-t">
+      <div className="text-fg-muted mx-auto max-w-6xl px-6 py-10 text-sm">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <FooterColumn
             title="Product"
@@ -61,7 +58,7 @@ export function Footer() {
           />
         </div>
 
-        <div className="mt-10 flex flex-col items-start justify-between gap-4 border-t border-border-default pt-6 md:flex-row md:items-center">
+        <div className="border-border-default mt-10 flex flex-col items-start justify-between gap-4 border-t pt-6 md:flex-row md:items-center">
           <p>© {COPYRIGHT_YEAR} Quilty Inc. All rights reserved.</p>
           {/*
             Wrapped in Suspense so the surrounding marketing layout stays
@@ -92,7 +89,7 @@ interface FooterColumnProps {
 function FooterColumn({ title, links }: FooterColumnProps) {
   return (
     <div>
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-fg-default">
+      <h2 className="text-fg-default mb-3 text-xs font-semibold uppercase tracking-wider">
         {title}
       </h2>
       {/* WCAG 2.5.5 AA Target Size: every footer link gets min-h-11 (44px)
@@ -103,7 +100,7 @@ function FooterColumn({ title, links }: FooterColumnProps) {
           <li key={link.href}>
             <Link
               href={link.href}
-              className="-mx-2 flex min-h-11 items-center rounded-md px-2 hover:text-fg-default"
+              className="hover:text-fg-default -mx-2 flex min-h-11 items-center rounded-md px-2"
             >
               {link.label}
             </Link>

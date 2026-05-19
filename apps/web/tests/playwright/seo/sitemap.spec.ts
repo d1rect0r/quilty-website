@@ -10,9 +10,7 @@ test('@seo sitemap.xml returns 200 + XML content type', async ({ request }) => {
   expect(response.headers()['content-type']).toMatch(/xml/);
 });
 
-test('@seo sitemap includes every reserved marketing route per U2 + U3', async ({
-  request,
-}) => {
+test('@seo sitemap includes every reserved marketing route per U2 + U3', async ({ request }) => {
   const response = await request.get('/sitemap.xml');
   const body = await response.text();
 

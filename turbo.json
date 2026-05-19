@@ -9,25 +9,12 @@
     "turbo.json",
     "sst.config.ts"
   ],
-  "globalEnv": [
-    "NODE_ENV",
-    "CI",
-    "NEXT_PUBLIC_SITE_URL"
-  ],
+  "globalEnv": ["NODE_ENV", "CI", "NEXT_PUBLIC_SITE_URL"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        ".env*",
-        "!.env*.local"
-      ],
-      "outputs": [
-        ".next/**",
-        "!.next/cache/**",
-        "dist/**",
-        ".velite/**"
-      ],
+      "inputs": ["$TURBO_DEFAULT$", ".env*", "!.env*.local"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", ".velite/**"],
       "env": [
         "NEXT_PUBLIC_SENTRY_DSN",
         "SENTRY_AUTH_TOKEN",
@@ -59,11 +46,7 @@
     },
     "typecheck": {
       "dependsOn": ["^typecheck"],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "tsconfig.json",
-        "tsconfig.*.json"
-      ],
+      "inputs": ["$TURBO_DEFAULT$", "tsconfig.json", "tsconfig.*.json"],
       "outputs": ["*.tsbuildinfo"]
     },
     "test": {

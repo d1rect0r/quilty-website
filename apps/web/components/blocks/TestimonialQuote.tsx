@@ -17,12 +17,17 @@ export interface TestimonialQuoteProps {
 export function TestimonialQuote({ block }: TestimonialQuoteProps) {
   return (
     <figure className="mx-auto max-w-2xl px-6 py-16">
-      <blockquote className="text-2xl font-medium text-fg-default">
+      <blockquote className="text-fg-default text-2xl font-medium">
         <p>&ldquo;{block.quote}&rdquo;</p>
       </blockquote>
-      <figcaption className="mt-4 text-sm text-fg-muted">
-        <span className="font-semibold text-fg-default">{block.attribution}</span>
-        {block.role ? <span>{' — '}{block.role}</span> : null}
+      <figcaption className="text-fg-muted mt-4 text-sm">
+        <span className="text-fg-default font-semibold">{block.attribution}</span>
+        {block.role ? (
+          <span>
+            {' — '}
+            {block.role}
+          </span>
+        ) : null}
       </figcaption>
     </figure>
   );

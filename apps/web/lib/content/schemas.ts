@@ -143,8 +143,7 @@ export const PageContentSchema = z
   // Hero block per page emits <h1>; pages with multiple Hero blocks would
   // violate WCAG 2.4.6 + page-titled semantics. Schema-level refine catches
   // this at content compile time, not in production HTML.
-  .refine(
-    (page) => page.blocks.filter((b) => b.type === 'Hero').length <= 1,
-    { message: 'A page may contain at most one Hero block (single <h1> per page).' },
-  );
+  .refine((page) => page.blocks.filter((b) => b.type === 'Hero').length <= 1, {
+    message: 'A page may contain at most one Hero block (single <h1> per page).',
+  });
 export type PageContent = z.infer<typeof PageContentSchema>;

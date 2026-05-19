@@ -8,27 +8,20 @@ import Link from 'next/link';
  */
 export function Header() {
   return (
-    <header
-      role="banner"
-      className="border-b border-border-default bg-bg-elevated"
-    >
+    <header role="banner" className="border-border-default bg-bg-elevated border-b">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link
-          href="/en"
-          className="text-lg font-semibold text-fg-default"
-          aria-label="Quilty home"
-        >
+        <Link href="/en" className="text-fg-default text-lg font-semibold" aria-label="Quilty home">
           Quilty
         </Link>
         <nav aria-label="Primary">
           {/* Real nav items land in M2 with the marketing IA scope (per U2).
               Every interactive element has min-h-11 (44px) to satisfy WCAG 2.5.5
               Target Size (AA) — Round-5 a11y reviewer finding. */}
-          <ul className="flex items-center gap-2 text-sm text-fg-muted">
+          <ul className="text-fg-muted flex items-center gap-2 text-sm">
             <li>
               <Link
                 href="/en/features"
-                className="flex min-h-11 items-center px-3 hover:text-fg-default"
+                className="hover:text-fg-default flex min-h-11 items-center px-3"
               >
                 Features
               </Link>
@@ -36,7 +29,7 @@ export function Header() {
             <li>
               <Link
                 href="/en/pricing"
-                className="flex min-h-11 items-center px-3 hover:text-fg-default"
+                className="hover:text-fg-default flex min-h-11 items-center px-3"
               >
                 Pricing
               </Link>
@@ -44,7 +37,7 @@ export function Header() {
             <li>
               <Link
                 href="/en/science"
-                className="flex min-h-11 items-center px-3 hover:text-fg-default"
+                className="hover:text-fg-default flex min-h-11 items-center px-3"
               >
                 Science
               </Link>
@@ -52,7 +45,7 @@ export function Header() {
             <li>
               <Link
                 href="/en/account"
-                className="flex min-h-11 items-center rounded-md bg-accent-primary px-4 text-accent-fg hover:bg-accent-primary-hover"
+                className="bg-accent-primary text-accent-fg hover:bg-accent-primary-hover flex min-h-11 items-center rounded-md px-4"
               >
                 Sign in
               </Link>

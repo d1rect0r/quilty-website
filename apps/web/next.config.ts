@@ -38,7 +38,9 @@ const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   trailingSlash: false,
-  experimental: { typedRoutes: true },
+  // typedRoutes graduated from experimental in Next.js 16; the
+  // experimental.typedRoutes path is deprecated.
+  typedRoutes: true,
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [],

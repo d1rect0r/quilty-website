@@ -8,12 +8,14 @@
 ## When to write an ADR
 
 Write one when:
+
 - The decision is **non-obvious** from the code (someone could plausibly choose differently)
 - The decision is **expensive to reverse** (refactor cost > a couple of hours)
 - The decision has **systemic implications** (touches multiple modules, milestones, or vendor contracts)
 - The decision **rejects a popular alternative** for a specific reason that won't be obvious later
 
 Don't write one for:
+
 - File naming conventions (codify in `eslint` or `prettier`)
 - Library version bumps (Renovate handles this)
 - Bug fixes (use the commit message)
@@ -50,15 +52,15 @@ holds the **milestone WHAT-and-WHEN**.
 
 ## Initial ADR set (M1 scaffold)
 
-| # | Title | Captures |
-|---|---|---|
-| [0000](0000-template.md) | Template | Nygard format |
-| [0001](0001-monorepo-shape.md) | Monorepo shape | D4 + D49 + D69 (Turborepo + pnpm; `apps/web` + `packages/shared-types` at M1; drop empty `packages/ui` until extraction trigger) |
-| [0002](0002-session-cookie-pattern.md) | Session cookie pattern | D7 + D8 + D9 + D10 + D11 + D51 + D52 + D53 + D54 + D55 (opaque session-ID + DynamoDB + EventBridge fan-out; NOT iron-session; NOT OIDC BCL because Cognito doesn't support it; CSRF triple-layer; step-up via `prompt=login`; in-app backup codes) |
-| [0003](0003-openapi-codegen-direction.md) | OpenAPI codegen direction | D46 + D48 (Rust utoipa → `@quilty/api-types` published to GitHub Packages; website re-exports via `packages/shared-types`; never git submodules) |
-| [0004](0004-observability-stack.md) | Observability stack | D38 + D40 + D41 + D42a + D42b + D42d + D43 + D56 + D61 + D67 + D68 (Sentry Business + PostHog Cloud Boost + CloudWatch + OTel-first + W3C tracecontext + PHI sanitizer + replay vendor pick) |
-| [0005](0005-csp-two-tier.md) | Two-tier CSP | D32 + D33 + D34 + D35 + D57 + D58 + D59 + D60 + D61 (per-route CSP in `proxy.ts`; marketing static / portal nonce; Trusted Types report-only; COOP/CORP/nosniff; HSTS ramp; Sentry as report-uri) |
-| [0006](0006-content-layer.md) | Content layer | D24 + D29 + D30 + D64 + D65 (Velite + Zod-validated MDX + typed block discriminated union + `<BlockRenderer>` → Sanity Enterprise at trigger) |
+| #                                         | Title                     | Captures                                                                                                                                                                                                                                           |
+| ----------------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [0000](0000-template.md)                  | Template                  | Nygard format                                                                                                                                                                                                                                      |
+| [0001](0001-monorepo-shape.md)            | Monorepo shape            | D4 + D49 + D69 (Turborepo + pnpm; `apps/web` + `packages/shared-types` at M1; drop empty `packages/ui` until extraction trigger)                                                                                                                   |
+| [0002](0002-session-cookie-pattern.md)    | Session cookie pattern    | D7 + D8 + D9 + D10 + D11 + D51 + D52 + D53 + D54 + D55 (opaque session-ID + DynamoDB + EventBridge fan-out; NOT iron-session; NOT OIDC BCL because Cognito doesn't support it; CSRF triple-layer; step-up via `prompt=login`; in-app backup codes) |
+| [0003](0003-openapi-codegen-direction.md) | OpenAPI codegen direction | D46 + D48 (Rust utoipa → `@quilty/api-types` published to GitHub Packages; website re-exports via `packages/shared-types`; never git submodules)                                                                                                   |
+| [0004](0004-observability-stack.md)       | Observability stack       | D38 + D40 + D41 + D42a + D42b + D42d + D43 + D56 + D61 + D67 + D68 (Sentry Business + PostHog Cloud Boost + CloudWatch + OTel-first + W3C tracecontext + PHI sanitizer + replay vendor pick)                                                       |
+| [0005](0005-csp-two-tier.md)              | Two-tier CSP              | D32 + D33 + D34 + D35 + D57 + D58 + D59 + D60 + D61 (per-route CSP in `proxy.ts`; marketing static / portal nonce; Trusted Types report-only; COOP/CORP/nosniff; HSTS ramp; Sentry as report-uri)                                                  |
+| [0006](0006-content-layer.md)             | Content layer             | D24 + D29 + D30 + D64 + D65 (Velite + Zod-validated MDX + typed block discriminated union + `<BlockRenderer>` → Sanity Enterprise at trigger)                                                                                                      |
 
 ## Planned-but-not-yet-written ADRs (deferred to follow-up commits)
 

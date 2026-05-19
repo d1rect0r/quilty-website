@@ -26,7 +26,7 @@ export function FAQ({ block, instanceId, pageUrl }: FAQProps) {
     >
       <JsonLd data={buildFAQPageJsonLd({ pageUrl, entries: block.entries })} />
       {block.heading ? (
-        <h2 id={headingId} className="mb-8 text-3xl font-semibold text-fg-default">
+        <h2 id={headingId} className="text-fg-default mb-8 text-3xl font-semibold">
           {block.heading}
         </h2>
       ) : null}
@@ -37,8 +37,8 @@ export function FAQ({ block, instanceId, pageUrl }: FAQProps) {
             broke when an entry's question was edited). */}
         {block.entries.map((entry, idx) => (
           <div key={`${instanceId}-entry-${idx}`}>
-            <dt className="text-lg font-semibold text-fg-default">{entry.question}</dt>
-            <dd className="mt-2 text-fg-muted">{entry.answer}</dd>
+            <dt className="text-fg-default text-lg font-semibold">{entry.question}</dt>
+            <dd className="text-fg-muted mt-2">{entry.answer}</dd>
           </div>
         ))}
       </dl>

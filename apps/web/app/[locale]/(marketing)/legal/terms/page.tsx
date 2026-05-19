@@ -12,10 +12,8 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <section className="mx-auto max-w-3xl px-6 py-24">
-      <h1 className="text-4xl font-semibold text-fg-default">Terms of Service</h1>
-      <p className="mt-4 text-fg-muted">
-        Placeholder — lawyer-reviewed copy lands in M8.
-      </p>
+      <h1 className="text-fg-default text-4xl font-semibold">Terms of Service</h1>
+      <p className="text-fg-muted mt-4">Placeholder — lawyer-reviewed copy lands in M8.</p>
     </section>
   );
 }

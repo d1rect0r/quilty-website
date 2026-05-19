@@ -17,8 +17,8 @@
 <!-- Cite any D-decisions, U-locks, or ADRs this PR touches.
      If none apply, write "N/A". -->
 
-- D-numbers: 
-- ADRs: 
+- D-numbers:
+- ADRs:
 
 ## Checklist
 

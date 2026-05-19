@@ -29,6 +29,7 @@ and the discovery endpoint:
   clear the managed-login session cookie and does not notify the RP).
 
 Forces:
+
 - HIPAA-aligned posture mandates **immediate** session revocation across all
   devices when a user clicks "sign out everywhere" or when a security event
   (password change, MFA-factor change) requires it. The Cerebral $7M case is
@@ -51,7 +52,8 @@ Forces:
 What happens if we don't decide: ship iron-session sealed cookies (simpler,
 common Next.js pattern), then discover at M6+ that we cannot meet the HIPAA
 incident-response SLO for forced session revocation. Refactor to opaque-ID
-+ store mid-flight is a 2-3 week project that touches every Route Handler.
+
+- store mid-flight is a 2-3 week project that touches every Route Handler.
 
 ## Decision
 
@@ -78,8 +80,8 @@ Specifically:
    `AdminUserGlobalSignOut` to revoke all of that `cognito_sub`'s tokens at
    Cognito, (c) publishes a `quilty.auth.sessions_revoked` event to
    EventBridge with `{ cognito_sub, except_session_id?, reason }`. Web BFF
-   + Rust backend both subscribe and invalidate their caches. Mobile app
-   handles the EventBridge fan-out via the existing push channel.
+   - Rust backend both subscribe and invalidate their caches. Mobile app
+     handles the EventBridge fan-out via the existing push channel.
 5. **`/api/auth/backchannel-logout` Route Handler is reserved as a 501-stub**
    for the day Cognito ships native OIDC Back-Channel Logout. When that
    ships, we flip the implementation and retire the EventBridge fan-out

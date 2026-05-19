@@ -1,7 +1,7 @@
-import type { Metadata, Viewport } from 'next';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { WebVitalsReporter } from '@/lib/observability/web-vitals';
 import { buildOrganizationJsonLd } from '@/lib/seo/schemas';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 /**

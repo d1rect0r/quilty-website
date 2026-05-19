@@ -9,9 +9,7 @@ test('@seo robots.txt returns 200', async ({ request }) => {
   expect(response.status()).toBe(200);
 });
 
-test('@seo robots.txt blocks training crawlers + allows citation crawlers', async ({
-  request,
-}) => {
+test('@seo robots.txt blocks training crawlers + allows citation crawlers', async ({ request }) => {
   const response = await request.get('/robots.txt');
   const body = await response.text();
 
@@ -26,13 +24,17 @@ test('@seo robots.txt blocks training crawlers + allows citation crawlers', asyn
     'Bytespider',
   ];
   for (const bot of TRAINING_BOTS) {
-    expect(body).toContain(`User-agent: ${bot}`);
+    // Next.js 16's MetadataRoute.Robots emits `User-Agent` (capital A);
+    // robots.txt directive names are case-insensitive per RFC 9309.
+    expect(body).toMatch(new RegExp(`^User-[Aa]gent:\\s*${bot}`, 'mi'));
   }
 
   // Citation crawlers — explicit allow rules
   const CITATION_BOTS = ['OAI-SearchBot', 'Claude-SearchBot', 'PerplexityBot'];
   for (const bot of CITATION_BOTS) {
-    expect(body).toContain(`User-agent: ${bot}`);
+    // Next.js 16's MetadataRoute.Robots emits `User-Agent` (capital A);
+    // robots.txt directive names are case-insensitive per RFC 9309.
+    expect(body).toMatch(new RegExp(`^User-[Aa]gent:\\s*${bot}`, 'mi'));
   }
 
   // Sitemap pointer

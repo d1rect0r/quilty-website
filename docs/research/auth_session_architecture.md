@@ -9,13 +9,14 @@
 
 The 2025-2026 baseline is uncontroversial: session cookies are `Secure + HttpOnly + SameSite=Lax`. `Strict` breaks the "click link in email → land logged in" flow consumer apps depend on, and Clerk explicitly defaults to `Lax` for that reason ([Clerk CSRF docs](https://clerk.com/docs/guides/secure/best-practices/csrf-protection)). `__Host-` prefix is the strongest hardening (HTTPS + Path=/ + no Domain attribute, browser-enforced), but **`__Host-` is mutually exclusive with parent-domain cookies** — the prefix forbids the `Domain` attribute. That's the one structural fork: prefix OR parent-domain sharing, not both ([MDN Cookies](https://developer.mozilla.org/en-US/docs/Web/Security/Practical_implementation_guides/Cookies)).
 
-CHIPS / Partitioned cookies are a **non-issue for our shape**: subdomains under the same registrable domain (`quilty.app`) share a partition key, so first-party auth at `auth.quilty.app` ↔ `app.quilty.app` is unaffected ([MDN CHIPS](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Privacy_sandbox/Partitioned_cookies)). Safari ITP's 7-day cap hits *JS-set* first-party cookies; **server-set cookies are not capped** the same way ([Safari ITP 2026 guide](https://www.cometly.com/post/safari-itp-blocking-tracking)). Always set session cookies server-side from `auth.quilty.app`.
+CHIPS / Partitioned cookies are a **non-issue for our shape**: subdomains under the same registrable domain (`quilty.app`) share a partition key, so first-party auth at `auth.quilty.app` ↔ `app.quilty.app` is unaffected ([MDN CHIPS](https://developer.mozilla.org/en-US/docs/Web/Privacy/Guides/Privacy_sandbox/Partitioned_cookies)). Safari ITP's 7-day cap hits _JS-set_ first-party cookies; **server-set cookies are not capped** the same way ([Safari ITP 2026 guide](https://www.cometly.com/post/safari-itp-blocking-tracking)). Always set session cookies server-side from `auth.quilty.app`.
 
 ## 2. Session storage + refresh pattern — the single biggest CORE decision
 
 The IETF OAuth Browser-Based Apps BCP (draft-ietf-oauth-browser-based-apps, updated Dec 2025) now **strongly endorses BFF as the default** for any browser app: "The BFF uses cookies to create a user session, which is directly associated with the user's tokens" — tokens never reach the browser ([IETF BCP](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps)). Duende, Auth0, FusionAuth all converged here in 2025 ([Duende BFF v4](https://duendesoftware.com/blog/20251204-why-now-is-an-excellent-time-for-backend-for-frontend-duende-bff-v4), [Auth0 BFF](https://auth0.com/blog/the-backend-for-frontend-pattern-bff/)).
 
 The three patterns and where they land:
+
 - **(a) BFF with server-side session**: dominant for new builds 2025+. Cookies HttpOnly, tokens in Redis/server-side cache, silent refresh server-side. SEO/SSR-friendly. Easiest "sign out everywhere" + audit-log parity. Cost: one stateful service to operate.
 - **(b) HttpOnly cookies carrying real tokens**: still common in legacy; OK if refresh rotation + reuse-detection is solid (which we already have).
 - **(c) Access-token-in-memory + silent iframe refresh**: dying. Third-party-cookie deprecation kills silent-refresh iframes ([Microsoft 3rd-party cookie guidance](https://learn.microsoft.com/en-us/entra/identity-platform/reference-third-party-cookies-spas)).
@@ -26,9 +27,9 @@ The three patterns and where they land:
 
 AWS frames Managed Login (the 2024 successor to Hosted UI) as: AWS owns hosting/scaling, you get OAuth/federation/WAF integration; custom UI gives full control but you own the surface area including Lambda triggers ([AWS blog](https://aws.amazon.com/blogs/security/use-the-hosted-ui-or-create-a-custom-ui-in-amazon-cognito/)). For our scale, **Hosted UI at `auth.quilty.app` is CORE**: it isolates the auth attack surface, ships WAF/threat-protection out of the box, supports passkeys + TOTP we already wired in W2-B.2, and the OAuth redirect contract is portable if we ever migrate IdPs. The lock-in cost of custom UI at our scale would dwarf the customization wins.
 
-## 4. Cross-subdomain — parent-domain `.quilty.app` is fine *if* you accept the prefix trade-off
+## 4. Cross-subdomain — parent-domain `.quilty.app` is fine _if_ you accept the prefix trade-off
 
-Better Auth's guidance: prefer narrow scope, share only when necessary ([Better Auth Cookies](https://better-auth.com/docs/concepts/cookies)). For Quilty's shape (marketing `quilty.app`, app `app.quilty.app`, auth `auth.quilty.app`), the **OIDC code-flow-per-subdomain via BFF** is cleaner than parent-domain cookies: each surface holds its own `__Host-` session cookie, BFF at each surface independently exchanges the auth code. Parent-domain `.quilty.app` cookies work but you give up `__Host-` prefix, marketing must never see auth state (XSS blast radius widens), and Safari ITP edge cases creep in around iframe/redirect chains ([Safari cookie issues](https://medium.com/@lucasrosvall/solving-cookie-issues-in-safari-for-your-web-app-08d21b72a004)). **CORE: pick OIDC-per-subdomain.** Working hypothesis of parent-domain shared cookies is the *operationally* simpler option but the *structurally* weaker one.
+Better Auth's guidance: prefer narrow scope, share only when necessary ([Better Auth Cookies](https://better-auth.com/docs/concepts/cookies)). For Quilty's shape (marketing `quilty.app`, app `app.quilty.app`, auth `auth.quilty.app`), the **OIDC code-flow-per-subdomain via BFF** is cleaner than parent-domain cookies: each surface holds its own `__Host-` session cookie, BFF at each surface independently exchanges the auth code. Parent-domain `.quilty.app` cookies work but you give up `__Host-` prefix, marketing must never see auth state (XSS blast radius widens), and Safari ITP edge cases creep in around iframe/redirect chains ([Safari cookie issues](https://medium.com/@lucasrosvall/solving-cookie-issues-in-safari-for-your-web-app-08d21b72a004)). **CORE: pick OIDC-per-subdomain.** Working hypothesis of parent-domain shared cookies is the _operationally_ simpler option but the _structurally_ weaker one.
 
 ## 5. Step-up auth — RFC 9470 is ADDITIVE
 
@@ -36,7 +37,7 @@ RFC 9470 (Sep 2023, actively implemented 2025) gives APIs a structured way to de
 
 ## 6. Mobile-web parity — backchannel logout is CORE, token sharing is TRAP
 
-OIDC Backchannel Logout (with `sid` claim) is the enterprise pattern: IdP POSTs a signed logout_token to each registered client when a session terminates ([OIDC Backchannel spec](https://openid.net/specs/openid-connect-backchannel-1_0.html)). Cognito supports it. **Independent sessions per surface, joined by `sid`, propagated by backchannel logout is CORE** — wire the endpoint now, even if "sign out everywhere" UX ships later. Token *sharing* across mobile and web (OIDC Native SSO) is enterprise SSO turf and **TRAP** for our scale ([OIDC Native SSO draft](https://openid.net/specs/openid-connect-native-sso-1_0.html)).
+OIDC Backchannel Logout (with `sid` claim) is the enterprise pattern: IdP POSTs a signed logout*token to each registered client when a session terminates ([OIDC Backchannel spec](https://openid.net/specs/openid-connect-backchannel-1_0.html)). Cognito supports it. **Independent sessions per surface, joined by `sid`, propagated by backchannel logout is CORE** — wire the endpoint now, even if "sign out everywhere" UX ships later. Token \_sharing* across mobile and web (OIDC Native SSO) is enterprise SSO turf and **TRAP** for our scale ([OIDC Native SSO draft](https://openid.net/specs/openid-connect-native-sso-1_0.html)).
 
 ## 7. CSRF — still needed, cheap to add
 
@@ -50,29 +51,30 @@ With BFF, "sign out everywhere" is one DELETE against the session store + Cognit
 
 ## CORE / ADDITIVE / TRAP table
 
-| Decision | Verdict | Why |
-|---|---|---|
-| **BFF pattern** (server-side session, tokens never in browser) | **CORE** | IETF BCP default 2025+. Migration cost from non-BFF is high. Enables clean logout + audit parity. |
-| **Cognito Hosted UI at `auth.quilty.app`** | **CORE** | Isolated attack surface; OAuth redirect contract is portable. Custom UI is premature differentiation. |
-| **`__Host-` prefix on session cookies** | **CORE** | Browser-enforced binding; cheap; forces the cross-subdomain decision below. |
-| **OIDC code flow per subdomain (NOT parent-domain `.quilty.app` cookies)** | **CORE** | Compatible with `__Host-`; narrower blast radius; survives Safari ITP edge cases. |
-| **`SameSite=Lax`** (not Strict) | **CORE** | Strict breaks consumer email-link flows. |
-| **OIDC Backchannel Logout with `sid`** | **CORE** | Wire it now even if UX ships later — retrofitting `sid` plumbing is painful. |
-| **Signed double-submit CSRF token + custom header** | **CORE** | OWASP requires it; cheap; covers GET-state-change + old-browser gaps. |
-| **Refresh token rotation + RTFAMILY reuse detection** | **CORE (done)** | Already shipped in W2-B.2. BFF inherits this. |
-| **RFC 9470 step-up on web** | **ADDITIVE** | Server side already stamps; web BFF layers on cleanly later. |
-| **Passkeys / TOTP MFA UX flows on web** | **ADDITIVE** | Backend done; web is UI work. |
-| **Social provider additions** | **ADDITIVE** | Federation plumbing exists; toggleable. |
-| **Recovery UX / password-strength meters** | **ADDITIVE** | Pure UX layer. |
-| **Partitioned cookies (CHIPS)** | **ADDITIVE / N/A** | Doesn't affect same-registrable-domain first-party auth. Re-evaluate only if we embed Quilty in a third-party context. |
-| **OIDC Native SSO (token sharing mobile↔web)** | **TRAP** | Enterprise SSO complexity for marginal UX gain at our scale. Independent sessions + backchannel logout suffices. |
-| **Custom Cognito UI** | **TRAP (for now)** | Customization wins << operational cost at consumer-app scale. |
-| **Per-subdomain dedicated IAM identities / federated SSO from day one** | **TRAP** | Premature mesh for solo-founder/MVP scale. |
-| **Full Auth.js-style edge session at CDN** | **TRAP** | Adds edge complexity before product-market fit. BFF at origin is simpler. |
+| Decision                                                                   | Verdict            | Why                                                                                                                    |
+| -------------------------------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| **BFF pattern** (server-side session, tokens never in browser)             | **CORE**           | IETF BCP default 2025+. Migration cost from non-BFF is high. Enables clean logout + audit parity.                      |
+| **Cognito Hosted UI at `auth.quilty.app`**                                 | **CORE**           | Isolated attack surface; OAuth redirect contract is portable. Custom UI is premature differentiation.                  |
+| **`__Host-` prefix on session cookies**                                    | **CORE**           | Browser-enforced binding; cheap; forces the cross-subdomain decision below.                                            |
+| **OIDC code flow per subdomain (NOT parent-domain `.quilty.app` cookies)** | **CORE**           | Compatible with `__Host-`; narrower blast radius; survives Safari ITP edge cases.                                      |
+| **`SameSite=Lax`** (not Strict)                                            | **CORE**           | Strict breaks consumer email-link flows.                                                                               |
+| **OIDC Backchannel Logout with `sid`**                                     | **CORE**           | Wire it now even if UX ships later — retrofitting `sid` plumbing is painful.                                           |
+| **Signed double-submit CSRF token + custom header**                        | **CORE**           | OWASP requires it; cheap; covers GET-state-change + old-browser gaps.                                                  |
+| **Refresh token rotation + RTFAMILY reuse detection**                      | **CORE (done)**    | Already shipped in W2-B.2. BFF inherits this.                                                                          |
+| **RFC 9470 step-up on web**                                                | **ADDITIVE**       | Server side already stamps; web BFF layers on cleanly later.                                                           |
+| **Passkeys / TOTP MFA UX flows on web**                                    | **ADDITIVE**       | Backend done; web is UI work.                                                                                          |
+| **Social provider additions**                                              | **ADDITIVE**       | Federation plumbing exists; toggleable.                                                                                |
+| **Recovery UX / password-strength meters**                                 | **ADDITIVE**       | Pure UX layer.                                                                                                         |
+| **Partitioned cookies (CHIPS)**                                            | **ADDITIVE / N/A** | Doesn't affect same-registrable-domain first-party auth. Re-evaluate only if we embed Quilty in a third-party context. |
+| **OIDC Native SSO (token sharing mobile↔web)**                             | **TRAP**           | Enterprise SSO complexity for marginal UX gain at our scale. Independent sessions + backchannel logout suffices.       |
+| **Custom Cognito UI**                                                      | **TRAP (for now)** | Customization wins << operational cost at consumer-app scale.                                                          |
+| **Per-subdomain dedicated IAM identities / federated SSO from day one**    | **TRAP**           | Premature mesh for solo-founder/MVP scale.                                                                             |
+| **Full Auth.js-style edge session at CDN**                                 | **TRAP**           | Adds edge complexity before product-market fit. BFF at origin is simpler.                                              |
 
 **Bottom line for Quilty:** the one decision you cannot easily reverse is **BFF vs direct-token-in-browser**. Pick BFF. Everything else (Hosted UI choice, `__Host-` prefix, OIDC-per-subdomain, backchannel logout, CSRF double-submit) follows from that and is cheap to ship now while expensive to retrofit later.
 
 ## Sources
+
 - [IETF OAuth 2.0 for Browser-Based Apps BCP (draft, Dec 2025)](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps)
 - [OWASP CSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)
 - [RFC 9470: OAuth 2.0 Step Up Authentication Challenge Protocol](https://www.rfc-editor.org/rfc/rfc9470.html)

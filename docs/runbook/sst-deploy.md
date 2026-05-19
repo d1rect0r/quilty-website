@@ -3,7 +3,8 @@
 > **State at end of M1:** `sst.config.ts` is committed but `defineSiteResources()`
 > early-returns until `SST_DEPLOY_GATE_PASSED=true` is set in the deploy
 > environment. The runbook below covers the one-time activation ceremony
-> + the ongoing deploy + cleanup operations.
+>
+> - the ongoing deploy + cleanup operations.
 
 ## Prerequisites (next-sprint work in `quilty-aws/`)
 
@@ -12,7 +13,7 @@ Before the first SST deploy:
 - [ ] `quilty-aws/website-baseline/` Terraform layer applied to the
       `development` AWS account (Phase 0 per D47). Vends:
   - OIDC provider trust for `repo:<org>/quilty-website:ref:refs/heads/main`
-    + `repo:<org>/quilty-website:pull_request`
+    - `repo:<org>/quilty-website:pull_request`
   - `quilty-website-deploy-dev` IAM role with permission boundary
     scoped to the SST stage namespace (see "Required IAM actions"
     below)
@@ -59,7 +60,7 @@ The OIDC roles vended by `quilty-aws/website-baseline/` must permit
   for the my-quilty.com cert (us-east-1 only)
 - `ssm:GetParameter`, `GetParameters` — scoped to `/quilty/website/*`
 - `logs:CreateLogGroup`, `CreateLogStream`, `PutLogEvents` — for Lambda
-  + CloudFront logs
+  - CloudFront logs
 - `iam:PassRole` — bounded to the SST-created Lambda execution role
   ARN prefix only (`arn:aws:iam::<acct>:role/quilty-web-*`)
 - `wafv2:GetWebACL`, `ListWebACLs` — read-only on the WAF ACL ARN from
@@ -88,6 +89,7 @@ out waiting for cert validation; that's expected on step b.
       pnpm sst deploy --stage dev
 
 Capture the SST output:
+
 - CloudFront distribution domain (e.g., `d1234567890.cloudfront.net`)
 - ACM cert ARN + validation CNAMEs (name + value pairs for apex + www)
 

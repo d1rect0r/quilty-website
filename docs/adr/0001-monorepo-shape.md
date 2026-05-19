@@ -17,6 +17,7 @@ shared-UI workspace. There IS a near-term consumer for a shared-types workspace
 imported at M5.
 
 Forces:
+
 - **The "scaffold empty workspace per JIC" pattern is a smell.** Empty
   workspaces bloat `pnpm install` graphs, send signals of "intended work that
   may never materialize," and frequently fall out of sync with the real
@@ -62,6 +63,7 @@ doc's D69 explicitly locks both triggers). At that point we reserve workspace
 name `"@quilty/ui"`.
 
 Tooling:
+
 - **Turborepo** for cache + pipeline orchestration (`turbo.json`).
 - **pnpm 10** (current major as of 2026-05) pinned via `packageManager` field
   in root `package.json` (exact pin) + `.nvmrc` (Node 24 LTS).

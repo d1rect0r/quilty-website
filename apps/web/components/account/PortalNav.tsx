@@ -12,30 +12,24 @@ import Link from 'next/link';
  */
 export function PortalNav() {
   return (
-    <header
-      role="banner"
-      className="border-b border-border-default bg-bg-elevated"
-    >
+    <header role="banner" className="border-border-default bg-bg-elevated border-b">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
         {/* No aria-label here: WCAG 2.5.3 Label in Name. A custom aria-label
             ("Account home") that doesn't contain the visible text ("Quilty
             Account") makes voice-control users say a word they can't see
             (Round-5 final-QA MEDIUM a11y). The link's accessible name is
             now its visible text. */}
-        <Link
-          href="/en/account"
-          className="text-base font-semibold text-fg-default"
-        >
+        <Link href="/en/account" className="text-fg-default text-base font-semibold">
           Quilty Account
         </Link>
         <nav aria-label="Account">
           {/* min-h-11 (44px) per WCAG 2.5.5 Target Size AA — same treatment as
               the marketing Header per Round-5 a11y reviewer cross-check. */}
-          <ul className="flex items-center gap-1 text-sm text-fg-muted">
+          <ul className="text-fg-muted flex items-center gap-1 text-sm">
             <li>
               <Link
                 href="/en/account"
-                className="flex min-h-11 items-center px-3 hover:text-fg-default"
+                className="hover:text-fg-default flex min-h-11 items-center px-3"
               >
                 Profile
               </Link>
@@ -43,7 +37,7 @@ export function PortalNav() {
             <li>
               <Link
                 href="/en/account/security"
-                className="flex min-h-11 items-center px-3 hover:text-fg-default"
+                className="hover:text-fg-default flex min-h-11 items-center px-3"
               >
                 Security
               </Link>
@@ -51,7 +45,7 @@ export function PortalNav() {
             <li>
               <Link
                 href="/en/account/subscription"
-                className="flex min-h-11 items-center px-3 hover:text-fg-default"
+                className="hover:text-fg-default flex min-h-11 items-center px-3"
               >
                 Subscription
               </Link>
@@ -59,7 +53,7 @@ export function PortalNav() {
             <li>
               <Link
                 href="/en/account/data"
-                className="flex min-h-11 items-center px-3 hover:text-fg-default"
+                className="hover:text-fg-default flex min-h-11 items-center px-3"
               >
                 Data
               </Link>
@@ -67,7 +61,7 @@ export function PortalNav() {
             <li>
               <Link
                 href="/en/account/notifications"
-                className="flex min-h-11 items-center px-3 hover:text-fg-default"
+                className="hover:text-fg-default flex min-h-11 items-center px-3"
               >
                 Notifications
               </Link>

@@ -15,6 +15,7 @@ only TypeScript consumer; the mobile app (Flutter) is the Dart consumer.
 Cross-language contract sharing requires a single source of truth.
 
 Forces:
+
 - **Git submodules are universally regretted** for cross-repo type sharing
   per the Round-3/Round-4 strategy research. CLAUDE.md explicitly forbids
   them.
@@ -64,7 +65,7 @@ consume it via dependency, not via submodule:
    underlying spec is bumped to a new major. (Workspace re-export pattern
    keeps the indirection layer in our repo.)
 5. **Renovate** auto-bumps `@quilty/api-types` with same `minimumReleaseAge:
-   4320` (72h) as all other deps; CI catches breaks via `tsc --noEmit`.
+4320` (72h) as all other deps; CI catches breaks via `tsc --noEmit`.
 6. **No git submodules. Ever.** Reaffirms CLAUDE.md NEVER list.
 
 ## Consequences

@@ -1,5 +1,5 @@
-import type { Metadata } from 'next';
 import { PortalSidebar } from '@/components/account/PortalSidebar';
+import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Security',
@@ -16,11 +16,10 @@ const SECURITY_SECTIONS = [
 export default function AccountSecurityPage() {
   return (
     <PortalSidebar title="Security" sections={SECURITY_SECTIONS}>
-      <h1 className="text-3xl font-semibold text-fg-default">Security</h1>
-      <p className="mt-4 text-fg-muted">
-        Passkeys (D50 Plus tier) + TOTP + email MFA + backup codes (D55) +
-        active-session list (D51 DynamoDB store) + step-up auth via{' '}
-        <code>prompt=login</code> (D54) all land in M6.
+      <h1 className="text-fg-default text-3xl font-semibold">Security</h1>
+      <p className="text-fg-muted mt-4">
+        Passkeys (D50 Plus tier) + TOTP + email MFA + backup codes (D55) + active-session list (D51
+        DynamoDB store) + step-up auth via <code>prompt=login</code> (D54) all land in M6.
       </p>
     </PortalSidebar>
   );

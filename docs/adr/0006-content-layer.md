@@ -15,6 +15,7 @@ the content shape now so the eventual migration to a CMS is a script, not
 a content rewrite.
 
 Forces:
+
 - **ContentLayer is unmaintained** (last release 2024). Cal.com migrated
   off it in 2025.
 - **Velite (Next.js-first content layer, Zod-native)** has emerged as the
@@ -228,4 +229,4 @@ Specifically:
   May 2026.
 - **A page-type taxonomy beyond marketing+account+legal+blog emerges**
   (e.g., interactive tools, programmatic content) — add a Velite collection
-  + schema; the block library may grow new types.
+  - schema; the block library may grow new types.

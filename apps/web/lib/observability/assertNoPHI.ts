@@ -26,11 +26,7 @@ export function assertNoPHI(payload: unknown, context: string): void {
   }
 }
 
-function collectSensitiveKeys(
-  value: unknown,
-  path: string,
-  seen: Set<unknown>,
-): string[] {
+function collectSensitiveKeys(value: unknown, path: string, seen: Set<unknown>): string[] {
   if (value === null || value === undefined) return [];
   if (typeof value !== 'object') return [];
   if (seen.has(value)) return [];

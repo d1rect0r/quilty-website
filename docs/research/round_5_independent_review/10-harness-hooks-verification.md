@@ -12,37 +12,37 @@
 
 All matches operate on `$norm` (whitespace-collapsed copy of `tool_input.command`). All blocks exit code **2** (stderr surfaced to Claude). `set -euo pipefail`.
 
-| # | Pattern | Block message |
-|---|---|---|
-| 1 | `--no-verify` anywhere | "pre-commit hooks are load-bearing for HIPAA + signing" |
-| 2 | `--no-gpg-sign` anywhere | "commits must be SSH-signed" |
-| 3 | `git config` or `git -c …` setting `commit.gpgsign=false`, `tag.gpgsign=false`, `user.signingkey`, `gpg.format`, or `gpg.ssh.*` | "git signing config mutation forbidden" |
-| 4 | `git push` with `--force`, `--force-with-lease`, `-f`, or a `+ref:ref` refspec | "force-push forbidden (any flag form)" — **NOTE:** `--force-with-lease` is in `permissions.ask` but blocked here — the hook wins; contradiction to fix |
-| 5 | `git push origin {main,master,production}` in any form | "direct push to protected branch forbidden" |
-| 6 | `git reset --hard origin*` or `git reset --hard HEAD~*` | "destructive reset" |
-| 7 | `sst deploy --stage prod*`/`production*` (with or without `pnpm` prefix) | "production deploy requires explicit user authorization" |
-| 8 | `sst remove` / `pnpm sst remove` (any form, **including with `--stage`**) | "use /sst-destroy-previews skill" — **BUG: this blocks the skill itself** |
-| 9 | `rm -rf` (any flag perm of `-r/-R/-f` / `--recursive --force`) targeting `/`, `~`, `$HOME`, `.git`, `/private`, `/Users/<user>` | "catastrophic delete" |
-| 10 | `chmod` with `777`, `a+w`, `o+w`, `g+w,o+w`, `ugo+w` (with/without `-R`) | "world-writable permissions forbidden" |
-| 11 | `(curl\|wget\|fetch) … \| (sh\|bash\|zsh\|fish\|python\|node\|perl)` (with optional `sudo`) | "pipe-to-shell forbidden" |
-| 12 | Process substitution: `bash <(curl …)` | "process-substitution download-then-exec forbidden" |
-| 13 | `cat/less/more/head/tail/bat/od/xxd/hexdump/strings/base64/grep/rg/ag` (or `$(cat …)`) reading `~/.ssh/`, `~/.aws/credentials`, `.env`, `.env.*`, `/etc/shadow`, `/private/etc/master.passwd` | "use Read tool which is policy-gated" |
-| 14 | `git commit` triggers `gitleaks git --staged --no-banner --redact --exit-code 1` if `gitleaks` is on PATH | "gitleaks detected potential secret/PHI" — **silently no-op if gitleaks not installed** |
+| #   | Pattern                                                                                                                                                                                       | Block message                                                                                                                                          |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `--no-verify` anywhere                                                                                                                                                                        | "pre-commit hooks are load-bearing for HIPAA + signing"                                                                                                |
+| 2   | `--no-gpg-sign` anywhere                                                                                                                                                                      | "commits must be SSH-signed"                                                                                                                           |
+| 3   | `git config` or `git -c …` setting `commit.gpgsign=false`, `tag.gpgsign=false`, `user.signingkey`, `gpg.format`, or `gpg.ssh.*`                                                               | "git signing config mutation forbidden"                                                                                                                |
+| 4   | `git push` with `--force`, `--force-with-lease`, `-f`, or a `+ref:ref` refspec                                                                                                                | "force-push forbidden (any flag form)" — **NOTE:** `--force-with-lease` is in `permissions.ask` but blocked here — the hook wins; contradiction to fix |
+| 5   | `git push origin {main,master,production}` in any form                                                                                                                                        | "direct push to protected branch forbidden"                                                                                                            |
+| 6   | `git reset --hard origin*` or `git reset --hard HEAD~*`                                                                                                                                       | "destructive reset"                                                                                                                                    |
+| 7   | `sst deploy --stage prod*`/`production*` (with or without `pnpm` prefix)                                                                                                                      | "production deploy requires explicit user authorization"                                                                                               |
+| 8   | `sst remove` / `pnpm sst remove` (any form, **including with `--stage`**)                                                                                                                     | "use /sst-destroy-previews skill" — **BUG: this blocks the skill itself**                                                                              |
+| 9   | `rm -rf` (any flag perm of `-r/-R/-f` / `--recursive --force`) targeting `/`, `~`, `$HOME`, `.git`, `/private`, `/Users/<user>`                                                               | "catastrophic delete"                                                                                                                                  |
+| 10  | `chmod` with `777`, `a+w`, `o+w`, `g+w,o+w`, `ugo+w` (with/without `-R`)                                                                                                                      | "world-writable permissions forbidden"                                                                                                                 |
+| 11  | `(curl\|wget\|fetch) … \| (sh\|bash\|zsh\|fish\|python\|node\|perl)` (with optional `sudo`)                                                                                                   | "pipe-to-shell forbidden"                                                                                                                              |
+| 12  | Process substitution: `bash <(curl …)`                                                                                                                                                        | "process-substitution download-then-exec forbidden"                                                                                                    |
+| 13  | `cat/less/more/head/tail/bat/od/xxd/hexdump/strings/base64/grep/rg/ag` (or `$(cat …)`) reading `~/.ssh/`, `~/.aws/credentials`, `.env`, `.env.*`, `/etc/shadow`, `/private/etc/master.passwd` | "use Read tool which is policy-gated"                                                                                                                  |
+| 14  | `git commit` triggers `gitleaks git --staged --no-banner --redact --exit-code 1` if `gitleaks` is on PATH                                                                                     | "gitleaks detected potential secret/PHI" — **silently no-op if gitleaks not installed**                                                                |
 
-Command-start anchor: `CS='(^|[;&|\`(])[[:space:]]*'` — patterns trigger across `;`, `&&`, `||`, `|`, `$(...)`, backticks. Wider than just leading whitespace.
+Command-start anchor: `CS='(^|[;&|\`(])[[:space:]]\*'`— patterns trigger across`;`, `&&`, `||`, `|`, `$(...)`, backticks. Wider than just leading whitespace.
 
 ### `guard-write.sh` (PreToolUse, matcher `Write|Edit|MultiEdit`, timeout 5s)
 
 Reads `tool_input.file_path`. Empty → exit 0. All blocks exit code **2**. Glob match (case statement), **not Edit-vs-Write differentiated** — applies to all three tools.
 
-| # | Glob pattern | Block reason |
-|---|---|---|
-| 1 | `*/.claude/settings.json` or `*/.claude/settings.local.json` | "edits to Claude Code settings require human review" |
-| 2 | `*/.claude/hooks/*.sh` or `*/.claude/hooks/*` | "edits to .claude/hooks/ require human review" |
-| 3 | `*/.claude/agents/*.md` | "agent scopes are part of the security boundary" |
-| 4 | `*/.claude/skills/*/SKILL.md` or `*/.claude/skills/*.md` | "skill instructions can change the policy posture" |
-| 5 | `*/.claude/statusline.sh` or `*/.claude/CURRENT_PHASE` | "harness operational files require human review" |
-| 6 | `*/apps/web/components/ui/*` | "shadcn primitives — wrap don't edit per D18" |
+| #   | Glob pattern                                                 | Block reason                                         |
+| --- | ------------------------------------------------------------ | ---------------------------------------------------- |
+| 1   | `*/.claude/settings.json` or `*/.claude/settings.local.json` | "edits to Claude Code settings require human review" |
+| 2   | `*/.claude/hooks/*.sh` or `*/.claude/hooks/*`                | "edits to .claude/hooks/ require human review"       |
+| 3   | `*/.claude/agents/*.md`                                      | "agent scopes are part of the security boundary"     |
+| 4   | `*/.claude/skills/*/SKILL.md` or `*/.claude/skills/*.md`     | "skill instructions can change the policy posture"   |
+| 5   | `*/.claude/statusline.sh` or `*/.claude/CURRENT_PHASE`       | "harness operational files require human review"     |
+| 6   | `*/apps/web/components/ui/*`                                 | "shadcn primitives — wrap don't edit per D18"        |
 
 **Critical M1 finding:** the `components/ui/*` block triggers on **first creation** by Claude's `Write` tool. However, when `pnpm exec shadcn add <component>` writes files via its own CLI subprocess, the files are created by the shadcn CLI (not via Claude's `Write` tool) — so the PreToolUse Write hook does NOT fire. **shadcn `add` works fine; Claude attempting to directly Write a file under `components/ui/` is blocked.**
 
@@ -86,34 +86,34 @@ Fires on `startup|resume|clear|compact`. Timeout 15s. Outputs JSON `hookSpecific
 
 ### Operations needing new permissions for M1 scaffold
 
-| Operation | Status | Permission needed |
-|---|---|---|
-| `pnpm install` (first run) | **allow** | none |
-| `pnpm exec shadcn init` | **allow** (`pnpm exec shadcn *`) | none |
-| `pnpm exec shadcn add <component>` | **allow** | none |
-| `pnpm dlx sst@latest init` | **ask** (`pnpm dlx:*`) | user OK once |
-| `pnpm add <pkg>` | **ask** | user OK per package — bulk adds will be noisy |
-| `pnpm sst dev/diff/secret list` | **allow** | none |
-| `pnpm sst deploy --stage <non-prod>` | **ask** | user OK |
-| `pnpm sst deploy --stage prod*` | **deny** | unreachable (use CI) |
-| `git commit` | **ask** + gitleaks gate + signing | user OK + gitleaks-clean + signed |
-| `git push` (non-protected branches) | **ask** | user OK |
-| `git push origin main` | **deny** | unreachable |
-| Husky `pnpm exec husky init` | **not allowlisted** | need `Bash(pnpm exec husky *)` added |
-| `pnpm exec turbo *` | **not allowlisted** | need `Bash(pnpm exec turbo *)` added |
-| Writing files in `.husky/` | **not in guard-write blocklist** | none |
+| Operation                            | Status                            | Permission needed                             |
+| ------------------------------------ | --------------------------------- | --------------------------------------------- |
+| `pnpm install` (first run)           | **allow**                         | none                                          |
+| `pnpm exec shadcn init`              | **allow** (`pnpm exec shadcn *`)  | none                                          |
+| `pnpm exec shadcn add <component>`   | **allow**                         | none                                          |
+| `pnpm dlx sst@latest init`           | **ask** (`pnpm dlx:*`)            | user OK once                                  |
+| `pnpm add <pkg>`                     | **ask**                           | user OK per package — bulk adds will be noisy |
+| `pnpm sst dev/diff/secret list`      | **allow**                         | none                                          |
+| `pnpm sst deploy --stage <non-prod>` | **ask**                           | user OK                                       |
+| `pnpm sst deploy --stage prod*`      | **deny**                          | unreachable (use CI)                          |
+| `git commit`                         | **ask** + gitleaks gate + signing | user OK + gitleaks-clean + signed             |
+| `git push` (non-protected branches)  | **ask**                           | user OK                                       |
+| `git push origin main`               | **deny**                          | unreachable                                   |
+| Husky `pnpm exec husky init`         | **not allowlisted**               | need `Bash(pnpm exec husky *)` added          |
+| `pnpm exec turbo *`                  | **not allowlisted**               | need `Bash(pnpm exec turbo *)` added          |
+| Writing files in `.husky/`           | **not in guard-write blocklist**  | none                                          |
 
 ---
 
 ## Section 5: MCP server inventory
 
-| Name | Transport | Env var | Provides |
-|---|---|---|---|
-| `aws-docs` | stdio | none | `search_documentation`, `read_documentation`, `read_sections`, `recommend` |
-| `context7` | http | `CONTEXT7_API_KEY` | Version-pinned library docs |
-| `github` | http | `GITHUB_PAT` | PR/issue/run ops |
-| `sentry` | http | OAuth first-connect | Error/RUM data |
-| `playwright` | stdio | none | Browser automation |
+| Name         | Transport | Env var             | Provides                                                                   |
+| ------------ | --------- | ------------------- | -------------------------------------------------------------------------- |
+| `aws-docs`   | stdio     | none                | `search_documentation`, `read_documentation`, `read_sections`, `recommend` |
+| `context7`   | http      | `CONTEXT7_API_KEY`  | Version-pinned library docs                                                |
+| `github`     | http      | `GITHUB_PAT`        | PR/issue/run ops                                                           |
+| `sentry`     | http      | OAuth first-connect | Error/RUM data                                                             |
+| `playwright` | stdio     | none                | Browser automation                                                         |
 
 Missing tokens → MCP server starts but fails on first auth-required call.
 

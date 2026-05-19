@@ -9,7 +9,7 @@
 - **Related ADRs:** [ADR-XXXX](XXXX-slug.md) (if any)
 - **Related research:** `docs/research/<file>.md` § <section> (if any)
 - **Software versions assumed:** <e.g., Next.js 16.2, Node 24, SST 4.14, Sentry SDK v8, PostHog SDK v3>
-  *(only when a load-bearing version pin frames the decision)*
+  _(only when a load-bearing version pin frames the decision)_
 
 ## Context
 

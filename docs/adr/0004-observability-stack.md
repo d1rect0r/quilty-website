@@ -10,10 +10,12 @@
 ## Context
 
 The website needs to capture errors + RUM + product analytics + feature flags
-+ session replay + server logs + distributed tracing, all under HIPAA-aligned
-posture (BAA-eligible vendors, mask-all-by-default replay, no PHI in logs).
+
+- session replay + server logs + distributed tracing, all under HIPAA-aligned
+  posture (BAA-eligible vendors, mask-all-by-default replay, no PHI in logs).
 
 Forces:
+
 - **Three vendor economic realities verified Round 5:**
   - Sentry BAA available **self-serve at Business tier ($80/mo)**. Enterprise
     required only for negotiated/modified BAA terms.
@@ -217,14 +219,14 @@ Specifically:
   for `@sentry/*` + `posthog-*` + `amplitude-*` outside
   `apps/web/lib/observability/**`. CI fails on violation.
 - Vitest unit tests on `sanitize.ts` cover every known-PHI key + JWT shape
-  + UUID hashing.
+  - UUID hashing.
 - `assertNoPHI()` runtime check throws in dev tests; Playwright e2e at M2+
   asserts no PHI-shaped values appear in any captured network response.
 - Sentry replay configuration committed in source; PR review enforces
   `maskAllText: true` cannot regress.
 - CloudWatch log retention configured via SST per environment.
 - BAA scope inventory (`docs/baa_scope.md` at M8) lists every vendor + tier
-  + signed-date + masking-config summary.
+  - signed-date + masking-config summary.
 
 ## References
 

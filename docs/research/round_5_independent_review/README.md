@@ -7,6 +7,7 @@
 ## Methodology
 
 9 parallel research agents (6 online enterprise-pattern + 3 codebase/docs):
+
 1. **No project context** — each agent treated the decision list as anonymous input
 2. **2025-2026 sources only** — Web Almanac 2025, IETF OAuth BCP draft-26, Next.js 16/16.2 docs, OWASP, AWS Cognito docs, schema.org v30.0, WCAG 2.2 ISO/IEC 40500:2025, MDN Baseline Feb 2026, PCI DSS 4.0.1, CCPA §7025(c)(6) effective 2026-01-01
 3. **"What would Discord/Stripe/Linear/Cal.com/PostHog do" lens** — single examples discarded as weak; ≥2 enterprise references required per pattern
@@ -14,19 +15,19 @@
 
 ## File index
 
-| # | File | Scope |
-|---|---|---|
-| 01 | [marketing-portal-patterns.md](01-marketing-portal-patterns.md) | URL conventions, route groups, marketing block library, portal navigation, footer/legal, sign-in surface, IA — anchored Calm/Oura/Headspace/Stripe/Linear/Cal.com/Vercel evidence |
-| 02 | [monorepo-tooling.md](02-monorepo-tooling.md) | Turborepo vs Nx, pnpm 9 vs 10, Node 22 vs 24 LTS, SST 4.x state, Biome vs ESLint, Husky vs Lefthook, Vitest/Playwright shape, CI YAML, shadcn CLI, SBOM |
-| 03 | [csp-security.md](03-csp-security.md) | Two-tier CSP, Trusted Types, COOP/CORP/COEP, HSTS preload ramp, SRI on Stripe.js (impossible), Permissions-Policy, consent gating, WAF + Turnstile, PCI DSS 4.0.1 §6.4.3/§11.6.1 |
-| 04 | [auth-session-cognito.md](04-auth-session-cognito.md) | BFF pattern, `__Host-` cookies, opaque session-ID vs sealed cookie, Cognito 2026 capability matrix (passkeys YES, OIDC BCL NO, `sid` claim NO), step-up auth, mobile-web session join |
-| 05 | [observability-analytics-flags.md](05-observability-analytics-flags.md) | Sentry vs PostHog vs Amplitude vendor economics, BAA tier verification, OTel-first via @vercel/otel, W3C traceparent, web-vitals, replay vendor masking comparison, LaunchDarkly Oct 2025 outage lesson |
-| 06 | [i18n-seo-content.md](06-i18n-seo-content.md) | next-intl vs Paraglide, locale segment strategy, metadata baseline, sitemap at scale, schema.org reality (FAQPage retired May 2026, MedicalWebPage not Google-rich-result), AI crawler policy, MDX vs CMS, content layer = Velite + Zod |
-| 07 | [a11y-wcag-eaa.md](07-a11y-wcag-eaa.md) | axe-core + jsx-a11y, WCAG 2.2 AA tag config, EAA enforcement reality (France/Ireland/Spain), shadcn audit, focus management in App Router, manual audit cadence + budget, overlay prohibition (FTC settled) |
-| 08 | [strategy-doc-audit.md](08-strategy-doc-audit.md) | D1-D49 audit against the 8 underlying research reports — drift, contradictions, silent assumptions, CLAUDE.md vs strategy doc coherence, roadmap drift |
-| 09 | [cross-repo-coordination.md](09-cross-repo-coordination.md) | quilty-website ↔ quilty-aws integration surface, Cognito SSM registry, OpenAPI codegen pipeline, Phase 0 → Phase 1 migration runbook, SES sandbox status |
-| 10 | [harness-hooks-verification.md](10-harness-hooks-verification.md) | `.claude/` harness inventory, hook block patterns, permission analysis, M1 scaffold workflow plan, gaps to fix in flight (reconstructed from agent's chat-returned deliverable) |
-| – | [synthesis.md](synthesis.md) | Cross-cutting findings: 11 decision revisions, 20 new decisions (D50-D69), 8 UX/sequencing locks (U1-U8), retrofit-hostile gaps consolidated *(no numeric prefix; sits alongside the agent deliverables as the synthesis index)* |
+| #   | File                                                                    | Scope                                                                                                                                                                                                                                   |
+| --- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 01  | [marketing-portal-patterns.md](01-marketing-portal-patterns.md)         | URL conventions, route groups, marketing block library, portal navigation, footer/legal, sign-in surface, IA — anchored Calm/Oura/Headspace/Stripe/Linear/Cal.com/Vercel evidence                                                       |
+| 02  | [monorepo-tooling.md](02-monorepo-tooling.md)                           | Turborepo vs Nx, pnpm 9 vs 10, Node 22 vs 24 LTS, SST 4.x state, Biome vs ESLint, Husky vs Lefthook, Vitest/Playwright shape, CI YAML, shadcn CLI, SBOM                                                                                 |
+| 03  | [csp-security.md](03-csp-security.md)                                   | Two-tier CSP, Trusted Types, COOP/CORP/COEP, HSTS preload ramp, SRI on Stripe.js (impossible), Permissions-Policy, consent gating, WAF + Turnstile, PCI DSS 4.0.1 §6.4.3/§11.6.1                                                        |
+| 04  | [auth-session-cognito.md](04-auth-session-cognito.md)                   | BFF pattern, `__Host-` cookies, opaque session-ID vs sealed cookie, Cognito 2026 capability matrix (passkeys YES, OIDC BCL NO, `sid` claim NO), step-up auth, mobile-web session join                                                   |
+| 05  | [observability-analytics-flags.md](05-observability-analytics-flags.md) | Sentry vs PostHog vs Amplitude vendor economics, BAA tier verification, OTel-first via @vercel/otel, W3C traceparent, web-vitals, replay vendor masking comparison, LaunchDarkly Oct 2025 outage lesson                                 |
+| 06  | [i18n-seo-content.md](06-i18n-seo-content.md)                           | next-intl vs Paraglide, locale segment strategy, metadata baseline, sitemap at scale, schema.org reality (FAQPage retired May 2026, MedicalWebPage not Google-rich-result), AI crawler policy, MDX vs CMS, content layer = Velite + Zod |
+| 07  | [a11y-wcag-eaa.md](07-a11y-wcag-eaa.md)                                 | axe-core + jsx-a11y, WCAG 2.2 AA tag config, EAA enforcement reality (France/Ireland/Spain), shadcn audit, focus management in App Router, manual audit cadence + budget, overlay prohibition (FTC settled)                             |
+| 08  | [strategy-doc-audit.md](08-strategy-doc-audit.md)                       | D1-D49 audit against the 8 underlying research reports — drift, contradictions, silent assumptions, CLAUDE.md vs strategy doc coherence, roadmap drift                                                                                  |
+| 09  | [cross-repo-coordination.md](09-cross-repo-coordination.md)             | quilty-website ↔ quilty-aws integration surface, Cognito SSM registry, OpenAPI codegen pipeline, Phase 0 → Phase 1 migration runbook, SES sandbox status                                                                                |
+| 10  | [harness-hooks-verification.md](10-harness-hooks-verification.md)       | `.claude/` harness inventory, hook block patterns, permission analysis, M1 scaffold workflow plan, gaps to fix in flight (reconstructed from agent's chat-returned deliverable)                                                         |
+| –   | [synthesis.md](synthesis.md)                                            | Cross-cutting findings: 11 decision revisions, 20 new decisions (D50-D69), 8 UX/sequencing locks (U1-U8), retrofit-hostile gaps consolidated _(no numeric prefix; sits alongside the agent deliverables as the synthesis index)_        |
 
 ## Headline findings
 

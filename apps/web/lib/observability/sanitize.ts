@@ -144,8 +144,7 @@ const PHI_KEY_DENYLIST: ReadonlySet<string> = new Set([
 const REDACTED = '[REDACTED]';
 const MAX_FREE_TEXT_LENGTH = 200;
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /**
  * JWT compact serialization shape: 3 dot-separated base64url segments.
  * Round-5 reviewer flagged that the naive regex matches innocent strings

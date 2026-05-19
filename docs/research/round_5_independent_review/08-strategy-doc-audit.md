@@ -13,13 +13,15 @@
 **D1 — Next.js 16 App Router + TypeScript.** Source: `framework_deploy_architecture.md` §1 + §2. **No drift. Severity: NONE.** Research explicitly endorses App Router as the right default for "marketing pages + account portal that mostly displays data" and the strategy doc correctly carries that conditional rationale.
 
 **D2 — SST (uses OpenNext) on AWS.** Source: `framework_deploy_architecture.md` §2.
+
 - **Drift:** Strategy doc says "SST 3.x" but research says SST is in flux (Next.js 16.2 Adapter API stabilized Mar 2026; unified adapter monorepo expected end of 2026). Today is 2026-05-17 — current shipping SST line is **4.x** (verified per the user's brief). Strategy doc undershoots the version.
 - **Severity: MEDIUM** — version is not architecturally load-bearing, but pinning to "3.x" in the orientation doc misleads the scaffold step.
 
 **D3 — Single Next.js app for marketing + `/account/*`.** Source: `framework_deploy_architecture.md` §3 (Formcake case study). **No drift. Severity: NONE.**
 
 **D4 — Turborepo + pnpm + `apps/web` + `packages/ui` + `packages/shared-types`.** Source: `framework_deploy_architecture.md` §5.
-- **Drift:** Research recommends `apps/website` + `packages/shared-types`; strategy doc adds `packages/ui` workspace. That's a defensible expansion but research treats `packages/ui` extraction as *ADDITIVE* ("Defer until second consuming app exists"). Strategy D4 carries this by carving the workspace empty until trigger per D49 — coherent on paper, but the framing in the design-system research (`design_system_a11y.md` §2) is stronger: shadcn monorepo support uses `@workspace/ui/components` even in a non-monorepo, suggesting the workspace can be created empty as a forward seam.
+
+- **Drift:** Research recommends `apps/website` + `packages/shared-types`; strategy doc adds `packages/ui` workspace. That's a defensible expansion but research treats `packages/ui` extraction as _ADDITIVE_ ("Defer until second consuming app exists"). Strategy D4 carries this by carving the workspace empty until trigger per D49 — coherent on paper, but the framing in the design-system research (`design_system_a11y.md` §2) is stronger: shadcn monorepo support uses `@workspace/ui/components` even in a non-monorepo, suggesting the workspace can be created empty as a forward seam.
 - **Severity: LOW** — internally consistent, just worth surfacing that "empty workspace at scaffold" is a deliberate seam, not a placeholder.
 
 **D5 — BFF via Next.js Route Handlers.** Source: `auth_session_architecture.md` §2 + `framework_deploy_architecture.md` §6. **No drift. Severity: NONE.** Strongly evidenced (IETF BCP Dec 2025).
@@ -31,6 +33,7 @@
 **D8 — SameSite=Lax.** Source: `auth_session_architecture.md` §1 + §7. **No drift. Severity: NONE.**
 
 **D9 — OIDC Backchannel Logout with `sid`.** Source: `auth_session_architecture.md` §6.
+
 - **Drift:** Research says **"Cognito supports it"** in one sentence with no citation. The strategy doc inherits the claim verbatim ("Cognito supports it"). This is the single most load-bearing unverified claim in the auth stack — see Section 3 contradiction analysis.
 - **Severity: HIGH** — entire D9 + D11 stack depends on this. The research footnotes the OIDC spec (openid.net/specs/openid-connect-backchannel-1_0.html) but not the Cognito implementation claim. As of native AWS docs (audited from memory; not verified in research file), Cognito Hosted UI's backchannel logout support is not documented as a first-class feature — there is no `backchannel_logout_uri` registration field in the Cognito app-client config, and `sid` is not in the standard Cognito ID token claim set. **The research file claims a feature that Cognito has not been verified to ship.**
 
@@ -51,6 +54,7 @@
 **D21 — `next/font` + `next/image` discipline.** Source: `design_system_a11y.md` §8. **No drift. Severity: NONE.**
 
 **D22 — `@axe-core/playwright` + `eslint-plugin-jsx-a11y`.** Source: `design_system_a11y.md` §5.
+
 - **Drift:** Strategy doc cites "Deque's own figure: ~57%" for automation catch rate. Research file says "Deque's own figure — axe catches **~57% by volume**" but also names "40–43% automation ceiling" in the same paragraph. The 40-57% range reflects axe-by-volume vs WCAG-issues-by-type. Strategy doc carries one end without the band.
 - **Severity: LOW** — direction is right; the % cited is one of two figures the research itself gives.
 
@@ -63,6 +67,7 @@
 **D26 — Metadata baseline.** Source: `content_i18n_seo.md` §3. **No drift. Severity: NONE.**
 
 **D27 — Schema.org baseline including `FAQPage`.**
+
 - Source: `content_i18n_seo.md` §3.
 - **Drift:** Strategy doc lists `FAQPage` as part of the baseline. Per the prompt's prior, **Google retired `FAQPage` rich-result eligibility in May 2026** for most sites (only government/health authority sites retain it). The research file (dated 2026-05-14) pre-dates that retirement and doesn't reflect it; strategy doc has not been updated to reflect it.
 - **Severity: MEDIUM** — leaving `FAQPage` in the baseline doesn't break anything (the markup is still valid JSON-LD) but it misleads as a "structured-data SEO play." Should be downgraded to "we may emit it but it no longer earns rich-result placement" or replaced with `MedicalWebPage` FAQ section embedding. **Worth a strategy-doc update.**
@@ -80,6 +85,7 @@
 **D33 — HSTS preload + frame-ancestors + Referrer-Policy + Permissions-Policy default-deny camera/mic/geo.** Source: `security_observability_compliance.md` §1. **No drift. Severity: NONE.**
 
 **D34 — SRI on third-party scripts (Stripe.js + 2-3 analytics).**
+
 - Source: `security_observability_compliance.md` §1.
 - **Drift:** Strategy doc and research both list "SRI on Stripe.js" as the prime example. **Stripe explicitly does not publish or guarantee SRI hashes for `js.stripe.com/v3/`** — they update the script frequently, and Stripe's own docs/community guidance is that SRI on Stripe.js will cause periodic outages whenever Stripe ships a patch. (Verified in the prompt's prior; not contradicted by anything in the research file.)
 - **Severity: HIGH** — the lock as written is operationally wrong. Selective-SRI policy is correct; the named example is wrong. Should be reframed as "SRI on third-party scripts WHEN THE VENDOR PUBLISHES HASHES; Stripe.js is the documented exception — pin via CSP + `frame-src js.stripe.com` instead." **Worth a strategy-doc update before M1's `next.config.ts` ships headers.**
@@ -99,11 +105,13 @@
 **D41 — Server-side flag eval with local cache.** Source: `security_observability_compliance.md` §8. **No drift. Severity: NONE.** LaunchDarkly Oct 2025 outage lesson carried.
 
 **D42a — Sentry Business tier (errors + RUM) day-one + thin `logError()`.**
+
 - Source: `security_observability_compliance.md` §3.
 - **Drift:** Research says "Sentry **OR** Datadog RUM" and explicitly raises "PostHog with BAA is the closest single-vendor fit (analytics + replay + flags under one BAA)." Strategy doc picks Sentry without recording the PostHog alternative analysis. Update log says "single source of truth for product decisions … industry standard for consumer-health (Headspace, Calm)" — that argument doesn't appear in the research file; it appears to be added at lock time without backing.
 - **Severity: MEDIUM** — Sentry is a defensible pick, but the PostHog single-platform alternative is documented in research as a real competitor and the strategy doc shouldn't have skipped it silently. See Section 4 silent-assumption #4.
 
 **D42b — Amplitude for product analytics.**
+
 - Source: NOT in the research files. Strategy doc rationale ("matches mobile choice"; "industry standard for consumer-health (Headspace, Calm)") is asserted in the update log without research citation.
 - **Drift:** No research file evaluates Amplitude vs Mixpanel vs PostHog as a product-analytics decision. The justification "matches mobile" is a project-internal fact, not a research finding. **No underlying research found for D42b.**
 - **Severity: MEDIUM** — pick is defensible (mobile-web consolidation has real value) but the strategy doc rationale is light. Also: Amplitude BAA cost is not stated (see Section 4 silent-assumption).
@@ -113,6 +121,7 @@
 **D42d — CloudWatch for server-side logs.** Source: research only mentions CloudWatch tangentially in framework_deploy. Strategy treats it as a foregone conclusion (AWS substrate). **No drift. Severity: NONE.**
 
 **D43 — Typed `features.ts` env-var module day-one + GrowthBook self-hosted at trigger.** Source: `security_observability_compliance.md` §8.
+
 - **Drift:** Research names "GrowthBook self-hosted **or Statsig** (HIPAA BAA available)." Strategy doc picks GrowthBook without recording the Statsig comparison.
 - **Severity: LOW** — GrowthBook is the safer pick (self-hosted = full data control), but Statsig also has BAA. **The LaunchDarkly Oct 2025 lesson is absorbed correctly** (server-side eval + local cache is the structural shape) — that part is fine.
 
@@ -121,8 +130,9 @@
 **D45 — `my-quilty.com` public domain.** Source: User-stated reality, not research. Strategy doc captures the swap from earlier `quilty.app` hypothesis. **No drift. Severity: NONE.**
 
 **D46 — Website in separate `quilty-website` repo.** Source: Round-3/Round-4 enterprise research (referenced in update log but **not present as a research file in `docs/research/`**).
+
 - **Drift:** Strategy doc cites "Round-3 enterprise research" and "8 research reports across 4 rounds" — but `docs/research/` only has the 8 Round-1/Round-2 files; the Round-3 and Round-4 enterprise findings are summarized in the strategy update log itself, not preserved as separate research artifacts.
-- **Severity: LOW** — the *decision* is defensible (matches industry consensus on polyrepo regret), but the "where to find the underlying research" link is broken. **Worth surfacing: round-3 + round-4 enterprise research is verbal-in-update-log only.**
+- **Severity: LOW** — the _decision_ is defensible (matches industry consensus on polyrepo regret), but the "where to find the underlying research" link is broken. **Worth surfacing: round-3 + round-4 enterprise research is verbal-in-update-log only.**
 
 **D47 — Phase 0 = existing `development` account.** Same source-tracing issue as D46. **No drift in the decision. Severity: LOW** (same audit-trail issue).
 
@@ -135,6 +145,7 @@
 ## Section 2: Research findings not translated into decisions
 
 ### `auth_session_architecture.md`
+
 - **Finding:** Refresh token rotation + RTFAMILY reuse detection ("CORE (done)"). Research treats this as already-shipped in W2-B.2 and inherited by BFF.
   - **Why it matters:** The website's BFF will hold refresh tokens; the rotation/reuse-detection plumbing has to be plumbed through the BFF, not just the API gateway. Strategy doc doesn't enumerate this as a website-side decision.
   - **Should it become a decision?** MAYBE — at minimum a one-line decision in the auth block saying "Web BFF inherits the W2-B.2 RTFAMILY rotation; refresh happens server-side in the BFF, never in the browser."
@@ -149,17 +160,19 @@
   - **Should it become a decision?** YES — before M6 ships, lock the session storage model (opaque session-ID + Redis vs encrypted-payload-in-cookie). Both work; mixing them later is painful.
 
 ### `consumer_health_patterns.md`
+
 - **Finding:** "Receipt/invoice download for HSA/FSA reimbursement" — Headspace, Oura, WHOOP all surface this prominently.
   - **Why it matters:** Mental-health spend is widely HSA/FSA-eligible. The website's account portal (M7) needs invoice PDF download. Roadmap M7 says "HSA/FSA invoice download" but no D-number.
   - **Should it become a decision?** NO — already in M7 deliverables; doesn't need a D-number, just confirms scope.
 - **Finding:** Session/device management ("sign out everywhere", connected-devices list) — present in healthcare-grade portals but rarely surfaced in marketing.
-  - **Why it matters:** Different from D9 backchannel logout. This is the UX surface for *user-initiated* device list + revocation, distinct from server-initiated logout propagation.
+  - **Why it matters:** Different from D9 backchannel logout. This is the UX surface for _user-initiated_ device list + revocation, distinct from server-initiated logout propagation.
   - **Should it become a decision?** MAYBE — could be captured in the Auth block as "Session list UI is M6 deliverable; uses backchannel logout from D9 as the propagation mechanism."
 - **Finding:** Connected-apps / OAuth grants UI (Strava, MyFitnessPal have it).
   - **Why it matters:** Likely out of scope for Quilty's first surface, but the architectural pattern (BFF-mediated OAuth grants management) is worth flagging.
   - **Should it become a decision?** NO — genuinely deferrable.
 
 ### `content_i18n_seo.md`
+
 - **Finding:** Hreflang self-reference with `x-default` is a "common mistake" that invalidates the whole cluster.
   - **Why it matters:** When second locale ships (post-launch), the team must remember this. Easy to forget.
   - **Should it become a decision?** MAYBE — add to the i18n trigger watchlist with the warning, not a current D-decision.
@@ -167,10 +180,11 @@
   - **Why it matters:** When CMS migration triggers (D30), this is a decision-shaping point that strategy doc deferred without recording the recommendation.
   - **Should it become a decision?** NO — captured in research, deferral is correct.
 - **Finding:** `next/third-parties` or "Vercel Speed Insights" as RUM mechanism.
-  - **Why it matters:** D28 says "RUM tracking INP/LCP/CLS" but doesn't say *how*. Strategy doc relies on D42a (Sentry RUM). The `next/third-parties` mention in research is just one alternative path.
+  - **Why it matters:** D28 says "RUM tracking INP/LCP/CLS" but doesn't say _how_. Strategy doc relies on D42a (Sentry RUM). The `next/third-parties` mention in research is just one alternative path.
   - **Should it become a decision?** NO — Sentry RUM (D42a) covers it.
 
 ### `design_system_a11y.md`
+
 - **Finding:** View Transitions API has Baseline support (Chrome 111+, Safari 18+, Firefox 133+) — preferred over Motion for page-level transitions.
   - **Why it matters:** Tiny but real architectural seam: "for page transitions, use View Transitions API; reserve Motion for gestures/orchestration."
   - **Should it become a decision?** NO — additive, can land when first animation requirement appears.
@@ -179,6 +193,7 @@
   - **Should it become a decision?** MAYBE — testing posture is genuinely TBD in roadmap ("when do we TDD, when do we test-after"), so this could land as a TestAuthor-skill convention rather than a D-number.
 
 ### `external_integrations.md`
+
 - **Finding:** Google Play Jan-2026 update: privacy URL must be **identical strings** in Play Console, in-app, and on website.
   - **Why it matters:** Lock the URL string before M2 ships placeholder privacy. Catches the "should it be `/privacy/` or `/privacy`?" gotcha (intersects D13 trailingSlash: false).
   - **Should it become a decision?** NO — already implicitly satisfied by D13 + the placeholder `/privacy` page in M2. Worth flagging as a launch-gate check item, not a D-number.
@@ -187,6 +202,7 @@
   - **Should it become a decision?** NO — operational, not architectural.
 
 ### `framework_deploy_architecture.md`
+
 - **Finding:** CloudFront 25 cache-behaviors cap; 1 MB Lambda@Edge request body cap; 60s default CloudFront timeout.
   - **Why it matters:** Route layout constraint. If `/api/*` and `/account/*` and `/blog/*` each need distinct cache behaviors, 25 is finite.
   - **Should it become a decision?** NO — operational constraint. Worth a note in SST config when M1 lands.
@@ -198,6 +214,7 @@
   - **Should it become a decision?** MAYBE — a one-liner in D5: "Mutations via Server Actions where same-origin form-post UX is desired; cross-origin or API-shape mutations via Route Handlers. Read paths via direct Server Component fetch to Rust backend."
 
 ### `regulatory_requirements.md`
+
 - **Finding:** Two CCPA opt-out submission methods required, one must be **interactive web form** — not just the "Your Privacy Choices" link.
   - **Why it matters:** Cosmetic-banner-only is insufficient. M8 deliverable list says "Cookie consent banner with granular GDPR + CCPA toggles" but doesn't explicitly call out the interactive-web-form requirement.
   - **Should it become a decision?** NO — already covered in spirit; flag for M8 reviewer.
@@ -206,6 +223,7 @@
   - **Should it become a decision?** NO — operational/legal, not architectural. Flag for M8 lawyer brief.
 
 ### `security_observability_compliance.md`
+
 - **Finding:** "COEP/COOP/CORP cross-origin isolation is **TRAP** at our scale."
   - **Why it matters:** Strategy doc D33 enumerates HSTS, frame-ancestors, Referrer-Policy, Permissions-Policy — but is silent on COOP/CORP. Research is silent because research called them TRAP. Coherent omission, but worth surfacing as intentional.
   - **Should it become a decision?** NO — explicit deferral is fine; could note "COOP/CORP intentionally not adopted at Phase 0" in the doc.
@@ -224,35 +242,43 @@
 ## Section 3: Cross-decision contradictions
 
 ### D9 (Cognito Backchannel Logout) + D11 (mobile-web session join via `sid`) — HIGH RISK
+
 - **Tension:** Both decisions assume Cognito supports OIDC Backchannel Logout AND emits a `sid` claim in its tokens. The research file states "Cognito supports it" without citing AWS docs. **Per the prompt's prior:** this support is parallel-being-verified and may not actually exist as a first-class Cognito feature.
 - **Operational impact:** If Cognito does NOT support backchannel logout natively, then either (a) D9/D11 need to be re-engineered around a homegrown "session revocation broadcast" mechanism (DDB-backed, the backend's audit-pipeline already has the seam), or (b) D11 falls back to "best-effort session-list-and-revoke from each surface independently."
-- **Resolution required:** Block M6 until Cognito backchannel-logout support is verified in AWS docs. If unsupported, design a Quilty-internal session-revocation event (e.g., DDB Streams → SQS → website BFF subscriber + mobile push subscriber) that *implements* the OIDC backchannel-logout semantic without requiring Cognito to ship the spec. This is the single most material contradiction in the locked stack.
+- **Resolution required:** Block M6 until Cognito backchannel-logout support is verified in AWS docs. If unsupported, design a Quilty-internal session-revocation event (e.g., DDB Streams → SQS → website BFF subscriber + mobile push subscriber) that _implements_ the OIDC backchannel-logout semantic without requiring Cognito to ship the spec. This is the single most material contradiction in the locked stack.
 
 ### D7 (`__Host-` + per-subdomain OIDC) + D11 (mobile-web join via `sid`) — MEDIUM
+
 - **Tension:** D7 mandates session cookies cannot cross subdomain boundaries (`__Host-` forbids `Domain` attribute). D11 assumes a shared `sid` ties web + mobile sessions together. These are not literally in conflict (mobile doesn't use cookies; it uses tokens carrying `sid`), but it's worth verifying that the Cognito web app client emits the same `sid` value that the Cognito mobile app client emits for the same user session.
 - **Resolution required:** Verify that `sid` is per-Cognito-session, not per-app-client. AWS docs are silent in research; needs explicit check at M6.
 
 ### D17 (Tailwind v4) + D18 (shadcn wrap-don't-edit) + D20 (dark mode) — LOW
+
 - **Tension:** shadcn primitives ship with Tailwind v3 conventions (utility-class strings in component source). Tailwind v4's `@theme` block + CSS custom properties is a different convention. The shadcn → v4 migration story has been bumpy (shadcn started shipping v4-compatible CLI in mid-2025; older primitives still use v3 idioms).
 - **D20 dark mode** depends on CSS custom properties swapped under `[data-theme="dark"]` — requires that shadcn primitives reference `var(--color-...)` rather than `hsl(...)` literals.
 - **Resolution required:** At M1 scaffold, verify shadcn CLI version + which Tailwind v4 migration of primitives is being pulled in. If pulling pre-v4 primitives, the "wrap-don't-edit" rule has to be relaxed long enough to update color references to CSS-var form, or the dark-mode flip will require touching the `components/ui/` folder later. CLAUDE.md's PreToolUse hook that blocks `components/ui/` edits will then mechanically prevent the fix. **Worth surfacing pre-M1.**
 
 ### D26 (metadata baseline) + D27 (schema.org including FAQPage) — MEDIUM (timing drift)
+
 - **Tension:** D27 baseline includes `FAQPage`. **Google retired FAQPage rich-result eligibility in May 2026** (per prompt prior). Strategy doc has not been updated.
 - **Resolution required:** Update D27 to drop standalone `FAQPage` from the baseline OR explicitly note "we still emit FAQPage JSON-LD for AI-search citation graph value, even though Google no longer renders rich results from it." Either is fine; silently leaving the obsolete claim is the drift.
 
 ### D34 (SRI on Stripe.js) — HIGH (operationally wrong)
+
 - **Tension:** Stripe explicitly does not publish SRI hashes for `js.stripe.com/v3/`. The script is updated frequently and Stripe's own community guidance is that SRI on Stripe.js causes outages. Strategy doc's named example is the one third-party script SRI cannot apply to.
 - **Resolution required:** Reframe D34 as "SRI applied to third-party scripts whose vendors publish hashes. Stripe.js is a documented exception — defended via CSP `script-src js.stripe.com` + `frame-src js.stripe.com` allowlisting only, and via Stripe Elements iframes that isolate card data outside the website's DOM." This is operationally important before M1's `next.config.ts` ships any SRI plumbing.
 
 ### D42a (Sentry Business) + D42b (Amplitude) + D40 (replay mask-all) — MEDIUM (BAA cost not stated)
+
 - **Tension:** D42a names "Sentry Business tier" at "~$26-80/mo" with "BAA-eligible." Sentry's BAA is actually **only available on Business tier and above and requires a separate contract** — the $26-80/mo figure may not include BAA fees. D42b names Amplitude without stating Amplitude's BAA cost; **Amplitude's HIPAA BAA is an enterprise-tier feature** with annual contract pricing typically in the low-five-figures USD/year range. This is a non-trivial pre-launch budget item that's missing from the strategy doc.
 - **Resolution required:** Surface concrete BAA pricing for Sentry Business + Amplitude (and any session-replay vendor when D42c locks) before pre-launch M7-M8 budget gets owned. The "matches mobile choice" rationale for Amplitude is operationally right but financially undercosted in the doc.
 
 ### D43 (typed env-var module + GrowthBook at trigger) + D41 (server-side flag eval) — NONE
+
 - **Coherent.** The typed env-var module is server-side eval by construction (env vars are server-side). LaunchDarkly Oct 2025 lesson absorbed. No drift.
 
 ### D46 + D47 + D48 + D49 — NONE
+
 - **Coherent.** Phase 0 = single existing dev account (D47), Rust backend untouched (D48), website in separate repo (D46), everything else deferred to Phase 1+ triggers (D49). Phase 1 trigger = "public launch or first revenue → vend `marketing-prod` in Workloads-NonHIPAA OU." Cross-account Pattern A documented in roadmap. No internal contradictions.
 
 ---

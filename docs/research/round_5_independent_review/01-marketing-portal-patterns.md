@@ -154,41 +154,41 @@ Modern enterprise marketing pages are assembled from a **library of ~20–25 nam
 
 ### Canonical 2026 block taxonomy (use these names)
 
-| Family | Block | Used by |
-|---|---|---|
-| Hero | `HeroSplit` (text + image/video) | Stripe, Calm, Headspace |
-| Hero | `HeroCentered` (text only, tall) | Linear, Notion |
-| Hero | `HeroProduct` (product-shot dominant) | Vercel, Oura |
-| SocialProof | `LogoWall` / `LogoCarousel` | Stripe, Vercel, Notion |
-| SocialProof | `StatsBand` (3–6 KPIs) | Stripe (`$70M`), Vercel |
-| SocialProof | `TestimonialQuote` (single) | Stripe, Linear |
-| SocialProof | `TestimonialCarousel` (rotating) | Notion |
-| Feature | `FeatureBento` (asymmetric grid) | Stripe, Vercel |
-| Feature | `FeatureGrid3up` (symmetric 3-col) | Headspace, Notion |
-| Feature | `FeatureSplit` (alternating L/R) | Calm, Oura |
-| Feature | `FeatureDeepDive` (one feature, long-form) | Vercel (Fluid Compute), Stripe |
-| Story | `CustomerStoryCard` (link to /customers/<slug>) | Stripe, Vercel |
-| Story | `CustomerStoryHero` (featured story, full-width) | Stripe |
-| Story | `MetricCallout` (single big number + sentence) | Stripe, Vercel |
-| Compare | `PricingTiers` (3–4 cards) | Cal.com, Stripe, Notion |
-| Compare | `FeatureComparisonTable` (matrix) | Cal.com, Notion |
-| Compare | `VsCompetitor` (us vs. them) | Cal.com (`/cal-com-vs-calendly`) |
-| Code/Demo | `CodeBlock` (syntax-highlighted) | Vercel, Stripe |
-| Code/Demo | `InteractiveDemo` (animated/embedded) | Linear, Resend |
-| Code/Demo | `IntegrationGrid` (logo tiles linking to integrations) | Vercel, Cal.com |
-| CTA | `CtaPanel` (full-width, end-of-page) | Stripe, Vercel, Notion |
-| CTA | `CtaInline` (within content) | All |
-| Trust | `TrustBadges` (HIPAA/SOC2/HITRUST badges) | Calm, Headspace |
-| Trust | `SecurityCallout` (link to security page) | Linear, Notion |
-| Editorial | `BlogPostCard` (preview tile) | All |
-| Editorial | `FAQAccordion` | Cal.com, Stripe |
-| Editorial | `NewsTimeline` (changelog or news carousel) | Stripe, Linear |
+| Family      | Block                                                  | Used by                          |
+| ----------- | ------------------------------------------------------ | -------------------------------- |
+| Hero        | `HeroSplit` (text + image/video)                       | Stripe, Calm, Headspace          |
+| Hero        | `HeroCentered` (text only, tall)                       | Linear, Notion                   |
+| Hero        | `HeroProduct` (product-shot dominant)                  | Vercel, Oura                     |
+| SocialProof | `LogoWall` / `LogoCarousel`                            | Stripe, Vercel, Notion           |
+| SocialProof | `StatsBand` (3–6 KPIs)                                 | Stripe (`$70M`), Vercel          |
+| SocialProof | `TestimonialQuote` (single)                            | Stripe, Linear                   |
+| SocialProof | `TestimonialCarousel` (rotating)                       | Notion                           |
+| Feature     | `FeatureBento` (asymmetric grid)                       | Stripe, Vercel                   |
+| Feature     | `FeatureGrid3up` (symmetric 3-col)                     | Headspace, Notion                |
+| Feature     | `FeatureSplit` (alternating L/R)                       | Calm, Oura                       |
+| Feature     | `FeatureDeepDive` (one feature, long-form)             | Vercel (Fluid Compute), Stripe   |
+| Story       | `CustomerStoryCard` (link to /customers/<slug>)        | Stripe, Vercel                   |
+| Story       | `CustomerStoryHero` (featured story, full-width)       | Stripe                           |
+| Story       | `MetricCallout` (single big number + sentence)         | Stripe, Vercel                   |
+| Compare     | `PricingTiers` (3–4 cards)                             | Cal.com, Stripe, Notion          |
+| Compare     | `FeatureComparisonTable` (matrix)                      | Cal.com, Notion                  |
+| Compare     | `VsCompetitor` (us vs. them)                           | Cal.com (`/cal-com-vs-calendly`) |
+| Code/Demo   | `CodeBlock` (syntax-highlighted)                       | Vercel, Stripe                   |
+| Code/Demo   | `InteractiveDemo` (animated/embedded)                  | Linear, Resend                   |
+| Code/Demo   | `IntegrationGrid` (logo tiles linking to integrations) | Vercel, Cal.com                  |
+| CTA         | `CtaPanel` (full-width, end-of-page)                   | Stripe, Vercel, Notion           |
+| CTA         | `CtaInline` (within content)                           | All                              |
+| Trust       | `TrustBadges` (HIPAA/SOC2/HITRUST badges)              | Calm, Headspace                  |
+| Trust       | `SecurityCallout` (link to security page)              | Linear, Notion                   |
+| Editorial   | `BlogPostCard` (preview tile)                          | All                              |
+| Editorial   | `FAQAccordion`                                         | Cal.com, Stripe                  |
+| Editorial   | `NewsTimeline` (changelog or news carousel)            | Stripe, Linear                   |
 
 ### Anti-pattern to avoid
 
 - Building 20 bespoke `<HomePage>` / `<PricingPage>` components with no shared block primitives — first re-skin costs weeks and the design system can't iterate. The page is data; the blocks are code.
 - Naming blocks by where they appear (`HomepageHero`, `PricingHero`) rather than by type — defeats reuse.
-- Skipping the `TrustBadges` block for a HIPAA-aligned brand — Calm and Headspace surface HIPAA/SOC2/HITRUST visibly on every marketing page; the website tier needs the visual hooks even though the *page itself* is zero-PHI.
+- Skipping the `TrustBadges` block for a HIPAA-aligned brand — Calm and Headspace surface HIPAA/SOC2/HITRUST visibly on every marketing page; the website tier needs the visual hooks even though the _page itself_ is zero-PHI.
 
 ### Implication for our scaffold (M1)
 
@@ -203,7 +203,7 @@ Modern enterprise marketing pages are assembled from a **library of ~20–25 nam
 
 ### Enterprise pattern (2026)
 
-Consumer-health portals (Calm `account.calm.com`, Oura `account.oura.com`, Headspace `headspace.com/login` → `my.headspace.com`) use **top-nav with light sidebar nested only inside `/settings`** because the portal is *thin* (5–8 screens, mostly read-only billing + profile). B2B/devtool portals (Cal.com, Stripe Dashboard, Linear, Vercel) use **persistent sidebar** because the portal is the product (dozens to hundreds of screens). For a **consumer-health portal with subscription + profile + privacy + security only**, the consumer pattern wins: **top-nav for the portal shell, settings as a single `/account` index page with a vertical list of sub-pages**, mirroring Calm and Headspace. Stripe Dashboard's settings UI is the canonical model for the *settings sub-tree shape*: a left-rail of categories (Account, Security, Billing, Notifications, Team, Developers, Compliance) with a vertical scroll of sections inside each — Cal.com mirrors this exactly (`/settings/my-account/{profile,general,calendars,...}`, `/settings/security/{password,two-factor-auth}`, `/settings/developer/{api-keys,oauth,webhooks}`). **Breadcrumbs** are absent from Cal.com / Stripe / Linear portals — they rely on sidebar highlight + page title. Breadcrumbs appear in deeply nested content (docs, help centers) but not in flat 2-level portals. **Mobile collapse:** top-nav → hamburger drawer; sidebar → bottom-nav (Calm app pattern) or hamburger.
+Consumer-health portals (Calm `account.calm.com`, Oura `account.oura.com`, Headspace `headspace.com/login` → `my.headspace.com`) use **top-nav with light sidebar nested only inside `/settings`** because the portal is _thin_ (5–8 screens, mostly read-only billing + profile). B2B/devtool portals (Cal.com, Stripe Dashboard, Linear, Vercel) use **persistent sidebar** because the portal is the product (dozens to hundreds of screens). For a **consumer-health portal with subscription + profile + privacy + security only**, the consumer pattern wins: **top-nav for the portal shell, settings as a single `/account` index page with a vertical list of sub-pages**, mirroring Calm and Headspace. Stripe Dashboard's settings UI is the canonical model for the _settings sub-tree shape_: a left-rail of categories (Account, Security, Billing, Notifications, Team, Developers, Compliance) with a vertical scroll of sections inside each — Cal.com mirrors this exactly (`/settings/my-account/{profile,general,calendars,...}`, `/settings/security/{password,two-factor-auth}`, `/settings/developer/{api-keys,oauth,webhooks}`). **Breadcrumbs** are absent from Cal.com / Stripe / Linear portals — they rely on sidebar highlight + page title. Breadcrumbs appear in deeply nested content (docs, help centers) but not in flat 2-level portals. **Mobile collapse:** top-nav → hamburger drawer; sidebar → bottom-nav (Calm app pattern) or hamburger.
 
 ### Reference examples
 
@@ -257,7 +257,7 @@ Enterprise footers in 2026 have **converged on a 5–6 column grid + a bottom ut
 ### Anti-pattern to avoid
 
 - Hiding "Your Privacy Choices" inside the privacy policy or cookie banner — CCPA 2026 explicitly requires a "clear and conspicuous link in the footer or header" with the approved opt-out icon. Buried = non-compliant.
-- A single "Legal" link expanding to a popover — fails screen-reader patterns and obscures DPA, accessibility statement, and HIPAA notice from auditors who *do* hand-check footers.
+- A single "Legal" link expanding to a popover — fails screen-reader patterns and obscures DPA, accessibility statement, and HIPAA notice from auditors who _do_ hand-check footers.
 - Top nav with 12+ items — Cal.com is at the high end at 5 visible items with mega-menus underneath. Mediocre teams ship flat horizontal scrolls of 10 links.
 - Skipping the accessibility statement link entirely — required under EAA (effective 2025-06-28 in EU) and increasingly expected under ADA enforcement in US. Headspace, Oura, and Whoop all have it.
 
@@ -325,12 +325,14 @@ Enterprise teams reserve **5–8 subdomains at DNS provisioning time** even if m
 ### Implication for our scaffold (M1)
 
 CLAUDE.md already locks: `my-quilty.com` (apex marketing), `auth.my-quilty.com` (Cognito), `help.my-quilty.com` (reserved), `app.my-quilty.com` (reserved). **M1 should additionally reserve in DNS layer (in `quilty-aws/dns/`)**:
+
 - `www.my-quilty.com` → 308 to apex (or apex → www, pick one; consumer-health norm is apex)
 - `status.my-quilty.com` → reserved, point to placeholder
 - `api.my-quilty.com` → reserved (M6 when Rust backend gets public surface)
 - `docs.my-quilty.com` → reserved (low priority; can fall back to `/docs` on apex)
 
 **Bake into M1 config:**
+
 - `next.config.ts` `assetPrefix` / `images.remotePatterns` already aware of all reserved subdomains so future static-asset moves don't require code changes.
 - CSP `connect-src` lists `auth.`, `api.`, `*.my-quilty.com` from day one (avoid retrofit).
 - OIDC callback list pre-registers all subdomain origins.
@@ -354,7 +356,7 @@ For HIPAA-aligned consumer apps with hosted IdP (Cognito Hosted UI at `auth.my-q
 
 ### Anti-pattern to avoid
 
-- Building an in-app `/sign-in` React form when you have a hosted IdP — splits auth surface, increases CSP burden, leaks token-handling code into website tier (defeats the BFF promise that *tokens never reach the browser*).
+- Building an in-app `/sign-in` React form when you have a hosted IdP — splits auth surface, increases CSP burden, leaks token-handling code into website tier (defeats the BFF promise that _tokens never reach the browser_).
 - Putting sign-in only in the footer / not in the header — fails F-pattern scanning; users abandon.
 - Magic-link-only as primary auth for a consumer-health portal — Calm and Headspace audiences include older demographics who expect passwords. Magic-link is fine as primary for devtools (Notion), but consumer-health norm is password+optional-passwordless.
 - Forgetting `?next=` preservation — user clicks a deep link to `/account/subscription` while logged out, lands on sign-in, signs in, ends up at `/account` (lost their intent).
@@ -375,7 +377,7 @@ For HIPAA-aligned consumer apps with hosted IdP (Cognito Hosted UI at `auth.my-q
 
 ### Enterprise pattern (2026)
 
-Convergent enterprise marketing IA across consumer-health (Calm, Headspace, Oura, Whoop) and B2B/B2C (Stripe, Vercel, Linear, Notion) follows this canonical depth + ordering: **(1) Product / Features** (what it does) — top-nav primary, mega-menu of 4–8 features OR a single page; **(2) How it works** (consumer-health-specific: Oura, Headspace) — single page, methodology + visual; **(3) Science / Research / Clinical** (consumer-health-specific, *critical* for trust): Calm has `/science`, Headspace has `/science`, Oura has `/science`, this is non-optional in our peer set; **(4) Pricing** — top-nav primary; **(5) For Business / Enterprise / Health plans** (consumer-health monetization adjacency: Headspace `/for-work`, Calm `/business`, Oura `/business`); **(6) Blog / Resources** — top-nav secondary or footer; **(7) Customers / Case studies** — B2B convention, less common in consumer-health (Calm doesn't have it but the trust badges replace it); **(8) Company / About / Careers / Press / Contact** — footer-only typically, sometimes nested under a "Company" mega-menu; **(9) Help / Support** — top-nav-or-footer link to help center subdomain. **Top-nav inclusion rule (consumer-health):** 4–5 items max — Product/Features, How it works (or Science), Pricing, For Business, plus Sign in + Get started. Headspace breaks this with 8 mega-menu items but Calm sticks to 4. The trend is fewer + deeper.
+Convergent enterprise marketing IA across consumer-health (Calm, Headspace, Oura, Whoop) and B2B/B2C (Stripe, Vercel, Linear, Notion) follows this canonical depth + ordering: **(1) Product / Features** (what it does) — top-nav primary, mega-menu of 4–8 features OR a single page; **(2) How it works** (consumer-health-specific: Oura, Headspace) — single page, methodology + visual; **(3) Science / Research / Clinical** (consumer-health-specific, _critical_ for trust): Calm has `/science`, Headspace has `/science`, Oura has `/science`, this is non-optional in our peer set; **(4) Pricing** — top-nav primary; **(5) For Business / Enterprise / Health plans** (consumer-health monetization adjacency: Headspace `/for-work`, Calm `/business`, Oura `/business`); **(6) Blog / Resources** — top-nav secondary or footer; **(7) Customers / Case studies** — B2B convention, less common in consumer-health (Calm doesn't have it but the trust badges replace it); **(8) Company / About / Careers / Press / Contact** — footer-only typically, sometimes nested under a "Company" mega-menu; **(9) Help / Support** — top-nav-or-footer link to help center subdomain. **Top-nav inclusion rule (consumer-health):** 4–5 items max — Product/Features, How it works (or Science), Pricing, For Business, plus Sign in + Get started. Headspace breaks this with 8 mega-menu items but Calm sticks to 4. The trend is fewer + deeper.
 
 ### Reference examples
 
@@ -394,6 +396,7 @@ Convergent enterprise marketing IA across consumer-health (Calm, Headspace, Oura
 ### Implication for our scaffold (M1)
 
 **M1 reserves these route slugs (placeholder pages OK):**
+
 ```
 (marketing)/
 ├── page.tsx                   # /                — homepage
@@ -434,8 +437,7 @@ The "complete-feeling" consumer-health portal at MVP launch is **8–10 pages**,
 8. **`/account/data-export`** — request export, see prior exports, download archives (GDPR portability)
 9. **`/account/danger`** — delete account, with retention disclosure + identity reverification
 
-Plus public unauthenticated:
-10. **`/delete-account`** — Google Play / CCPA / GDPR-mandated public landing explaining how to delete
+Plus public unauthenticated: 10. **`/delete-account`** — Google Play / CCPA / GDPR-mandated public landing explaining how to delete
 
 ### Reference examples
 
@@ -540,6 +542,7 @@ These are choices our research surfaces but cannot resolve without brand/product
 ## Sources (verified during this research)
 
 **Repos / code (`gh api` + GitHub):**
+
 - `repos/calcom/cal.com/contents/apps` — confirms `apps/{api,docs,web}` structure (RFC #1581 + handbook.cal.com confirms historical `apps/website` for marketing, consolidated but deployed separately)
 - `repos/calcom/cal.com/contents/apps/web/app` — top-level App Router structure
 - `repos/calcom/cal.com/contents/apps/web/app/(use-page-wrapper)` — authenticated route group
@@ -550,6 +553,7 @@ These are choices our research surfaces but cannot resolve without brand/product
 - `repos/PostHog/posthog.com` — Gatsby-based marketing/docs site, separate from product app
 
 **Live-site fetches (verified):**
+
 - https://cal.com (top nav, footer, URL patterns)
 - https://www.cal.com/pricing (marketing block taxonomy)
 - https://stripe.com (top nav, footer, homepage block taxonomy)
@@ -564,6 +568,7 @@ These are choices our research surfaces but cannot resolve without brand/product
 - https://discord.com (top nav, footer, subdomains)
 
 **Docs / engineering blogs:**
+
 - Cal.com engineering handbook: https://handbook.cal.com/engineering/codebase/monorepo-turborepo
 - Cal.com RFC #1581 (monorepo migration)
 - Next.js 16 route groups: https://nextjs.org/docs/app/api-reference/file-conventions/route-groups
@@ -581,6 +586,7 @@ These are choices our research surfaces but cannot resolve without brand/product
 - Serverless First subdomain structure: https://serverlessfirst.com/how-to-select-a-future-proof-subdomain-structure-for-saas-web-app/
 
 **Failed fetches (noted for transparency):**
+
 - `https://www.calm.com` (403 — bot-detection); pattern inferred from help-center search results
 - `https://account.calm.com` (404 — pattern referenced in CLAUDE.md but not directly inspectable)
 - `https://my.headspace.com` (login-only; pattern inferred from help-center docs)

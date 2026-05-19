@@ -11,8 +11,9 @@
 **Verdict:** Website existence is a soft signal, not a hard gate. Domain+email infra is the real gate.
 
 AWS's official SES FAQ and `request-production-access.html` docs never enumerate "live website" as a checklist item. What AWS Trust & Safety actually evaluates:
+
 - **Hard requirements**: verified sending domain, DKIM, SPF, DMARC, SNS bounce/complaint topics wired, suppression list strategy, opt-out mechanism, use-case description (transactional vs marketing), recipient acquisition explanation
-- **Soft signals weighed in approval**: AWS account age, MRR spend, account email (gmail/hotmail addresses get auto-rejected per Waypoint's collated rejection patterns), and yes — a domain that resolves to *something* legitimate when AWS T&S clicks it
+- **Soft signals weighed in approval**: AWS account age, MRR spend, account email (gmail/hotmail addresses get auto-rejected per Waypoint's collated rejection patterns), and yes — a domain that resolves to _something_ legitimate when AWS T&S clicks it
 
 **Real-world rejection language** (re:Post threads, May 2025): "We reviewed your request and determined that your use of Amazon SES could have a negative impact on our service" — AWS deliberately won't enumerate. Community walkthroughs converge on: a parked domain or pure 404 is a near-certain reject; "a landing page with company description + privacy policy linked in footer" is typically sufficient. A real, polished website passes with significantly higher trust signal.
 
@@ -30,6 +31,7 @@ This is one of the strongest forcing functions for "real" vs "minimum" — Apple
 ## 4. Google OAuth consent screen verification
 
 Hard block. Homepage must be:
+
 - Publicly accessible
 - Describe app functionality
 - Link to privacy + ToS
@@ -62,18 +64,18 @@ Each requires homepage URL with app description + privacy link, similar to Googl
 
 ## Summary table: "Truly blocks on real website?"
 
-| Workstream | Real website required? | Notes |
-|---|---|---|
-| AWS SES production | Soft signal (domain ≠ parking page) | Domain/email infra is the real gate |
-| Apple App Store submit | Yes (Privacy + Support URLs must resolve) | Marketing URL optional |
-| Google Play submit | Yes (Privacy URL — identical-strings rule in 2026) | Plus Health Apps Declaration |
-| **Apple Developer Program org enrollment** | **Yes — hard, explicit ban on parking/social-only** | Strongest forcing function for "real" vs "minimum" |
-| Google OAuth verification | Yes — homepage must describe app + link privacy/ToS, domain-verified | Play Store listing not accepted |
-| Sign in with Apple (web) | Domain only | No content requirement |
-| Cognito Hosted UI custom domain | Domain only | ACM cert + DNS |
-| Stripe full activation | Soft — alternatives exist | But real polished site = instant activation |
-| HIPAA BAA negotiation | No | Vendors check SOC 2 / HITRUST, not site |
-| OAuth providers (Google/Facebook/etc.) | Yes — similar to Google | Privacy + description required |
+| Workstream                                 | Real website required?                                               | Notes                                              |
+| ------------------------------------------ | -------------------------------------------------------------------- | -------------------------------------------------- |
+| AWS SES production                         | Soft signal (domain ≠ parking page)                                  | Domain/email infra is the real gate                |
+| Apple App Store submit                     | Yes (Privacy + Support URLs must resolve)                            | Marketing URL optional                             |
+| Google Play submit                         | Yes (Privacy URL — identical-strings rule in 2026)                   | Plus Health Apps Declaration                       |
+| **Apple Developer Program org enrollment** | **Yes — hard, explicit ban on parking/social-only**                  | Strongest forcing function for "real" vs "minimum" |
+| Google OAuth verification                  | Yes — homepage must describe app + link privacy/ToS, domain-verified | Play Store listing not accepted                    |
+| Sign in with Apple (web)                   | Domain only                                                          | No content requirement                             |
+| Cognito Hosted UI custom domain            | Domain only                                                          | ACM cert + DNS                                     |
+| Stripe full activation                     | Soft — alternatives exist                                            | But real polished site = instant activation        |
+| HIPAA BAA negotiation                      | No                                                                   | Vendors check SOC 2 / HITRUST, not site            |
+| OAuth providers (Google/Facebook/etc.)     | Yes — similar to Google                                              | Privacy + description required                     |
 
 ---
 

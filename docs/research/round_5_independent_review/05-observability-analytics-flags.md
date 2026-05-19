@@ -32,7 +32,7 @@ The Sentry+Amplitude+GrowthBook trio has three independent BAAs to maintain, thr
 
 ## Q2 — Sentry BAA at Business tier
 
-**Verified May 2026.** Sentry's BAA (Business Associate Amendment 1.0.1, effective January 15, 2026) is **available at Business tier and above**, self-serve. Quote: *"The BAA is made available to all customers on a qualifying non-trial plan (Business tier or higher). If eligible, you'll find the BAA in the Legal & Compliance section of your organization's navigation menu... It can be accessed and accepted by any Owner or Billing Contact within your organization."* Enterprise is required only if you need negotiated/modified BAA terms (custom indemnification, scope changes). For a baseline consumer-health BAA, **Business tier is sufficient** — and Sentry's Business price is roughly **$80/mo** (annual billing) with 50k errors / 5M spans / 50 replays / unlimited dashboards / SAML+SCIM included.
+**Verified May 2026.** Sentry's BAA (Business Associate Amendment 1.0.1, effective January 15, 2026) is **available at Business tier and above**, self-serve. Quote: _"The BAA is made available to all customers on a qualifying non-trial plan (Business tier or higher). If eligible, you'll find the BAA in the Legal & Compliance section of your organization's navigation menu... It can be accessed and accepted by any Owner or Billing Contact within your organization."_ Enterprise is required only if you need negotiated/modified BAA terms (custom indemnification, scope changes). For a baseline consumer-health BAA, **Business tier is sufficient** — and Sentry's Business price is roughly **$80/mo** (annual billing) with 50k errors / 5M spans / 50 replays / unlimited dashboards / SAML+SCIM included.
 
 Replay specifically: 50 replays/mo on Business is fine for error-triggered sampling but inadequate for sustained always-on replay. Pay-as-you-go applies above bundled limits. For a HIPAA-aligned site that masks aggressively (Q10), error-triggered replay sampling is the right posture anyway.
 
@@ -44,7 +44,7 @@ Replay specifically: 50 replays/mo on Business is fine for error-triggered sampl
 
 ## Q3 — Amplitude HIPAA BAA pricing 2026
 
-**Verified May 2026.** Amplitude offers a BAA **only on the Enterprise plan**. Starter/Plus/Growth tiers *cannot legally handle PHI under any circumstances* per Amplitude's contract. Enterprise is custom-quoted, typically **$20K-$100K+/yr** depending on MTU volume and feature requirements. Session Replay on Amplitude is a separate metered add-on. For a pre-launch consumer-health site sitting in Workloads-NonHIPAA OU (D31, zero-PHI website), the BAA may technically not be required, but the **Cerebral $7M lesson** is that "we don't intend PHI to flow there" is not a defense — the FTC penalty was for *capability* and *configuration*, not intent. Honoring a BAA contractually creates a forcing function for the mask-all defaults and consent-gated load that you want anyway.
+**Verified May 2026.** Amplitude offers a BAA **only on the Enterprise plan**. Starter/Plus/Growth tiers _cannot legally handle PHI under any circumstances_ per Amplitude's contract. Enterprise is custom-quoted, typically **$20K-$100K+/yr** depending on MTU volume and feature requirements. Session Replay on Amplitude is a separate metered add-on. For a pre-launch consumer-health site sitting in Workloads-NonHIPAA OU (D31, zero-PHI website), the BAA may technically not be required, but the **Cerebral $7M lesson** is that "we don't intend PHI to flow there" is not a defense — the FTC penalty was for _capability_ and _configuration_, not intent. Honoring a BAA contractually creates a forcing function for the mask-all defaults and consent-gated load that you want anyway.
 
 The realistic cost cliff: an Amplitude Plus account at ~$49/mo is **null and void the moment a user types something resembling PHI in any tracked form**, because the BAA doesn't exist below Enterprise. There is no graceful path from Plus to Enterprise other than re-procurement at the Enterprise pricing floor.
 
@@ -56,16 +56,16 @@ The realistic cost cliff: an Amplitude Plus account at ~$49/mo is **null and voi
 
 ## Q4 — PostHog HIPAA BAA 2026
 
-**Verified May 2026.** PostHog signs BAAs **only on PostHog Cloud** (not self-hosted hobby/OSS) for customers with a **Boost ($250/mo), Scale ($750/mo), or Enterprise ($2,000/mo) add-on on top of the Teams Plan**, generated and countersigned via the PostHog Legal section. Boost includes unlimited team members, unlimited projects, white-labeling, SSO enforcement, and the HIPAA BAA. Quote: *"PostHog only offers Business Associate Agreements (BAAs) for PostHog Cloud to users with Boost, Scale or Enterprise add-ons."*
+**Verified May 2026.** PostHog signs BAAs **only on PostHog Cloud** (not self-hosted hobby/OSS) for customers with a **Boost ($250/mo), Scale ($750/mo), or Enterprise ($2,000/mo) add-on on top of the Teams Plan**, generated and countersigned via the PostHog Legal section. Boost includes unlimited team members, unlimited projects, white-labeling, SSO enforcement, and the HIPAA BAA. Quote: _"PostHog only offers Business Associate Agreements (BAAs) for PostHog Cloud to users with Boost, Scale or Enterprise add-ons."_
 
 Single-BAA cost comparison for our stack:
 
-| Stack | Vendors with BAA | Monthly floor | Notes |
-|---|---|---|---|
-| **PostHog Cloud (Boost) only** | 1 | ~$250 + usage | Analytics + replay + flags + experiments + errors |
-| **Sentry Business + PostHog Boost** *(recommended)* | 2 | ~$330 + usage | Sentry for errors/RUM, PostHog for everything else |
-| Sentry Business + Amplitude Enterprise + GrowthBook self-hosted | 3 | $80 + $1,700+ + ECS infra | Three contracts, three SDKs |
-| Sentry Business + Amplitude Plus | "1" but contractually broken | $80 + $49 | **Not HIPAA viable** — Amplitude needs Enterprise for BAA |
+| Stack                                                           | Vendors with BAA             | Monthly floor             | Notes                                                     |
+| --------------------------------------------------------------- | ---------------------------- | ------------------------- | --------------------------------------------------------- |
+| **PostHog Cloud (Boost) only**                                  | 1                            | ~$250 + usage             | Analytics + replay + flags + experiments + errors         |
+| **Sentry Business + PostHog Boost** _(recommended)_             | 2                            | ~$330 + usage             | Sentry for errors/RUM, PostHog for everything else        |
+| Sentry Business + Amplitude Enterprise + GrowthBook self-hosted | 3                            | $80 + $1,700+ + ECS infra | Three contracts, three SDKs                               |
+| Sentry Business + Amplitude Plus                                | "1" but contractually broken | $80 + $49                 | **Not HIPAA viable** — Amplitude needs Enterprise for BAA |
 
 - **Reference:** https://posthog.com/docs/privacy/hipaa-compliance + https://posthog.com/platform-packages + https://posthog.com/baa
 - **Recommendation for M1/M2:** PostHog Cloud, Teams plan + Boost add-on, BAA generated before first marketing-page traffic that allows form submission. Cloud (not self-hosted) — self-hosted PostHog at this team size is operationally premature, and the BAA does not apply.
@@ -106,11 +106,15 @@ export type AnalyticsEvent =
 
 export async function track<E extends AnalyticsEvent>(
   event: E,
-  ctx: { userId?: string; sessionId: string; consent: ConsentState }
+  ctx: { userId?: string; sessionId: string; consent: ConsentState },
 ): Promise<void> {
   if (!ctx.consent.analytics) return; // D35 gate
   const sanitized = assertNoPHI(scrub(event));
-  await posthog.capture({ event: sanitized.name, properties: sanitized.props, distinct_id: ctx.userId ?? ctx.sessionId });
+  await posthog.capture({
+    event: sanitized.name,
+    properties: sanitized.props,
+    distinct_id: ctx.userId ?? ctx.sessionId,
+  });
 }
 ```
 
@@ -140,7 +144,7 @@ The cost in M1 is essentially zero: use `@vercel/otel` + `@opentelemetry/api` fo
 
 1. **Browser** — OTel JS SDK or Sentry browser SDK auto-injects `traceparent` on `fetch()` to same-origin BFF.
 2. **CloudFront** — passes headers through (verify the `traceparent`/`tracestate` headers are in the cache key allowlist if needed; for non-cached BFF routes, this is automatic).
-3. **API Gateway → Lambda TS BFF** — APIGW v2 (HTTP API) preserves headers. Lambda runtime extracts `traceparent` via the OTel HTTP instrumentation. AWS X-Ray's `X-Amzn-Trace-Id` is a *parallel* header; OTel propagates both via the `awsxray` propagator if you want X-Ray integration too.
+3. **API Gateway → Lambda TS BFF** — APIGW v2 (HTTP API) preserves headers. Lambda runtime extracts `traceparent` via the OTel HTTP instrumentation. AWS X-Ray's `X-Amzn-Trace-Id` is a _parallel_ header; OTel propagates both via the `awsxray` propagator if you want X-Ray integration too.
 4. **Lambda TS BFF → API Gateway → Rust** — TS BFF's outgoing `fetch()` must re-inject `traceparent` (OTel fetch instrumentation does this) so the Rust service sees the continuation.
 5. **Rust backend** — uses `tracing-opentelemetry` + `opentelemetry-http` crates to extract `traceparent` from the inbound request and continue the span.
 
@@ -169,24 +173,25 @@ export function register() {
 
 **Current 2026 enterprise practice.** The 75th-percentile rule is non-negotiable — Google's CrUX scores a page "good" only when p75 of visits across mobile + desktop hits all three Core Web Vitals. **Hard production budgets, separately for mobile and desktop:** p75 LCP ≤ 2.5s, p75 INP ≤ 200ms, p75 CLS ≤ 0.1, p75 TTFB ≤ 0.8s (supporting, not Core). Warn at ~85-90% of ceiling, error at ceiling. INP cannot be measured in lab (Lighthouse) — only RUM gives real numbers. CLS in lab is also misleadingly low because Lighthouse doesn't scroll/interact.
 
-Implementation: use Google's `web-vitals` library (which Next.js's `useReportWebVitals` hook calls under the hood) to capture `onLCP`, `onINP`, `onCLS`, `onTTFB`. Ship each metric to Sentry via `Sentry.metrics.distribution()` *or* — preferred OTel-first — emit as OTel metrics via `@opentelemetry/api` and let Sentry consume. The `web-vitals` library reports each metric **once per page lifecycle** (don't call `onINP()` twice — memory leak risk). Send via `navigator.sendBeacon()` on `visibilitychange === 'hidden'` to survive page unload.
+Implementation: use Google's `web-vitals` library (which Next.js's `useReportWebVitals` hook calls under the hood) to capture `onLCP`, `onINP`, `onCLS`, `onTTFB`. Ship each metric to Sentry via `Sentry.metrics.distribution()` _or_ — preferred OTel-first — emit as OTel metrics via `@opentelemetry/api` and let Sentry consume. The `web-vitals` library reports each metric **once per page lifecycle** (don't call `onINP()` twice — memory leak risk). Send via `navigator.sendBeacon()` on `visibilitychange === 'hidden'` to survive page unload.
 
 Dashboard discipline: dimension every CWV metric by `{ route, device_class: mobile|tablet|desktop, navigation_type: navigate|reload|bfcache }`. The p75 by route is where regressions hide — a sitewide p75 that's green can mask a single PDP route that's red.
 
 - **Reference:** https://github.com/GoogleChrome/web-vitals + https://web.dev/articles/vitals + https://nextjs.org/docs/pages/api-reference/functions/use-report-web-vitals + https://docs.sentry.io/platforms/javascript/tracing/web-vitals/
 - **Recommendation for M1/M2:** Wire `useReportWebVitals` in `apps/web/app/layout.tsx`. Route to OTel histogram metrics (vendor-agnostic) consumed by Sentry today. Dashboard p75 by route + device class. Set CI budgets in M2 once we have baseline numbers — don't pre-commit to thresholds without data.
-- **Retrofit cost if wrong:** **Low** — adding RUM later is a single layout change. But the *budget regression catch* you miss between M1 and "later" is real product debt.
+- **Retrofit cost if wrong:** **Low** — adding RUM later is a single layout change. But the _budget regression catch_ you miss between M1 and "later" is real product debt.
 
 ---
 
 ## Q10 — Sentry session replay privacy posture
 
-**Current 2026 enterprise practice.** Sentry's replay defaults *are* aggressive: `maskAllText: true`, `blockAllMedia: true`, `maskAllInputs: true` ship out of the box. Three CSS class patterns:
+**Current 2026 enterprise practice.** Sentry's replay defaults _are_ aggressive: `maskAllText: true`, `blockAllMedia: true`, `maskAllInputs: true` ship out of the box. Three CSS class patterns:
+
 - `sentry-mask` / `data-sentry-mask` → text replaced with asterisks (still captures shape)
 - `sentry-block` / `data-sentry-block` → element rendered as empty placeholder (no shape, no interaction)
 - `sentry-ignore` / `data-sentry-ignore` → form input events excluded entirely
 
-**Adequate for HIPAA-aligned, but not by default — adequate only with disciplined configuration.** Sentry's own docs warn: *"Before enabling Session Replay in production, verify your masking configuration to ensure no sensitive data is captured."* The defaults handle text and media but **do not address HTML attribute leakage** the way the Amplitude bug does (Q11). The Cerebral lesson is that intent ≠ enforcement — the FTC penalty came from configuration, not intent.
+**Adequate for HIPAA-aligned, but not by default — adequate only with disciplined configuration.** Sentry's own docs warn: _"Before enabling Session Replay in production, verify your masking configuration to ensure no sensitive data is captured."_ The defaults handle text and media but **do not address HTML attribute leakage** the way the Amplitude bug does (Q11). The Cerebral lesson is that intent ≠ enforcement — the FTC penalty came from configuration, not intent.
 
 Concrete posture for Quilty: stay at the aggressive defaults; do NOT loosen `maskAllText` globally; explicitly add `sentry-block` to any element that could contain clinical state (mood pickers, symptom checkers, free-text reflection inputs, even on signed-in surfaces). Use error-triggered replay sampling (Sentry's default sampling on `replaysSessionSampleRate: 0`, `replaysOnErrorSampleRate: 1.0`) so most sessions never produce a replay at all — minimum-PHI-exposure surface area.
 
@@ -200,11 +205,12 @@ Sentry's replay is **not** in their explicit BAA exclusion list (some vendors ca
 
 ## Q11 — Amplitude session replay privacy (HTML attribute leakage)
 
-**Verified May 2026.** Amplitude's Session Replay **does not mask HTML attribute values** even at the strictest "Conservative" privacy level. Quote from Amplitude docs: *"Session Replay masking applies to text content and form inputs, but doesn't mask HTML attribute values. Attributes such as `alt`, `title`, `placeholder`, `aria-label`, `value`, and custom `data-*` attributes remain visible in replays even when you enable masking. If your application stores sensitive information in HTML attributes, remove or obfuscate that data before it reaches Session Replay."*
+**Verified May 2026.** Amplitude's Session Replay **does not mask HTML attribute values** even at the strictest "Conservative" privacy level. Quote from Amplitude docs: _"Session Replay masking applies to text content and form inputs, but doesn't mask HTML attribute values. Attributes such as `alt`, `title`, `placeholder`, `aria-label`, `value`, and custom `data-_` attributes remain visible in replays even when you enable masking. If your application stores sensitive information in HTML attributes, remove or obfuscate that data before it reaches Session Replay."\*
 
 A known bug (GitHub issue #887, still open as of search): even placeholder text in inputs is not masked by `Conservative` or `.amp-mask` — particularly painful for searchable dropdowns where a placeholder dynamically updates to the user's typed text. Cross-origin iframes also don't inherit parent privacy config.
 
 This is a **non-trivial leak for a clinical surface.** An autocomplete listing condition names in `aria-label`, a placeholder updating with typed search text ("anxi…"), or a `data-condition-id` on a list item — all show up in Amplitude replays despite masking being "on." Mitigation:
+
 1. Audit DOM for sensitive `aria-label`, `placeholder`, `title`, `alt`, `value`, `data-*` and remove/obfuscate before render.
 2. Use `.amp-block` (full element replacement with placeholder rectangle) rather than `.amp-mask` for any clinical region.
 3. Configure iframe privacy independently (parent settings don't propagate).
@@ -218,9 +224,9 @@ This is a **non-trivial leak for a clinical surface.** An autocomplete listing c
 
 ## Q12 — FullStory / LogRocket replay alternatives
 
-**Current 2026 enterprise practice.** FullStory's three-tier model — **Exclude > Mask > Unmask** — is more nuanced than Sentry's or Amplitude's. The critical distinction for clinical surfaces: **Mask hides text but still captures clicks/changes; Exclude drops both.** FullStory itself documents the clinical attack: *"If part of the interface were to contain checkboxes for capturing the presence of certain medical conditions, it would not be enough to simply obscure the text content in session replay. Because masked elements collect interaction data, it would be possible for someone with good working knowledge of the product to understand which health issues a user was checking the boxes for."* FullStory's default Form Privacy ruleset therefore *excludes* (not masks) `input[type=radio]` and `input[type=checkbox]` to defeat this attack. Their "Private by Default" mode allowlists rather than denylists capture.
+**Current 2026 enterprise practice.** FullStory's three-tier model — **Exclude > Mask > Unmask** — is more nuanced than Sentry's or Amplitude's. The critical distinction for clinical surfaces: **Mask hides text but still captures clicks/changes; Exclude drops both.** FullStory itself documents the clinical attack: _"If part of the interface were to contain checkboxes for capturing the presence of certain medical conditions, it would not be enough to simply obscure the text content in session replay. Because masked elements collect interaction data, it would be possible for someone with good working knowledge of the product to understand which health issues a user was checking the boxes for."_ FullStory's default Form Privacy ruleset therefore _excludes_ (not masks) `input[type=radio]` and `input[type=checkbox]` to defeat this attack. Their "Private by Default" mode allowlists rather than denylists capture.
 
-FullStory and LogRocket both sign BAAs, but FullStory's contract still says *"Customers shall not send any sensitive data, such as medical records, diagnostic data, or any other PHI."* So the BAA is "we'll protect what shouldn't have been sent in the first place." This is functionally equivalent to PostHog/Sentry's posture — the technical controls + the BAA are both load-bearing.
+FullStory and LogRocket both sign BAAs, but FullStory's contract still says _"Customers shall not send any sensitive data, such as medical records, diagnostic data, or any other PHI."_ So the BAA is "we'll protect what shouldn't have been sent in the first place." This is functionally equivalent to PostHog/Sentry's posture — the technical controls + the BAA are both load-bearing.
 
 For a HIPAA-aligned consumer health site, none of FullStory / LogRocket / Hotjar offer a clear advantage over **PostHog replay + aggressive masking** or **Sentry replay + error-trigger only**, and they add another BAA and another contract. The "Exclude beats Mask" insight is the load-bearing lesson — apply it to whichever vendor you pick.
 
@@ -234,7 +240,7 @@ For a HIPAA-aligned consumer health site, none of FullStory / LogRocket / Hotjar
 
 **Recommendation.** **Sentry replay (error-triggered, mask-all-default) + PostHog replay (consent-gated, sampled, mask-all-default).** Both inside their respective BAAs. Both with `block`-class (full exclusion, not text-mask) on every clinical-state-implying control. Do not adopt FullStory or LogRocket. Do not pay Amplitude Enterprise to use Amplitude replay on the web — the attribute leakage is a non-starter and the Enterprise cliff is unjustifiable when PostHog Boost covers replay at $250/mo.
 
-Sentry replay is for *debugging an error* — when something blew up, you can see what the user did. PostHog replay is for *understanding behavior* — funnel drop-offs, UX confusion, onboarding friction. Different jobs. Both at low sample rates pre-launch.
+Sentry replay is for _debugging an error_ — when something blew up, you can see what the user did. PostHog replay is for _understanding behavior_ — funnel drop-offs, UX confusion, onboarding friction. Different jobs. Both at low sample rates pre-launch.
 
 - **Reference:** Q10 + Q11 + Q12 evidence
 - **Recommendation for M1/M2:** Sentry replay configured in M1 (off by default, error-triggered), PostHog replay activated in M2-M3 once we have meaningful UX surfaces and ConsentState wired.
@@ -254,7 +260,7 @@ Sentry replay is for *debugging an error* — when something blew up, you can se
   "span_id": "00f067aa0ba902b7",
   "request_id": "lambda-aws-request-id",
   "route": "/[locale]/pricing",
-  "user_id_hash": "sha256:abc…",     // hashed/anon, NEVER raw email/uuid in PHI tier
+  "user_id_hash": "sha256:abc…", // hashed/anon, NEVER raw email/uuid in PHI tier
   "method": "GET",
   "status": 200,
   "duration_ms": 142,
@@ -263,13 +269,14 @@ Sentry replay is for *debugging an error* — when something blew up, you can se
 ```
 
 Critical primitives:
-- **Tiered retention.** CloudWatch log group retention set per environment: dev 30d, staging 90d, prod 90d "hot" + Glacier-tier S3 export at 7y for HIPAA audit trail of *security events* (not application logs).
+
+- **Tiered retention.** CloudWatch log group retention set per environment: dev 30d, staging 90d, prod 90d "hot" + Glacier-tier S3 export at 7y for HIPAA audit trail of _security events_ (not application logs).
 - **PHI sanitizer module.** Single chokepoint — `lib/observability/sanitize.ts` — strips known PHI keys (`email`, `phone`, `dob`, `address`, `diagnosis`, `condition`, `medication`, `notes`, free-text >N chars), redacts JWTs, replaces user UUIDs with stable hashes.
 - **ESLint rule:** `no-console` enforced (use `logger.info/warn/error` only). No raw `console.log` past lint.
 - **Runtime redaction wrapper.** The logger wraps every log call: `logger.info(msg, fields)` → `console.log(JSON.stringify(sanitize({ ts, level, trace, ...fields, msg })))`.
 - **Insights queries committed** in `docs/observability/insights_queries.md`: errors by route, p95 latency by route, recent 4xx/5xx clustered.
 
-The Cerebral-lesson concrete control here is the **PHI sanitizer wrapping every log emission** — not opt-in, not "we'll remember to sanitize at the call site," but a module that's the *only* way to emit a log line.
+The Cerebral-lesson concrete control here is the **PHI sanitizer wrapping every log emission** — not opt-in, not "we'll remember to sanitize at the call site," but a module that's the _only_ way to emit a log line.
 
 - **Reference:** https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Insights.html + https://aws.amazon.com/blogs/mt/structured-logging-for-aws-lambda/
 - **Recommendation for M1/M2:** Ship `lib/observability/logger.ts` + `sanitize.ts` + ESLint `no-console` + a unit test that asserts known-PHI keys are redacted. Set log group retention via SST infra. Commit one CloudWatch Insights query per route family for M1 smoke-validation.
@@ -280,6 +287,7 @@ The Cerebral-lesson concrete control here is the **PHI sanitizer wrapping every 
 ## Q15 — Feature flag platform at trigger point
 
 **Current 2026 enterprise practice.** The 2026 landscape:
+
 - **LaunchDarkly** — enterprise gold standard for governance/approval/RBAC; SaaS-only; expensive at scale; AWS us-east-1 outage Oct 20 2025 taught the industry that LD's control plane and data plane were coupled (they've since decoupled). Strong if SOC2/HIPAA-from-vendor matters and budget supports it.
 - **Statsig** — acquired by OpenAI Sep 2025 for $1.1B; still operating independently with the existing customer base but strategic direction now serves OpenAI; some procurement-risk concern from large customers.
 - **GrowthBook** — open-source, warehouse-native experimentation, self-hostable. Premium features (SSO, advanced RBAC, prerequisite flags) require commercial license. Fits AWS ECS self-host narrative.
@@ -303,12 +311,13 @@ Vercel Flags SDK + Hypertune is the right pick for a Vercel-hosted Next.js site.
 
 1. **Typed flag declarations.** Define every flag in a single `apps/web/lib/flags/index.ts` with typed default values. Server Components import the `flag` and call it with the user context.
 2. **Local-cache-with-network-fallback.** The flag SDK initializes from a local file/Edge Config snapshot first, then refreshes from the network. If the network call fails or the SDK can't reach the vendor, evaluation returns the locally-cached value, not the type-system default.
-3. **Safe-by-default fallback values.** Every flag's default must produce *safe behavior* if everything else fails — `enable_new_checkout: false`, `kill_switch_legacy_path: false` (i.e., kill switch defaults to "don't kill"), `experimental_ai_assist: false`.
+3. **Safe-by-default fallback values.** Every flag's default must produce _safe behavior_ if everything else fails — `enable_new_checkout: false`, `kill_switch_legacy_path: false` (i.e., kill switch defaults to "don't kill"), `experimental_ai_assist: false`.
 
-**The LaunchDarkly Oct 20 2025 lesson** (https://launchdarkly.com/blog/what-happened-what-we-learned-and-how-were-improving/) is exactly this. AWS us-east-1 took LD's control plane down. Compounding: LD's recovery action (revert to legacy routing with cold caches) triggered a thundering herd of SDK retries that took down the data plane too. Customer impact: in many integrations, flags evaluated to `false` because cache had expired and the SDK couldn't reach LD. FireHydrant (an LD customer) deployed emergency PRs to *hardcode* critical flags to safe values because the `false` default wasn't actually safe for their code paths.
+**The LaunchDarkly Oct 20 2025 lesson** (https://launchdarkly.com/blog/what-happened-what-we-learned-and-how-were-improving/) is exactly this. AWS us-east-1 took LD's control plane down. Compounding: LD's recovery action (revert to legacy routing with cold caches) triggered a thundering herd of SDK retries that took down the data plane too. Customer impact: in many integrations, flags evaluated to `false` because cache had expired and the SDK couldn't reach LD. FireHydrant (an LD customer) deployed emergency PRs to _hardcode_ critical flags to safe values because the `false` default wasn't actually safe for their code paths.
 
 **The five action items for any flag platform we pick:**
-1. Audit every flag's default — assume the SDK can't reach the vendor. Verify the fallback is *safe behavior*, not a coincidentally-non-broken behavior.
+
+1. Audit every flag's default — assume the SDK can't reach the vendor. Verify the fallback is _safe behavior_, not a coincidentally-non-broken behavior.
 2. Persist local cache across process restarts (Lambda cold starts are the trap here — initialize from a baked-in snapshot, not from network).
 3. Hardcode kill-switch values for critical paths — `if (process.env.HARDCODE_FLAG_FOO === 'true') return true;` overrides as a deploy-time bypass.
 4. Monitor the flag vendor as first-class infra dependency, with status-page integration into PagerDuty.
@@ -339,7 +348,8 @@ For Quilty: pre-launch (M1-M8) there's no meaningful A/B testing surface. M9+ ("
 ## Q18 — CSP report sink
 
 **Current 2026 enterprise practice.** Three sink options for `report-uri` / `Reporting-Endpoints` + `report-to`:
-- **Sentry's built-in CSP endpoint** — `https://o{org_id}.ingest.sentry.io/api/{project_id}/security/?sentry_key={key}` — already part of your Sentry project. CSP violations land as security events alongside JS errors, with grouping, fingerprinting, release tagging. Counts against your event quota. Known limitation: Sentry's endpoint requires a query string (`?sentry_key=`), and the modern `report-to` directive doesn't support query strings — so you specify *both* `report-uri` (works for current browsers) and `report-to` + `Reporting-Endpoints` (forward-compat, though report-to currently can't target Sentry's endpoint per their open issue #52794). In practice this means `report-uri` carries the load for Sentry today.
+
+- **Sentry's built-in CSP endpoint** — `https://o{org_id}.ingest.sentry.io/api/{project_id}/security/?sentry_key={key}` — already part of your Sentry project. CSP violations land as security events alongside JS errors, with grouping, fingerprinting, release tagging. Counts against your event quota. Known limitation: Sentry's endpoint requires a query string (`?sentry_key=`), and the modern `report-to` directive doesn't support query strings — so you specify _both_ `report-uri` (works for current browsers) and `report-to` + `Reporting-Endpoints` (forward-compat, though report-to currently can't target Sentry's endpoint per their open issue #52794). In practice this means `report-uri` carries the load for Sentry today.
 - **Cloudflare Workers / dedicated edge handler** — full control, free tier, store in your own bucket. Operational overhead.
 - **Self-hosted endpoint** — Lambda + DynamoDB. Most overhead, least value.
 
@@ -353,16 +363,16 @@ For a 1-eng team already paying for Sentry Business, **Sentry as the CSP sink is
 
 ## Q19 — Cost envelope at 1-eng pre-launch (realistic 2026 numbers)
 
-| Line item | Monthly USD (pre-launch) | Notes |
-|---|---|---|
-| Sentry Business (50k errors, 50 replays, 5M spans) | ~$80 | Annual billing; PAYG above bundled |
-| PostHog Teams + Boost add-on | ~$250 | + usage: ~$0/mo at pre-launch (free 1M events / 5K recordings / 1M flag reqs) |
-| CloudWatch (logs + metrics + Insights queries) | ~$5-30 | Lambda free tier + minimal log volume |
-| GrowthBook self-hosted on ECS *(removed per Q15)* | ~$0 | Replaced by PostHog flags |
-| AWS Lambda + APIGW + CloudFront (SST web tier) | ~$5-25 | Free tier covers most pre-launch |
-| Route 53 + ACM certs | ~$1-3 | Hosted zone + queries |
-| **Recommended stack monthly floor** | **~$340-390** | Sentry + PostHog + AWS infra |
-| Worst-case path (Amplitude Enterprise) | **~$2,000+/mo** | $1,700-8,000+/mo for Amplitude alone at Enterprise |
+| Line item                                          | Monthly USD (pre-launch) | Notes                                                                         |
+| -------------------------------------------------- | ------------------------ | ----------------------------------------------------------------------------- |
+| Sentry Business (50k errors, 50 replays, 5M spans) | ~$80                     | Annual billing; PAYG above bundled                                            |
+| PostHog Teams + Boost add-on                       | ~$250                    | + usage: ~$0/mo at pre-launch (free 1M events / 5K recordings / 1M flag reqs) |
+| CloudWatch (logs + metrics + Insights queries)     | ~$5-30                   | Lambda free tier + minimal log volume                                         |
+| GrowthBook self-hosted on ECS _(removed per Q15)_  | ~$0                      | Replaced by PostHog flags                                                     |
+| AWS Lambda + APIGW + CloudFront (SST web tier)     | ~$5-25                   | Free tier covers most pre-launch                                              |
+| Route 53 + ACM certs                               | ~$1-3                    | Hosted zone + queries                                                         |
+| **Recommended stack monthly floor**                | **~$340-390**            | Sentry + PostHog + AWS infra                                                  |
+| Worst-case path (Amplitude Enterprise)             | **~$2,000+/mo**          | $1,700-8,000+/mo for Amplitude alone at Enterprise                            |
 
 The recommended stack lands at **~$340-390/mo pre-launch**, scaling roughly linearly with usage on PostHog and Sentry. The "worst-case path" — where someone bolts Amplitude Enterprise onto the web tier because of the existing mobile contract — is a 5-10x cost multiplier with no offsetting capability gain over PostHog Cloud Boost.
 
@@ -403,16 +413,16 @@ The recommended stack lands at **~$340-390/mo pre-launch**, scaling roughly line
 
 **What activates when:**
 
-| Milestone | Activation |
-|---|---|
-| M1 | Sentry live; OTel + W3C propagation wired; logger + sanitize + assertNoPHI + adapters shipped; CSP report-only |
-| M2 | Web Vitals dashboards populated; first p75-by-route baselines captured; SEO + a11y baseline tied into Sentry release health |
-| M3 | ConsentState shipped; PostHog client SDK activated behind consent gate; PostHog replay sampled |
-| M5 | Account portal v0; `flag()` migrates from env vars → PostHog flags for runtime toggle of beta features |
-| M6 | Real auth; OIDC backchannel logout emits OTel spans; user_id propagates into PostHog `distinct_id` |
-| M7 | Stripe/RevenueCat events flow through `track()` → PostHog; subscription funnels live |
-| M8 | CSP flipped from `Report-Only` → enforce after 2-4 clean weeks; BAA scope inventory finalized |
-| M9+ | PostHog Experiments activated as traffic justifies; warehouse-native experimentation (GrowthBook) reconsidered at 20+ eng |
+| Milestone | Activation                                                                                                                  |
+| --------- | --------------------------------------------------------------------------------------------------------------------------- |
+| M1        | Sentry live; OTel + W3C propagation wired; logger + sanitize + assertNoPHI + adapters shipped; CSP report-only              |
+| M2        | Web Vitals dashboards populated; first p75-by-route baselines captured; SEO + a11y baseline tied into Sentry release health |
+| M3        | ConsentState shipped; PostHog client SDK activated behind consent gate; PostHog replay sampled                              |
+| M5        | Account portal v0; `flag()` migrates from env vars → PostHog flags for runtime toggle of beta features                      |
+| M6        | Real auth; OIDC backchannel logout emits OTel spans; user_id propagates into PostHog `distinct_id`                          |
+| M7        | Stripe/RevenueCat events flow through `track()` → PostHog; subscription funnels live                                        |
+| M8        | CSP flipped from `Report-Only` → enforce after 2-4 clean weeks; BAA scope inventory finalized                               |
+| M9+       | PostHog Experiments activated as traffic justifies; warehouse-native experimentation (GrowthBook) reconsidered at 20+ eng   |
 
 ---
 
@@ -428,35 +438,35 @@ The recommended stack lands at **~$340-390/mo pre-launch**, scaling roughly line
 
 ## Decisions that change from baseline
 
-| Baseline (D42a/b, D43) | Revised (this review) | Why |
-|---|---|---|
-| Sentry Business day-1 (errors + RUM) | ✅ Keep, **add OTel-first via `@vercel/otel`** | Sentry SDK is OTel-native; vendor-agnostic at zero cost |
-| Amplitude pre-launch (web) | ❌ **Drop from web.** Web → **PostHog Cloud Boost** | Amplitude attribute-leak bug (Q11) + $20K-100K+/yr BAA cliff (Q3); PostHog Boost is $250/mo, one BAA, same identity model |
-| Amplitude on mobile (D42b) | ✅ Keep | Existing contract, mobile PHI surface different; reconcile mobile↔web in warehouse at trigger |
-| CloudWatch + structured JSON | ✅ Keep, **add `sanitize()` + ESLint `no-console`** | The Cerebral-lesson primitive — non-optional |
-| GrowthBook self-hosted at trigger | ❌ **Replace with PostHog flags at trigger** | Zero new infra; same BAA; native A/B-on-flag-exposure |
-| Replay vendor deferred | Define as **Sentry replay (error-triggered) + PostHog replay (consent-gated)** with `block`-class on every clinical control | Both inside their BAAs; Exclude > Mask is the load-bearing distinction (Q12); FullStory/LogRocket add a contract for no gain |
-| CSP report sink (unspecified) | **Sentry's CSP endpoint** via `report-uri` (D32) | Already paid for; same triage workflow |
-| typed `features.ts` day-1 (D43) | ✅ Keep — same shape, just rename the day-1 → day-N path | Adapter `flag()` reads from `features.ts` today, PostHog later |
+| Baseline (D42a/b, D43)               | Revised (this review)                                                                                                       | Why                                                                                                                          |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Sentry Business day-1 (errors + RUM) | ✅ Keep, **add OTel-first via `@vercel/otel`**                                                                              | Sentry SDK is OTel-native; vendor-agnostic at zero cost                                                                      |
+| Amplitude pre-launch (web)           | ❌ **Drop from web.** Web → **PostHog Cloud Boost**                                                                         | Amplitude attribute-leak bug (Q11) + $20K-100K+/yr BAA cliff (Q3); PostHog Boost is $250/mo, one BAA, same identity model    |
+| Amplitude on mobile (D42b)           | ✅ Keep                                                                                                                     | Existing contract, mobile PHI surface different; reconcile mobile↔web in warehouse at trigger                                |
+| CloudWatch + structured JSON         | ✅ Keep, **add `sanitize()` + ESLint `no-console`**                                                                         | The Cerebral-lesson primitive — non-optional                                                                                 |
+| GrowthBook self-hosted at trigger    | ❌ **Replace with PostHog flags at trigger**                                                                                | Zero new infra; same BAA; native A/B-on-flag-exposure                                                                        |
+| Replay vendor deferred               | Define as **Sentry replay (error-triggered) + PostHog replay (consent-gated)** with `block`-class on every clinical control | Both inside their BAAs; Exclude > Mask is the load-bearing distinction (Q12); FullStory/LogRocket add a contract for no gain |
+| CSP report sink (unspecified)        | **Sentry's CSP endpoint** via `report-uri` (D32)                                                                            | Already paid for; same triage workflow                                                                                       |
+| typed `features.ts` day-1 (D43)      | ✅ Keep — same shape, just rename the day-1 → day-N path                                                                    | Adapter `flag()` reads from `features.ts` today, PostHog later                                                               |
 
 ---
 
 ## HIPAA / Cerebral-lesson concrete controls shipping at M1
 
-| Control | Mechanism | Where |
-|---|---|---|
-| PHI lint rule | ESLint custom rule banning direct `console.*`, direct vendor SDK imports outside `lib/observability/` | `eslint.config.mjs` |
-| Log sanitizer | Single chokepoint `sanitize()` invoked by every `logger.*` call | `apps/web/lib/observability/sanitize.ts` |
-| Runtime PHI assertion | `assertNoPHI(payload)` throws in dev on suspicious keys | `apps/web/lib/observability/assertNoPHI.ts` |
-| Mask-all replay defaults | `maskAllText: true`, `blockAllMedia: true`, `maskAllInputs: true`, `replaysSessionSampleRate: 0`, `replaysOnErrorSampleRate: 1.0` | `apps/web/lib/observability/sentry.client.ts` |
-| Attribute-leak guard (future-proofing) | Documented denylist of HTML attributes that must not carry user-typed data (`alt`, `title`, `placeholder`, `aria-label`, `value`, `data-*`) — codified as a test + ADR | `tests/a11y/attribute-leak.spec.ts` + ADR |
-| Clinical-control exclusion test | Unit test asserting every `input[type=checkbox]`, `input[type=radio]`, `[role="radiogroup"]` carries `data-sentry-block` + `ph-no-capture` on clinical routes | `tests/replay/clinical-controls.spec.ts` |
-| Consent-gated SDK load | PostHog client SDK only initialized if `ConsentState.analytics === true` (D35); GPC honored at edge | `apps/web/lib/observability/track.ts` + middleware |
-| CSP report-only → enforce path | Day-1 `Content-Security-Policy-Report-Only` → Sentry; M8 cutover to enforce after 2-4 clean weeks | `apps/web/middleware.ts` |
-| Log retention tiering | CloudWatch retention 90d prod / 30d dev; security-event audit trail exported to S3 Glacier 7y | SST infra (`sst.config.ts`) |
-| Hashed user id in logs | `user_id_hash: sha256(user_id + secret)` — raw user UUIDs never in logs | `sanitize.ts` |
-| BAA scope inventory | `docs/baa_scope.md` listing every vendor + tier + signed-date + masking-config-summary | `docs/baa_scope.md` (new, M1) |
-| AWS account isolation | Workloads-NonHIPAA OU (D31), Phase 1 vend `marketing-prod` at launch trigger | `quilty-aws/` infra layers |
+| Control                                | Mechanism                                                                                                                                                              | Where                                              |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| PHI lint rule                          | ESLint custom rule banning direct `console.*`, direct vendor SDK imports outside `lib/observability/`                                                                  | `eslint.config.mjs`                                |
+| Log sanitizer                          | Single chokepoint `sanitize()` invoked by every `logger.*` call                                                                                                        | `apps/web/lib/observability/sanitize.ts`           |
+| Runtime PHI assertion                  | `assertNoPHI(payload)` throws in dev on suspicious keys                                                                                                                | `apps/web/lib/observability/assertNoPHI.ts`        |
+| Mask-all replay defaults               | `maskAllText: true`, `blockAllMedia: true`, `maskAllInputs: true`, `replaysSessionSampleRate: 0`, `replaysOnErrorSampleRate: 1.0`                                      | `apps/web/lib/observability/sentry.client.ts`      |
+| Attribute-leak guard (future-proofing) | Documented denylist of HTML attributes that must not carry user-typed data (`alt`, `title`, `placeholder`, `aria-label`, `value`, `data-*`) — codified as a test + ADR | `tests/a11y/attribute-leak.spec.ts` + ADR          |
+| Clinical-control exclusion test        | Unit test asserting every `input[type=checkbox]`, `input[type=radio]`, `[role="radiogroup"]` carries `data-sentry-block` + `ph-no-capture` on clinical routes          | `tests/replay/clinical-controls.spec.ts`           |
+| Consent-gated SDK load                 | PostHog client SDK only initialized if `ConsentState.analytics === true` (D35); GPC honored at edge                                                                    | `apps/web/lib/observability/track.ts` + middleware |
+| CSP report-only → enforce path         | Day-1 `Content-Security-Policy-Report-Only` → Sentry; M8 cutover to enforce after 2-4 clean weeks                                                                      | `apps/web/middleware.ts`                           |
+| Log retention tiering                  | CloudWatch retention 90d prod / 30d dev; security-event audit trail exported to S3 Glacier 7y                                                                          | SST infra (`sst.config.ts`)                        |
+| Hashed user id in logs                 | `user_id_hash: sha256(user_id + secret)` — raw user UUIDs never in logs                                                                                                | `sanitize.ts`                                      |
+| BAA scope inventory                    | `docs/baa_scope.md` listing every vendor + tier + signed-date + masking-config-summary                                                                                 | `docs/baa_scope.md` (new, M1)                      |
+| AWS account isolation                  | Workloads-NonHIPAA OU (D31), Phase 1 vend `marketing-prod` at launch trigger                                                                                           | `quilty-aws/` infra layers                         |
 
 ---
 

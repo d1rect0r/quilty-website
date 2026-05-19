@@ -24,9 +24,10 @@
 
 ### 1. `@axe-core/playwright` 2026
 
-**Current 2026 enterprise practice.** `@axe-core/playwright` (built on axe-core 4.11+) is the de-facto a11y CI standard. WCAG 2.2 AA coverage requires `withTags(['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22a','wcag22aa'])` — note that `wcag22a`/`wcag22aa` tags must be added explicitly (many older guides only show 2.1). Enterprise pattern is a shared `makeAxeBuilder` Playwright fixture (DRY, single suppression list) + `expect(results.violations).toEqual([])` to fail builds + `.exclude()` for tracked legacy exceptions. Run with `--fail-on-flaky-tests` so retries that pass-on-second-try don't mask races where axe scanned before a spinner cleared. Per Deque's own 2025 reaffirmation, axe-core catches ~57 % of issues *by volume* — useful in stakeholder comms, but never frame as "compliance".
+**Current 2026 enterprise practice.** `@axe-core/playwright` (built on axe-core 4.11+) is the de-facto a11y CI standard. WCAG 2.2 AA coverage requires `withTags(['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22a','wcag22aa'])` — note that `wcag22a`/`wcag22aa` tags must be added explicitly (many older guides only show 2.1). Enterprise pattern is a shared `makeAxeBuilder` Playwright fixture (DRY, single suppression list) + `expect(results.violations).toEqual([])` to fail builds + `.exclude()` for tracked legacy exceptions. Run with `--fail-on-flaky-tests` so retries that pass-on-second-try don't mask races where axe scanned before a spinner cleared. Per Deque's own 2025 reaffirmation, axe-core catches ~57 % of issues _by volume_ — useful in stakeholder comms, but never frame as "compliance".
 
 **Reference URLs.**
+
 - https://playwright.dev/docs/accessibility-testing
 - https://www.deque.com/blog/automated-testing-study-identifies-57-percent-of-digital-accessibility-issues/
 - https://www.npmjs.com/package/@axe-core/playwright
@@ -39,13 +40,14 @@
 
 ### 2. `eslint-plugin-jsx-a11y` 2026
 
-**Current 2026 enterprise practice.** Next.js 16 **removed `next lint`**; flat-config `eslint.config.mjs` is mandatory. The plugin remains the only static AST checker for JSX a11y (Biome's accessibility rules cover a subset — `noSvgWithoutTitle`, `useValidAriaProps`, etc. — but miss role-specific composition rules like `role-supports-aria-props` and `interactive-supports-focus`). It is **agnostic to RSC** (JSX-AST only), so works identically on Server and Client Components. shadcn/Radix handles primitive a11y but jsx-a11y still catches the *consumer* mistakes — missing `alt`, invalid `aria-*`, label-control mismatch in custom forms, `tabIndex` on non-interactive, `onClick` without keyboard handler. Recommended: `jsx-a11y/strict` (not `recommended`) for greenfield + `polymorphicPropName: 'as'` setting for shadcn's `asChild` patterns.
+**Current 2026 enterprise practice.** Next.js 16 **removed `next lint`**; flat-config `eslint.config.mjs` is mandatory. The plugin remains the only static AST checker for JSX a11y (Biome's accessibility rules cover a subset — `noSvgWithoutTitle`, `useValidAriaProps`, etc. — but miss role-specific composition rules like `role-supports-aria-props` and `interactive-supports-focus`). It is **agnostic to RSC** (JSX-AST only), so works identically on Server and Client Components. shadcn/Radix handles primitive a11y but jsx-a11y still catches the _consumer_ mistakes — missing `alt`, invalid `aria-*`, label-control mismatch in custom forms, `tabIndex` on non-interactive, `onClick` without keyboard handler. Recommended: `jsx-a11y/strict` (not `recommended`) for greenfield + `polymorphicPropName: 'as'` setting for shadcn's `asChild` patterns.
 
 **Reference URLs.**
+
 - https://www.npmjs.com/package/eslint-plugin-jsx-a11y
 - https://chris.lu/web_development/tutorials/next-js-16-linting-setup-eslint-9-flat-config
 
-**Recommendation for M1/M2.** Adopt `jsxA11yPlugin.configs.strict.rules` in `apps/web/eslint.config.mjs` at scaffold. Run in **pre-commit via lint-staged** and as a CI job. Belt-and-suspenders with shadcn is correct — jsx-a11y catches *your* composition mistakes; Radix protects *its* primitives.
+**Recommendation for M1/M2.** Adopt `jsxA11yPlugin.configs.strict.rules` in `apps/web/eslint.config.mjs` at scaffold. Run in **pre-commit via lint-staged** and as a CI job. Belt-and-suspenders with shadcn is correct — jsx-a11y catches _your_ composition mistakes; Radix protects _its_ primitives.
 
 **Retrofit cost if wrong.** **Low–Medium** — auto-fixable rules are limited; manual rewrites needed. Cheaper at M1 than M5.
 
@@ -53,9 +55,10 @@
 
 ### 3. Lighthouse a11y vs axe-core
 
-**Current 2026 enterprise practice.** Lighthouse's a11y category *uses* axe-core under the hood, but runs only ~50–57 of the ~96 axe rules and folds them into a 0–100 score that mixes in "manual checks" placeholders, making the headline number misleading (90 ≠ compliant). It adds nothing axe-core via Playwright doesn't already cover for a11y. Lighthouse's actual value in CI is Core Web Vitals + SEO + best-practices, not a11y. The 57% Deque figure refers to axe-core's full rule set, not Lighthouse's subset — Lighthouse coverage is meaningfully lower.
+**Current 2026 enterprise practice.** Lighthouse's a11y category _uses_ axe-core under the hood, but runs only ~50–57 of the ~96 axe rules and folds them into a 0–100 score that mixes in "manual checks" placeholders, making the headline number misleading (90 ≠ compliant). It adds nothing axe-core via Playwright doesn't already cover for a11y. Lighthouse's actual value in CI is Core Web Vitals + SEO + best-practices, not a11y. The 57% Deque figure refers to axe-core's full rule set, not Lighthouse's subset — Lighthouse coverage is meaningfully lower.
 
 **Reference URLs.**
+
 - https://inclly.com/resources/axe-vs-lighthouse
 - https://www.debugbear.com/blog/lighthouse-accessibility
 
@@ -67,14 +70,15 @@
 
 ### 4. Pa11y / WAVE / AccessiBe overlays
 
-**Current 2026 enterprise practice.** **Pa11y** has one defensible role: scanning *deployed* sitemap pages (sitemap-driven crawler) on a cron in a separate workflow with axe + HTMLCS runners combined — catches things axe alone misses (~35% combined coverage vs ~27% axe-only in the abbott567 benchmark). **WAVE** is for manual spot-checks, not CI. **Overlays (accessiBe, UserWay, AudioEye, EqualWeb) are settled negative**: FTC $1M order against accessiBe April 2025 (20-year ban on compliance claims); UserWay class action survived motion to dismiss Feb 2026; 800+ accessibility professionals signed the Overlay Fact Sheet; European Disability Forum + IAAP joint statement says overlays do not satisfy EU law; 1,023+ ADA lawsuits in 2024 against overlay-equipped sites; ~25% of 2024 ADA lawsuits cited overlays as part of the problem. Plaintiff attorneys *target* overlay-equipped sites because the widget proves prior knowledge.
+**Current 2026 enterprise practice.** **Pa11y** has one defensible role: scanning _deployed_ sitemap pages (sitemap-driven crawler) on a cron in a separate workflow with axe + HTMLCS runners combined — catches things axe alone misses (~35% combined coverage vs ~27% axe-only in the abbott567 benchmark). **WAVE** is for manual spot-checks, not CI. **Overlays (accessiBe, UserWay, AudioEye, EqualWeb) are settled negative**: FTC $1M order against accessiBe April 2025 (20-year ban on compliance claims); UserWay class action survived motion to dismiss Feb 2026; 800+ accessibility professionals signed the Overlay Fact Sheet; European Disability Forum + IAAP joint statement says overlays do not satisfy EU law; 1,023+ ADA lawsuits in 2024 against overlay-equipped sites; ~25% of 2024 ADA lawsuits cited overlays as part of the problem. Plaintiff attorneys _target_ overlay-equipped sites because the widget proves prior knowledge.
 
 **Reference URLs.**
+
 - https://www.lflegal.com/2025/02/userway-overlay-lawsuit/
 - https://overlayfactsheet.com (community fact sheet, 800+ signatories)
 - https://www.tpgi.com/web-accessibility-audit/
 
-**Recommendation for M1/M2.** **No overlay, full stop** — would actively *increase* the website's reputational risk given Quilty's HIPAA-aligned consumer-health peer set. Pa11y is optional add-on at M4–M5 once we have a stable sitemap and deployed staging; **not** at M1. WAVE bookmarklet for spot-checks during manual review is fine.
+**Recommendation for M1/M2.** **No overlay, full stop** — would actively _increase_ the website's reputational risk given Quilty's HIPAA-aligned consumer-health peer set. Pa11y is optional add-on at M4–M5 once we have a stable sitemap and deployed staging; **not** at M1. WAVE bookmarklet for spot-checks during manual review is fine.
 
 **Retrofit cost if wrong.** **High** if an overlay ever ships — FTC enforcement + plaintiff-bar targeting both attach. Treat overlay procurement as a `NEVER` rule alongside `NEVER load analytics before consent` in CLAUDE.md.
 
@@ -82,14 +86,16 @@
 
 ### 5. shadcn/ui + Radix a11y (May 2026)
 
-**Current 2026 enterprise practice.** Radix primitives remain best-in-class for ARIA composition, focus management in dialogs/popovers, and keyboard navigation. The shadcn *styling* layer is where gaps appear — the April 2026 TheFrontKit audit of all 48 shadcn components found: (a) default `focus-visible:ring-1 ring-ring/50` fails 3:1 non-text contrast in most themes — must bump to `ring-2 ring-offset-2` with a token that contrasts against both light and dark surfaces; (b) **Recharts** has no a11y alternative (empty SVG to screen readers — WCAG 1.1.1 fail) — must provide a `<table>` alternative or `aria-describedby` data summary; (c) **Input OTP** doesn't announce when paste completes; (d) **AlertDialog** auto-focuses Cancel (by Radix design — fine, but document); (e) `asChild` is footgun #1 — wrapping a `<div>` around `<Tooltip.Trigger>` silently breaks keyboard support. shadcn now supports Base UI as an alternative engine; stay on Radix for now (more mature, more documentation).
+**Current 2026 enterprise practice.** Radix primitives remain best-in-class for ARIA composition, focus management in dialogs/popovers, and keyboard navigation. The shadcn _styling_ layer is where gaps appear — the April 2026 TheFrontKit audit of all 48 shadcn components found: (a) default `focus-visible:ring-1 ring-ring/50` fails 3:1 non-text contrast in most themes — must bump to `ring-2 ring-offset-2` with a token that contrasts against both light and dark surfaces; (b) **Recharts** has no a11y alternative (empty SVG to screen readers — WCAG 1.1.1 fail) — must provide a `<table>` alternative or `aria-describedby` data summary; (c) **Input OTP** doesn't announce when paste completes; (d) **AlertDialog** auto-focuses Cancel (by Radix design — fine, but document); (e) `asChild` is footgun #1 — wrapping a `<div>` around `<Tooltip.Trigger>` silently breaks keyboard support. shadcn now supports Base UI as an alternative engine; stay on Radix for now (more mature, more documentation).
 
 **Reference URLs.**
+
 - https://thefrontkit.com/blogs/shadcn-ui-accessibility-audit-2026
 - https://www.radix-ui.com/primitives/docs/overview/accessibility
 - https://eastondev.com/blog/en/posts/dev/20260329-dialog-sheet-popover-accessibility/
 
 **Recommendation for M1/M2.** Hard requirements at scaffold:
+
 1. Override shadcn's default focus ring globally to **2px solid + 2px offset** with a `--ring` token that hits 3:1 against both `--background` light and dark.
 2. Ban Recharts at M1 — defer to M4+ and require accessible alternative table at adoption.
 3. Lint rule (custom or via codeowners review) for `asChild` patterns that don't forward props.
@@ -104,6 +110,7 @@
 **Current 2026 enterprise practice.** NVDA + Firefox on Windows + VoiceOver + Safari on macOS covers ~80–85% of real users; add JAWS only if enterprise/B2B traffic, TalkBack for mobile Android traffic. No public cadence from Stripe/Linear/Calm has been confirmed in my research; community guidance is **per-release manual SR sweep on critical flows + per-feature SR test for any new interactive component + ad-hoc on incidents**. Cal.com's open-source repo shows axe-core in Playwright but no documented manual SR cadence in their CONTRIBUTING.
 
 **Reference URLs.**
+
 - https://testparty.ai/blog/screen-reader-testing-guide
 - https://www.deque.com/screen-reader-testing-cadence/
 
@@ -118,11 +125,13 @@
 **Current 2026 enterprise practice.** Next.js 16 App Router announces page title on navigation (a step up from older versions) but **does not move focus** — open issue #49386 still unresolved. The canonical community pattern: a visually-hidden, focusable element near the top of `app/layout.tsx`, focused via `useEffect` keyed on `usePathname()`. Send focus to **`<main id="main" tabIndex={-1}>`** on POP-navigation or to the skip-link container on PUSH/REPLACE. Avoid `tabIndex={-1}` on the body — it disrupts mouse-click-then-Tab expectations. Critical conflict to know about: scroll restoration and focus restoration are mutually exclusive on browser back/forward — do focus only on PUSH/REPLACE; let the browser handle scroll on POP.
 
 **Reference URLs.**
+
 - https://github.com/vercel/next.js/issues/49386
 - https://dev.to/itselftools/enhancing-accessibility-in-nextjs-with-usefocusonnavigation-custom-hook-3fj9
 - https://www.oneuptime.com/blog/post/2026-01-15-focus-management-react-spa/view
 
 **Recommendation for M1/M2.** Land at M1 in `apps/web/app/layout.tsx`:
+
 - Skip link as first interactive element, visually-hidden until focused: `<a href="#main" className="sr-only focus:not-sr-only ...">Skip to main content</a>`.
 - `<main id="main" tabIndex={-1}>` so it can be focus-targeted but isn't in tab order.
 - A client wrapper component `<FocusOnNavigate />` in the root layout that reads `usePathname()` + `useSearchParams()` and, on PUSH/REPLACE only, calls `mainRef.current?.focus({ preventScroll: true })`.
@@ -134,9 +143,10 @@
 
 ### 8. Skip links, landmarks, heading structure
 
-**Current 2026 enterprise practice.** Enterprise convention: exactly one `<h1>` per page (per `next/metadata` page title), `<header>`, `<nav aria-label="Primary">`, `<main id="main">`, `<aside>`, `<footer>` landmarks all used (don't rely on roles when an HTML element exists). Logical heading order — no skipping `h2 → h4`. Skip link always first focusable, visible on focus. axe + jsx-a11y both lint missing landmarks and heading order — but neither catches *single-`h1`-per-page* enforcement; that's a manual review rule.
+**Current 2026 enterprise practice.** Enterprise convention: exactly one `<h1>` per page (per `next/metadata` page title), `<header>`, `<nav aria-label="Primary">`, `<main id="main">`, `<aside>`, `<footer>` landmarks all used (don't rely on roles when an HTML element exists). Logical heading order — no skipping `h2 → h4`. Skip link always first focusable, visible on focus. axe + jsx-a11y both lint missing landmarks and heading order — but neither catches _single-`h1`-per-page_ enforcement; that's a manual review rule.
 
 **Reference URLs.**
+
 - https://www.w3.org/WAI/tutorials/page-structure/headings/
 - https://almanac.httparchive.org/en/2025/accessibility
 
@@ -148,17 +158,19 @@
 
 ### 9. Color contrast tooling
 
-**Current 2026 enterprise practice.** Tailwind v4 ships **OKLCH** as the default color model; shadcn now uses OKLCH too. The perceptual uniformity of OKLCH lets you generate palettes algorithmically while keeping consistent contrast — but axe-core's contrast check has known gaps: gradient backgrounds, semi-transparent backgrounds, hover/focus states (it scans static state only), and dark mode in a light-mode scan. Tooling options for *generation-time* contrast enforcement: `tailwind-merge` + custom CI script that parses `@theme` tokens and asserts WCAG ratios; Figma plugins like Stark/Able for design-time check; `oklch-contrast` npm packages for runtime guard. Steve Kinney's heuristic: **0.4+ lightness delta** between foreground/background in OKLCH gives a safe AA margin.
+**Current 2026 enterprise practice.** Tailwind v4 ships **OKLCH** as the default color model; shadcn now uses OKLCH too. The perceptual uniformity of OKLCH lets you generate palettes algorithmically while keeping consistent contrast — but axe-core's contrast check has known gaps: gradient backgrounds, semi-transparent backgrounds, hover/focus states (it scans static state only), and dark mode in a light-mode scan. Tooling options for _generation-time_ contrast enforcement: `tailwind-merge` + custom CI script that parses `@theme` tokens and asserts WCAG ratios; Figma plugins like Stark/Able for design-time check; `oklch-contrast` npm packages for runtime guard. Steve Kinney's heuristic: **0.4+ lightness delta** between foreground/background in OKLCH gives a safe AA margin.
 
 **Reference URLs.**
+
 - https://www.maviklabs.com/blog/design-tokens-tailwind-v4-2026/
 - https://stevekinney.com/courses/tailwind/oklch-colors
 - https://ui.shadcn.com/docs/tailwind-v4
 
 **Recommendation for M1/M2.** Three layers at M1:
+
 1. **Token generation**: any semantic color token (`--color-fg-default`, `--color-fg-muted`, `--color-bg-default`, …) must have a documented contrast ratio target in `apps/web/app/globals.css` (`@theme` block) and a comment with the actual ratio.
 2. **CI script**: a small Node script (`scripts/check-contrast.mjs`) parses `@theme` tokens, computes pairwise WCAG ratios for documented fg/bg pairs, fails build if any documented pair falls below target. Runs in `pnpm test`.
-3. **Test-time**: axe handles state-dynamic contrast on rendered pages. Document the gradient/transparent caveat in a README so reviewers know what's *not* being caught automatically.
+3. **Test-time**: axe handles state-dynamic contrast on rendered pages. Document the gradient/transparent caveat in a README so reviewers know what's _not_ being caught automatically.
 
 **Retrofit cost if wrong.** **Medium** — refactoring a palette after components depend on it is annoying but not architectural. Doing it once at M1 with token discipline is much cheaper.
 
@@ -166,9 +178,10 @@
 
 ### 10. Forms a11y (shadcn Form + react-hook-form)
 
-**Current 2026 enterprise practice.** shadcn's modern `<Field />` family is the recommended composition: `<Field data-invalid={...}><FieldLabel htmlFor={id}>` + `<Input aria-invalid={...} aria-describedby={errorId} />` + `<FieldDescription id={descId}>` + `<FieldError id={errorId}>`. ARIA wiring is automatic via `React.useId()` and field state. **Gap**: `FieldError` does NOT render in a live region by default — for async/server-side validation errors that arrive after first paint, screen readers won't announce them. Pattern: wrap top-of-form *summary* errors in `role="alert"` (assertive) and per-field errors stay in `aria-describedby` for context. Required-field marking: visual asterisk + `aria-required="true"` + repeated text in label or description (asterisk alone fails SR comprehension). Group related controls in `<FieldSet><FieldLegend>`.
+**Current 2026 enterprise practice.** shadcn's modern `<Field />` family is the recommended composition: `<Field data-invalid={...}><FieldLabel htmlFor={id}>` + `<Input aria-invalid={...} aria-describedby={errorId} />` + `<FieldDescription id={descId}>` + `<FieldError id={errorId}>`. ARIA wiring is automatic via `React.useId()` and field state. **Gap**: `FieldError` does NOT render in a live region by default — for async/server-side validation errors that arrive after first paint, screen readers won't announce them. Pattern: wrap top-of-form _summary_ errors in `role="alert"` (assertive) and per-field errors stay in `aria-describedby` for context. Required-field marking: visual asterisk + `aria-required="true"` + repeated text in label or description (asterisk alone fails SR comprehension). Group related controls in `<FieldSet><FieldLegend>`.
 
 **Reference URLs.**
+
 - https://ui.shadcn.com/docs/components/radix/field
 - https://blog.openreplay.com/create-accessible-forms-shadcn-ui/
 
@@ -183,6 +196,7 @@
 **Current 2026 enterprise practice.** Radix Dialog/Sheet/Popover handle focus trap, ESC dismiss, restore-focus-on-close, `aria-modal`, `role="dialog"`, and `aria-labelledby`/`aria-describedby` wiring correctly. Gotchas in Next.js 16 RSC: dialogs must render in a Client Component (Radix uses portal + state) — keep them in `'use client'` files. **DialogTitle and DialogDescription are required** for Radix to wire ARIA correctly; if you don't want a visible title, wrap it in `<VisuallyHidden>` from `@radix-ui/react-visually-hidden`. Portal target defaults to `document.body` — fine in App Router. Nested dialogs: focus restore chains correctly when both are Radix-managed. AlertDialog autofocuses Cancel deliberately (destructive-action safety) — document this so reviewers don't "fix" it.
 
 **Reference URLs.**
+
 - https://www.radix-ui.com/primitives/docs/components/dialog
 - https://eastondev.com/blog/en/posts/dev/20260329-dialog-sheet-popover-accessibility/
 
@@ -197,11 +211,12 @@
 **Current 2026 enterprise practice.** **Sonner** is the de-facto choice (shadcn moved its default to Sonner). It's `aria-live="polite"` by default and handles dismiss focus correctly. Radix Toast offers more granular `foreground`/`background` (`assertive`/`polite`) control + `altText` for action buttons — but has an open bug (#3634) where `aria-live="off"` on `role="status"` prevents announcements in some configurations. Both libraries require manual verification with a real screen reader; toast announcement is fragile across browser/SR combinations.
 
 **Reference URLs.**
+
 - https://sonner.emilkowal.ski/
 - https://github.com/radix-ui/primitives/issues/3634
 - https://www.radix-ui.com/primitives/docs/components/toast
 
-**Recommendation for M1/M2.** Sonner at M1, wrapped in `apps/web/components/app/Toaster.tsx`. Validate behaviour with VoiceOver at M2. For *critical* announcements (form errors on submit, payment failures) **do not rely on toasts alone** — pair with inline error and an `aria-live` region near the trigger. Toast is fire-and-forget; critical info needs persistent surface.
+**Recommendation for M1/M2.** Sonner at M1, wrapped in `apps/web/components/app/Toaster.tsx`. Validate behaviour with VoiceOver at M2. For _critical_ announcements (form errors on submit, payment failures) **do not rely on toasts alone** — pair with inline error and an `aria-live` region near the trigger. Toast is fire-and-forget; critical info needs persistent surface.
 
 **Retrofit cost if wrong.** **Low** — toast library swap is mechanical.
 
@@ -209,9 +224,10 @@
 
 ### 13. Image alt + `next/image` intersection
 
-**Current 2026 enterprise practice.** `next/image` does NOT make `alt` optional — it's required at type level (TS will fail to build without it). Convention: meaningful `alt` for content images; `alt=""` for purely decorative; never `alt="image"`/`alt="photo"` filler. jsx-a11y's `alt-text` rule enforces presence; manual review enforces *quality*. `next/image` `priority` only for above-the-fold LCP image; `sizes` discipline for responsive — these are perf, not a11y, but degraded perf hurts users on assistive tech disproportionately (slower devices, screen-reader DOM parsing delays).
+**Current 2026 enterprise practice.** `next/image` does NOT make `alt` optional — it's required at type level (TS will fail to build without it). Convention: meaningful `alt` for content images; `alt=""` for purely decorative; never `alt="image"`/`alt="photo"` filler. jsx-a11y's `alt-text` rule enforces presence; manual review enforces _quality_. `next/image` `priority` only for above-the-fold LCP image; `sizes` discipline for responsive — these are perf, not a11y, but degraded perf hurts users on assistive tech disproportionately (slower devices, screen-reader DOM parsing delays).
 
 **Reference URLs.**
+
 - https://nextjs.org/docs/app/api-reference/components/image
 - https://www.w3.org/WAI/tutorials/images/decorative/
 
@@ -226,6 +242,7 @@
 **Current 2026 enterprise practice.** Captions are WCAG 1.2.2 Level A (not AA — mandatory). Audio descriptions for visual-only information are 1.2.3 Level A (alternative) or 1.2.5 Level AA. Transcripts strongly recommended (1.2.1 Level A for audio-only; supports search + i18n). Autoplay-with-sound is 1.4.2 Level A fail unless user-initiated. For Quilty: product demo videos will arrive M4+; plan host (Mux / Vimeo / self-hosted with `<video>`); both Mux and Vimeo Pro support captions via VTT and have decent player a11y. Avoid YouTube embed for primary product video — its iframe has known SR issues and forces third-party cookies (consent + privacy issues, D35).
 
 **Reference URLs.**
+
 - https://www.w3.org/WAI/WCAG22/quickref/#captions-prerecorded
 - https://mux.com/blog/accessibility-in-our-video-player
 
@@ -240,13 +257,14 @@
 **Current 2026 enterprise practice.** Web Almanac 2025: ~50% of pages now support `prefers-reduced-motion`. Pattern: `@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }` as a baseline; library-level: Framer Motion respects it via `useReducedMotion()` hook; GSAP has `gsap.matchMedia()`; CSS `view-transition` API in Next.js 16 needs explicit handling. `next/font` doesn't animate by default — fine.
 
 **Reference URLs.**
+
 - https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@media/prefers-reduced-motion
 - https://almanac.httparchive.org/en/2025/accessibility
 - https://web.dev/learn/accessibility/motion
 
 **Recommendation for M1/M2.** Add the baseline `@media (prefers-reduced-motion: reduce)` reset to `app/globals.css` at M1. When picking an animation library (M3 identity discovery), require `useReducedMotion`-aware patterns. Add Playwright test that toggles `emulateMedia({ reducedMotion: 'reduce' })` and asserts no animation runs beyond a duration threshold (sample assertion only — not perfect, but catches regressions).
 
-**Retrofit cost if wrong.** **Low** — but Quilty's *mental-health* peer set makes this reputationally weighted: a customer with vestibular disorder hitting a flashy landing page is a worst-case PR story.
+**Retrofit cost if wrong.** **Low** — but Quilty's _mental-health_ peer set makes this reputationally weighted: a customer with vestibular disorder hitting a flashy landing page is a worst-case PR story.
 
 ---
 
@@ -255,6 +273,7 @@
 **Current 2026 enterprise practice.** Tailwind v4 dark mode via `.dark` class on `<html>` + OKLCH `--color-*` tokens redefined in `.dark { ... }` block. Critical: every fg/bg pair must be re-checked in dark mode — axe scans whichever theme is active, so CI needs to test **both** themes. Pattern: a Playwright test that calls `page.emulateMedia({ colorScheme: 'dark' })` (or clicks the theme toggle) and re-runs axe. shadcn ships dark-mode-correct contrast out of the box for most components but verifies are needed for any custom palette tweaks. Storybook a11y addon helps at component-test time.
 
 **Reference URLs.**
+
 - https://ui.shadcn.com/docs/dark-mode/next
 - https://tailwindcss.com/docs/dark-mode
 
@@ -266,9 +285,10 @@
 
 ### 17. EAA enforcement reality + manual audit budget
 
-**Current 2026 enterprise practice.** EAA became enforceable 28 June 2025. Reality through May 2026: France leading visible action (Carrefour/Auchan/Leclerc formal notices late 2025); Spain/Italy aggressive penalty ceilings (~€1M); Ireland uniquely has *criminal* penalties (up to 18 months prison for responsible individuals — directors). No headline fines yet, but pattern is "guidance first, fines later" mirroring GDPR. **Health-adjacent sites are higher reputational risk** even though Quilty isn't medical-device — consumer mental-health peers (Calm, Headspace) operate in regulator focus. Manual audit pricing (TPGi/Deque/Siteimprove all custom-quote; ranges from analyst reports): small scope $1.5K–$5K; mid-market pre-launch $10K–$40K; enterprise multi-property $50K–$150K. Includes manual SR testing, VPAT/ACR production, remediation guidance.
+**Current 2026 enterprise practice.** EAA became enforceable 28 June 2025. Reality through May 2026: France leading visible action (Carrefour/Auchan/Leclerc formal notices late 2025); Spain/Italy aggressive penalty ceilings (~€1M); Ireland uniquely has _criminal_ penalties (up to 18 months prison for responsible individuals — directors). No headline fines yet, but pattern is "guidance first, fines later" mirroring GDPR. **Health-adjacent sites are higher reputational risk** even though Quilty isn't medical-device — consumer mental-health peers (Calm, Headspace) operate in regulator focus. Manual audit pricing (TPGi/Deque/Siteimprove all custom-quote; ranges from analyst reports): small scope $1.5K–$5K; mid-market pre-launch $10K–$40K; enterprise multi-property $50K–$150K. Includes manual SR testing, VPAT/ACR production, remediation guidance.
 
 **Reference URLs.**
+
 - https://www.pivotalaccessibility.com/2025/09/eaa-enforcement-in-europe-following-the-june-2025-deadline/
 - https://commission.europa.eu/strategy-and-policy/policies/justice-and-fundamental-rights/disability/european-accessibility-act-eaa_en
 - https://www.tpgi.com/web-accessibility-audit/
@@ -281,9 +301,10 @@
 
 ### 18. WCAG 3.0 timeline (May 2026)
 
-**Current 2026 enterprise practice.** WCAG 3.0 March 2026 Working Draft introduced 174 "requirements" (renamed from "outcomes"). AG WG co-chair Rachael Bradley Montgomery (per Knowbility 2025) projects final Recommendation late 2029 with Candidate Recommendation Q4 2027. WCAG 2.2 will NOT be deprecated for "several years after" 3.0 finalises (W3C explicit). Nothing about today's WCAG 2.2 AA work needs to change — 3.0 is additive in spirit (more outcome-based, less success-criterion-based) but not yet testable. APCA (the new contrast algorithm in 3.0) is *not yet adopted* even within 3.0 draft.
+**Current 2026 enterprise practice.** WCAG 3.0 March 2026 Working Draft introduced 174 "requirements" (renamed from "outcomes"). AG WG co-chair Rachael Bradley Montgomery (per Knowbility 2025) projects final Recommendation late 2029 with Candidate Recommendation Q4 2027. WCAG 2.2 will NOT be deprecated for "several years after" 3.0 finalises (W3C explicit). Nothing about today's WCAG 2.2 AA work needs to change — 3.0 is additive in spirit (more outcome-based, less success-criterion-based) but not yet testable. APCA (the new contrast algorithm in 3.0) is _not yet adopted_ even within 3.0 draft.
 
 **Reference URLs.**
+
 - https://www.w3.org/TR/wcag-3.0/
 - https://knowbility.org/blog/2025/be-a-digital-ally-wcag-3-update
 - https://www.w3.org/WAI/standards-guidelines/wcag/wcag3-intro/
@@ -299,6 +320,7 @@
 **Current 2026 enterprise practice.** EAA Article 13 + EN 301 549 v3.2.1 require: commitment + scope; conformance status (full/partial/none) with explicit standard (WCAG 2.1 or 2.2 AA + EN 301 549 v3.2.1); list of non-accessible content with rationale categorised as `non-compliance`, `disproportionate burden` (strict legal test), or `out-of-scope`; date of last assessment + method; working feedback mechanism with response window; link to national enforcement authority. US side (ADA Title III civil suits + Section 504 OCR) doesn't legally require a statement, but having one demonstrates good-faith effort and gets cited in plaintiff settlements. The EU's own statement is a worked template. **Honest "partially conforms" is far less risky than claiming "fully conforms"** — false declaration is its own violation under EAA.
 
 **Reference URLs.**
+
 - https://www.levelaccess.com/blog/eaa-accessibility-statement/
 - https://european-union.europa.eu/accessibility-statement_en
 - https://commission.europa.eu/strategy-and-policy/policies/justice-and-fundamental-rights/disability/european-accessibility-act-eaa_en
@@ -311,9 +333,10 @@
 
 ### 20. Section 508 Refresh + HIPAA-aligned posture
 
-**Current 2026 enterprise practice.** Section 508 still officially references WCAG 2.0 AA, but the Section 508 Refresh Act (proposed) and the 2024 DOJ ADA Title II rule both point to WCAG 2.1 / 2.2 AA — federal procurement is already requiring 2.2 in many RFPs. **HHS OCR Section 504 (May 2024 final rule + May 2026 IFR extension)** is the more immediate vector for Quilty: any entity receiving HHS funding (Medicaid, Medicare, federal grants) must meet WCAG 2.1 AA across web, mobile, patient portals, kiosks — deadlines now May 2027 (≥15 emp) / May 2028 (smaller). Quilty's website itself is in Workloads-NonHIPAA OU and is marketing/account-mgmt only — but if Quilty *the company* ever takes HHS funding (research grants, public-health partnerships, Medicaid managed-care contracts), the website is in scope. **Reputational posture for a HIPAA-aligned consumer-health brand is asymmetric** — Cerebral/Monument-style media attention attaches to a11y complaints faster than to non-health peers.
+**Current 2026 enterprise practice.** Section 508 still officially references WCAG 2.0 AA, but the Section 508 Refresh Act (proposed) and the 2024 DOJ ADA Title II rule both point to WCAG 2.1 / 2.2 AA — federal procurement is already requiring 2.2 in many RFPs. **HHS OCR Section 504 (May 2024 final rule + May 2026 IFR extension)** is the more immediate vector for Quilty: any entity receiving HHS funding (Medicaid, Medicare, federal grants) must meet WCAG 2.1 AA across web, mobile, patient portals, kiosks — deadlines now May 2027 (≥15 emp) / May 2028 (smaller). Quilty's website itself is in Workloads-NonHIPAA OU and is marketing/account-mgmt only — but if Quilty _the company_ ever takes HHS funding (research grants, public-health partnerships, Medicaid managed-care contracts), the website is in scope. **Reputational posture for a HIPAA-aligned consumer-health brand is asymmetric** — Cerebral/Monument-style media attention attaches to a11y complaints faster than to non-health peers.
 
 **Reference URLs.**
+
 - https://www.hhs.gov/sites/default/files/new-requirements-accessibility-web-content-mobile-apps-kiosks.pdf
 - https://www.section508.gov/manage/program-roadmap/
 - https://www.hhs.gov/press-room/hhs-extends-mobile-and-web-accessibility-deadline.html
@@ -327,15 +350,15 @@
 
 ## TOP-7 retrofit-hostile a11y items (MUST land in M1 scaffold)
 
-1. **`@axe-core/playwright` fail-on-violation with 2.2 AA tags + shared fixture.** Adding it after pages exist creates a compounding suppression list. *(Q1)*
-2. **`<main id="main" tabIndex={-1}>` + skip link + `<FocusOnNavigate />` route-change focus pattern in root layout.** Adding focus management after 100 pages exist requires per-page testing. *(Q7)*
-3. **Single-`h1`-per-page convention enforced by `/scaffold-page` skill + Playwright assertion.** Heading-order retrofits touch every page. *(Q8)*
-4. **OKLCH token system with documented contrast ratios + CI contrast script.** Palette retrofits cascade through every component. *(Q9)*
-5. **Reduced-motion baseline reset in `globals.css` + animation-library policy.** Easy to add now, embarrassing to discover broken at launch — esp. for mental-health peer set. *(Q15)*
-6. **Custom focus-ring override of shadcn defaults (2px solid + 2px offset, contrast-correct token).** shadcn default ring-1 fails 3:1 in most themes; fixing it once at M1 vs after every component lands. *(Q5)*
-7. **`/scaffold-page` skill enforces `generateMetadata` + landmarks + a11y smoke test + accessibility-statement awareness.** This is the structural lock that makes every future page comply by default. *(Q8, Q19)*
+1. **`@axe-core/playwright` fail-on-violation with 2.2 AA tags + shared fixture.** Adding it after pages exist creates a compounding suppression list. _(Q1)_
+2. **`<main id="main" tabIndex={-1}>` + skip link + `<FocusOnNavigate />` route-change focus pattern in root layout.** Adding focus management after 100 pages exist requires per-page testing. _(Q7)_
+3. **Single-`h1`-per-page convention enforced by `/scaffold-page` skill + Playwright assertion.** Heading-order retrofits touch every page. _(Q8)_
+4. **OKLCH token system with documented contrast ratios + CI contrast script.** Palette retrofits cascade through every component. _(Q9)_
+5. **Reduced-motion baseline reset in `globals.css` + animation-library policy.** Easy to add now, embarrassing to discover broken at launch — esp. for mental-health peer set. _(Q15)_
+6. **Custom focus-ring override of shadcn defaults (2px solid + 2px offset, contrast-correct token).** shadcn default ring-1 fails 3:1 in most themes; fixing it once at M1 vs after every component lands. _(Q5)_
+7. **`/scaffold-page` skill enforces `generateMetadata` + landmarks + a11y smoke test + accessibility-statement awareness.** This is the structural lock that makes every future page comply by default. _(Q8, Q19)_
 
-Plus an **8th honourable mention** that's process not code: **document an overlay-prohibition rule in CLAUDE.md NEVER list.** Cheaper than recovering from a future "let's just buy AccessiBe to ship faster" instinct. *(Q4)*
+Plus an **8th honourable mention** that's process not code: **document an overlay-prohibition rule in CLAUDE.md NEVER list.** Cheaper than recovering from a future "let's just buy AccessiBe to ship faster" instinct. _(Q4)_
 
 ---
 
@@ -390,11 +413,13 @@ jobs:
 ```
 
 What it runs:
+
 - `lint-a11y` — `eslint-plugin-jsx-a11y/strict` rules across `apps/web/**/*.{ts,tsx}` (also runs in pre-commit via lint-staged for fast feedback).
 - `contrast-tokens` — Node script parses `@theme` block in `globals.css`, computes WCAG contrast ratios for documented fg/bg pairs, fails on any below target.
 - `playwright-a11y` — Runs every `@a11y`-tagged Playwright test (one per scaffolded page + per critical interactive component). Each test does `expect(violations).toEqual([])` with the 2.2 AA tag set. Uploads HTML report on failure.
 
 **Deferred to M5+**:
+
 - Pa11y-CI sitemap scan against deployed staging (separate workflow `a11y-sitemap.yml` triggered nightly via `schedule`).
 - Lighthouse CI for **non-a11y** categories.
 - Dark-mode parallel axe runs (added when dark mode ships, expected M3).
@@ -422,6 +447,7 @@ The CLAUDE.md baseline already locks: axe-core in CI fail-on-violation; jsx-a11y
 **Scope**: marketing site (top ~15 page templates after content stabilises at M4) + sign-in flow + account portal critical screens (~5–8 screens). Excludes: blog (deferred), help center (deferred to third-party Zendesk/Intercom which has its own a11y posture).
 
 **Deliverables required from vendor**:
+
 1. VPAT/ACR aligned to **EN 301 549 v3.2.1** explicitly (not just WCAG 2.2 AA — EAA references EN 301 549).
 2. Issue tracker export (CSV or Jira-importable) categorised by WCAG SC + severity.
 3. Manual screen-reader test report (NVDA + VoiceOver minimum; add JAWS if budget allows).
@@ -431,7 +457,7 @@ The CLAUDE.md baseline already locks: axe-core in CI fail-on-violation; jsx-a11y
 
 **Timing**: 6 weeks before EU launch. Allow 3 weeks vendor delivery + 3 weeks internal remediation. Budget a second mini-audit (~$5K) post-remediation to verify and update VPAT.
 
-**Annual cadence post-launch**: One audit refresh per year ($10K–$15K) + an EAA accessibility-statement review (1 day internal work). Tracks the EAA expectation of *ongoing* monitoring, not one-shot conformance.
+**Annual cadence post-launch**: One audit refresh per year ($10K–$15K) + an EAA accessibility-statement review (1 day internal work). Tracks the EAA expectation of _ongoing_ monitoring, not one-shot conformance.
 
 ---
 

@@ -1,7 +1,7 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
-import nextCoreWebVitals from 'eslint-config-next/core-web-vitals.js';
-import nextTypescript from 'eslint-config-next/typescript.js';
+import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
+import nextTypescript from 'eslint-config-next/typescript';
 
 /**
  * ESLint 9 flat config (D22 + D67).
@@ -47,8 +47,7 @@ const VENDOR_SDK_IMPORTS = [
   },
   {
     name: 'amplitude-js',
-    message:
-      'Web tier uses PostHog (D42b Round-5 revised). Import via @/lib/observability/track.',
+    message: 'Web tier uses PostHog (D42b Round-5 revised). Import via @/lib/observability/track.',
   },
 ];
 
@@ -95,10 +94,7 @@ export default tseslint.config(
       'jsx-a11y/mouse-events-have-key-events': 'error',
       'jsx-a11y/no-static-element-interactions': 'error',
       'jsx-a11y/no-noninteractive-tabindex': 'error',
-      'jsx-a11y/control-has-associated-label': [
-        'error',
-        { ignoreElements: ['main', 'section'] },
-      ],
+      'jsx-a11y/control-has-associated-label': ['error', { ignoreElements: ['main', 'section'] }],
 
       // Import ordering — prevents accidental same-file-but-different-
       // alias drift over time. `@/` alias classified as internal via
@@ -106,7 +102,7 @@ export default tseslint.config(
       'import/order': [
         'error',
         {
-          'groups': [
+          groups: [
             'builtin',
             'external',
             'internal',
@@ -167,15 +163,20 @@ export default tseslint.config(
   },
   // Tests can use the bare expectations Vitest/Playwright matchers expect.
   {
-    files: [
-      '**/__tests__/**',
-      '**/tests/**',
-      '**/*.test.{ts,tsx}',
-      '**/*.spec.{ts,tsx}',
-    ],
+    files: ['**/__tests__/**', '**/tests/**', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       'no-restricted-imports': 'off',
+    },
+  },
+  // sst.config.ts uses the SST-canonical triple-slash reference to its
+  // generated `.sst/platform/config.d.ts` — SST docs prescribe exactly
+  // this form, and the alternative (import-style) does not work because
+  // `.sst/` is gitignored and only materializes on first `sst dev`.
+  {
+    files: ['sst.config.ts'],
+    rules: {
+      '@typescript-eslint/triple-slash-reference': 'off',
     },
   },
 );

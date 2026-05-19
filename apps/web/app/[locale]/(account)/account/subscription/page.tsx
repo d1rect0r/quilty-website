@@ -1,5 +1,5 @@
-import type { Metadata } from 'next';
 import { PortalSidebar } from '@/components/account/PortalSidebar';
+import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Subscription',
@@ -16,11 +16,10 @@ const SUBSCRIPTION_SECTIONS = [
 export default function AccountSubscriptionPage() {
   return (
     <PortalSidebar title="Subscription" sections={SUBSCRIPTION_SECTIONS}>
-      <h1 className="text-3xl font-semibold text-fg-default">Subscription</h1>
-      <p className="mt-4 text-fg-muted">
-        Stripe Customer Portal (hosted redirect per D44) + RevenueCat IAP
-        routing copy + plan-switch + cancel flow all land in M7. M1 reserves
-        the URL.
+      <h1 className="text-fg-default text-3xl font-semibold">Subscription</h1>
+      <p className="text-fg-muted mt-4">
+        Stripe Customer Portal (hosted redirect per D44) + RevenueCat IAP routing copy + plan-switch
+        + cancel flow all land in M7. M1 reserves the URL.
       </p>
     </PortalSidebar>
   );

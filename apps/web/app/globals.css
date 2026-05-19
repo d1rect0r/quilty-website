@@ -22,7 +22,7 @@
  *   seriously resets transition/animation when prefers-reduced-motion:reduce.
  */
 
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   /* ── Primitive layer — neutral OKLCH palette ───────────────────────── */
@@ -85,8 +85,8 @@
      (Round-5 typescript-reviewer flagged the old `var(--font-quilty-sans)`
      placeholder as silently broken). When `next/font` ships, swap this to
      `var(--font-quilty-sans), system-ui, sans-serif`. */
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
 
   /* ── Spacing scale extension (Tailwind default + named tokens) ─────── */
   --spacing-page-x: 1.5rem;
@@ -112,7 +112,7 @@
    contrast ratios. Round-5 a11y agent flagged the original draft's
    missing --color-ring + --color-fg-subtle overrides (2.55:1 + 4.23:1
    against neutral-950) — both now overridden below. */
-[data-theme="dark"] {
+[data-theme='dark'] {
   --color-bg-surface: var(--color-neutral-950);
   --color-bg-elevated: var(--color-neutral-900);
   --color-fg-default: var(--color-neutral-50);

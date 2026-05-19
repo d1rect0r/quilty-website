@@ -8,8 +8,8 @@
 # extraction trigger fires (per D69 / ADR-0001).
 
 packages:
-  - "apps/*"
-  - "packages/*"
+  - 'apps/*'
+  - 'packages/*'
 
 # Strictness flags. The audit + Round-5 monorepo agent flagged that lax peer-dep
 # resolution + dedupe drift are the dominant cause of "works on my machine"

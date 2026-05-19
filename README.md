@@ -11,7 +11,7 @@ Quilty's public-facing website — marketing, account portal, and subscription m
 - [`docs/website_strategy_discussion.md`](docs/website_strategy_discussion.md) — locked architectural decisions (D1-D49 + Round-5 revisions + D50-D69 + U1-U8) with rationale
 - [`docs/website_workflow_roadmap.md`](docs/website_workflow_roadmap.md) — milestone roadmap + operational playbook
 - [`docs/research/`](docs/research/) — research artifacts: 8 reports from rounds 1-2 + the 11-file Round-5 independent audit at `docs/research/round_5_independent_review/`
-- `docs/adr/` — Architecture Decision Records (Nygard format) *(landing in Commit 2 of M1 scaffold)*
+- `docs/adr/` — Architecture Decision Records (Nygard format) _(landing in Commit 2 of M1 scaffold)_
 - [`CLAUDE.md`](CLAUDE.md) — orientation doc for AI assistance
 
 ## Stack (locked, scaffold in progress)

@@ -21,13 +21,15 @@ export async function GpcHonoredIndicator() {
     return null;
   }
 
-  // role="status" implies aria-live="polite" per ARIA spec; explicit
-  // aria-live would cause double-announcements on some AT (NVDA + Firefox).
-  // Round-5 a11y reviewer finding.
+  // `<output>` is the semantic equivalent of role="status" per WHATWG —
+  // implies aria-live="polite" without an explicit role attribute. Round-5
+  // final-QA jsx-a11y/prefer-tag-over-role surfaced this swap; AT
+  // double-announcement issue (NVDA + Firefox) only fires with explicit
+  // aria-live, not the implicit one from `<output>`.
   return (
-    <p role="status" className="text-xs text-fg-muted">
-      We&apos;ve received your Global Privacy Control signal and honored your
-      opt-out from the sale or sharing of personal information.
-    </p>
+    <output className="text-fg-muted text-xs">
+      We&apos;ve received your Global Privacy Control signal and honored your opt-out from the sale
+      or sharing of personal information.
+    </output>
   );
 }

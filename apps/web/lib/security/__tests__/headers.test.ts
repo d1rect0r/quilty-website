@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  buildHstsValue,
-  buildSecurityHeaders,
-  currentHstsPhase,
-} from '@/lib/security/headers';
+import { buildHstsValue, buildSecurityHeaders, currentHstsPhase } from '@/lib/security/headers';
 
 describe('buildHstsValue', () => {
   it('starts at max-age=300 in M1 phase', () => {
@@ -89,9 +85,7 @@ describe('buildSecurityHeaders', () => {
 
   it('emits Cross-Origin-Opener-Policy: same-origin-allow-popups (D58)', () => {
     const headers = buildSecurityHeaders();
-    expect(byKey(headers, 'Cross-Origin-Opener-Policy')?.value).toBe(
-      'same-origin-allow-popups',
-    );
+    expect(byKey(headers, 'Cross-Origin-Opener-Policy')?.value).toBe('same-origin-allow-popups');
   });
 
   it('emits Cross-Origin-Resource-Policy: same-origin (D58)', () => {
@@ -101,9 +95,7 @@ describe('buildSecurityHeaders', () => {
 
   it('emits Referrer-Policy: strict-origin-when-cross-origin (D33)', () => {
     const headers = buildSecurityHeaders();
-    expect(byKey(headers, 'Referrer-Policy')?.value).toBe(
-      'strict-origin-when-cross-origin',
-    );
+    expect(byKey(headers, 'Referrer-Policy')?.value).toBe('strict-origin-when-cross-origin');
   });
 
   it('emits Permissions-Policy with default-deny camera/mic/geo/payment (M7 adds payment allowlist for Stripe)', () => {

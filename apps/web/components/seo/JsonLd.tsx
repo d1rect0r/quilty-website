@@ -25,7 +25,7 @@ export interface JsonLdProps {
  *   - U+2028 / U+2029 — line/paragraph separators are valid in JSON but
  *     break in some JS contexts (legacy JS parsers, eval paths)
  *
- * Escape-sequence form (` ` / ` `) used in the regex literals
+ * Escape-sequence form (`\u2028` / `\u2029`) used in the regex literals
  * — the raw codepoints are invisible in diff viewers and editor round-trips
  * can silently strip them (Round-5 SEO reviewer cross-check).
  */

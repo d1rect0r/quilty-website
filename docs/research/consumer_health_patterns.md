@@ -34,7 +34,8 @@
 ### 1. Is "marketing + account portal + subscription" the dominant pattern?
 
 Yes — 9 of 10 follow it. The variations are along two axes:
-- **How much of the product is on the web** — BetterHelp/Talkspace put the *entire* product on web (therapy needs desktop typing), Strava puts feed + maps + analysis on web (creator/analysis use case), while Headspace/Calm/Noom keep web account-only and push consumption to mobile.
+
+- **How much of the product is on the web** — BetterHelp/Talkspace put the _entire_ product on web (therapy needs desktop typing), Strava puts feed + maps + analysis on web (creator/analysis use case), while Headspace/Calm/Noom keep web account-only and push consumption to mobile.
 - **How subscription cancellation routes** — every app with iOS/Android IAP has the same forced bifurcation (cancel-where-you-bought). There's no "in-app-only billing" alternative in this set. The single-page-with-modal-login pattern only shows up in DTC commerce hybrids like Oura, and even Oura has a real Membership Hub behind it.
 
 ### 2. Account-portal items founders commonly miss when scoping
@@ -54,17 +55,19 @@ Yes — 9 of 10 follow it. The variations are along two axes:
 - **A blog from day one** — Strava's footer doesn't prominently feature one; press/stories live on subdomains.
 - **A press kit** — most use a separate subdomain (`press.strava.com`, `stories.strava.com`) and these are quarter-2-or-later work.
 - **A careers page** — none of these had careers as a navigation priority; it's a footer link.
-- **Long-form science content hub** — Calm, Noom, Oura, WHOOP all have *one* science/research page, not a content hub.
+- **Long-form science content hub** — Calm, Noom, Oura, WHOOP all have _one_ science/research page, not a content hub.
 
 ### 4. Is Headspace's web presence emulatable by a small team?
 
 **No** — and that's the wrong reference. Headspace's site is years of dedicated web/SEO/content-marketing investment (50+ feature/condition landing pages tuned for SEO, employer/health-plan B2B funnels, 7+ payment options).
 
 **The realistic reference for a small team is Calm or Oura at MVP scale:**
+
 - ~10-15 marketing pages (home, 2-3 feature pages, science, pricing, blog index with 3-5 seed posts, support link out to a Zendesk/Intercom-hosted help center, privacy, terms, careers stub, press stub)
 - Account portal with ~6 screens (login, profile, subscription, payment methods, MFA, data/deletion)
 
 **Biggest force-multipliers:**
+
 - **Outsource help center to Zendesk / Intercom** — every company above does this (`help.headspace.com`, `support.calm.com`, `support.strava.com`, `support.ouraring.com`, `help.talkspace.com` are all hosted help platforms, not custom builds). Eliminates ~30% of marketing-site scope.
 - **Stripe Customer Portal** eliminates ~50% of account-portal scope (payment methods, invoice history, plan switching, cancellation UI all come for free), leaving you to build only the Quilty-specific surfaces (profile, MFA, data export, deletion, sessions, IAP-cancel routing copy).
 

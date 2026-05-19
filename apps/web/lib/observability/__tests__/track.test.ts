@@ -52,15 +52,17 @@ describe('track (consent gating)', () => {
 
   it('throws in development if a payload contains PHI keys', async () => {
     vi.stubEnv('NODE_ENV', 'development');
+    // Intentionally constructing an invalid event for the runtime PHI
+    // assertion test. The cast bypasses TS structural narrowing since
+    // generic-inferred event shapes allow excess properties under some
+    // compiler settings — this test exercises the RUNTIME guard, not
+    // the type-level guard.
+    const phiEvent = {
+      name: 'page_view',
+      props: { route: '/en', locale: 'en', email: 'leak@example.com' },
+    } as unknown as Parameters<typeof track>[0];
     await expect(
-      track(
-        // @ts-expect-error — intentionally constructing an invalid event for the runtime PHI assertion test
-        {
-          name: 'page_view',
-          props: { route: '/en', locale: 'en', email: 'leak@example.com' },
-        },
-        { consent: consentGranted, session_id: 'sess-abc' },
-      ),
+      track(phiEvent, { consent: consentGranted, session_id: 'sess-abc' }),
     ).rejects.toThrow(/PHI keys detected/);
   });
 
