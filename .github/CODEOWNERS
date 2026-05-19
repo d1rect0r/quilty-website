@@ -1,0 +1,30 @@
+# Code ownership. Placeholder at M1 — every file routes to the repo owner
+# until the team grows past 1 engineer. Expand at the "Engineer #2 joins"
+# trigger per the roadmap watchlist.
+
+* @d1rect0r
+
+# Architecture decisions require explicit review even when the team grows.
+/docs/adr/                           @d1rect0r
+/docs/website_strategy_discussion.md @d1rect0r
+/docs/website_workflow_roadmap.md    @d1rect0r
+
+# Security spine + observability spine require careful review for any
+# change (D67 + ADR-0002 + ADR-0004 + ADR-0005).
+/apps/web/proxy.ts                   @d1rect0r
+/apps/web/lib/security/              @d1rect0r
+/apps/web/lib/observability/         @d1rect0r
+/apps/web/sentry.*.config.ts         @d1rect0r
+/apps/web/instrumentation.ts         @d1rect0r
+
+# Pre-commit + CI infrastructure — load-bearing for HIPAA + signing.
+/.husky/                             @d1rect0r
+/.github/workflows/                  @d1rect0r
+/.claude/                            @d1rect0r
+
+# SST/IaC + dependency-management — highest blast radius (D2 + D36 +
+# ADR-0001). Explicit listing now so future CODEOWNERS narrowing doesn't
+# leave these unguarded (Round-5 IaC reviewer L5).
+/sst.config.ts                       @d1rect0r
+/infra/                              @d1rect0r
+/renovate.json                       @d1rect0r

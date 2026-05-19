@@ -1,0 +1,162 @@
+# GitHub Actions CI pipeline (D22 + D36 + ADR-0001).
+#
+# Runs on every PR + push to main. Jobs:
+#   1. install — pnpm install with frozen lockfile + cache
+#   2. lint — ESLint flat + Prettier --check
+#   3. typecheck — TypeScript strict across workspaces
+#   4. test — Vitest unit (with v8 coverage)
+#   5. test:a11y — Playwright + axe-core WCAG 2.2 AA
+#   6. test:e2e — Playwright smoke + security + seo
+#   7. build — Next.js production build (verifies the full app compiles)
+#
+# Concurrency cancellation per PR: a new push cancels in-flight runs on
+# the same head ref. Saves CI minutes + keeps queue depth bounded.
+#
+# Node 24 + pnpm 10 per S3. Turbo remote cache + Sentry source-map
+# upload wired at the next-sprint deploy phase (TURBO_TOKEN +
+# SENTRY_AUTH_TOKEN secrets, gated until OIDC role exists).
+#
+# Round-5 perf-bundle reviewer note: webServer-based Playwright tests
+# use `pnpm dev`; M2+ swap to production-mode `pnpm build && pnpm start`
+# once Lighthouse CI lands.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+
+jobs:
+  # `install` is the lockfile-validation + cache-warming gate. Velite
+  # prebuild is invoked per-consumer-job (each gets a fresh runner with
+  # its own .velite/ build) — running it here would be wasted work
+  # (Round-5 IaC reviewer L2).
+  install:
+    name: Install dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+  lint:
+    name: Lint + format
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm format:check
+
+  typecheck:
+    name: Typecheck
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec velite build --config ../../velite.config.ts
+      - run: pnpm typecheck
+
+  test:
+    name: Unit tests (Vitest)
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec velite build --config ../../velite.config.ts
+      - run: pnpm test
+
+  test-e2e:
+    name: Playwright e2e + a11y
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec playwright install --with-deps chromium webkit
+      - run: pnpm --filter web exec velite build --config ../../velite.config.ts
+      - run: pnpm --filter web test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
+
+  build:
+    # All gates must pass before the build job — including e2e per
+    # D22 (axe-core fail-on-violation). Round-5 IaC reviewer M2:
+    # `test-e2e` was missing from `needs:`, letting axe failures slip
+    # past the merge gate when branch protection only required `build`.
+    name: Next.js build
+    needs: [lint, typecheck, test, test-e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+        env:
+          # NEXT_PUBLIC_SENTRY_DSN is a public ingest key — visible in
+          # client bundles by design. Stored as a `var` so it isn't masked
+          # in logs (Round-5 IaC reviewer L4). SENTRY_AUTH_TOKEN
+          # (source-map upload) remains a secret.
+          NEXT_PUBLIC_SITE_URL: https://my-quilty.com
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}

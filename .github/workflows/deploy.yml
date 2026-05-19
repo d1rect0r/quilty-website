@@ -1,0 +1,149 @@
+# SST 4.x deploy pipeline — INERT at M1 per the plan.
+#
+# Every job is gated `if: false` until the next sprint vends the OIDC
+# role + permission boundary in `quilty-aws/website-baseline/`.
+# Activation = flipping the `if:` flags + populating the SSM parameter
+# references in the deploy steps.
+#
+# Per ADR-0001 D2 + U5 + U6: SST runs in the `development` AWS account
+# at Phase 0; DNS records land via `quilty-aws/dns/` (production account)
+# in a coordinated manual-PR two-step (U6).
+#
+# The workflow shape is committed at M1 alongside the rest of the
+# scaffold so the deploy contract gets reviewed when humans + AI both
+# understand the surrounding code — not bolted on later under deadline
+# pressure.
+
+name: Deploy (SST)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    # `closed` type required so `cleanup-preview` can fire when a PR
+    # merges or is abandoned — without it, preview stacks leak (Round-5
+    # IaC reviewer HIGH finding).
+    types: [opened, synchronize, reopened, closed]
+
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || 'production' }}
+  cancel-in-progress: false # never cancel a prod deploy mid-flight
+
+# Minimum-privilege defaults — only contents:read at the workflow level.
+# Jobs that need OIDC declare `id-token: write` at the job scope so
+# non-AWS jobs don't inherit credential-issuing capability (Round-5 IaC
+# reviewer M3).
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    # Activate by flipping to: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
+    if: false
+    name: Preview deploy (PR)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: preview
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # Preview-specific OIDC role vended by
+          # quilty-aws/website-baseline/ (next sprint). Distinct from the
+          # dev-stage deploy role per Round-5 IaC reviewer M1 — preview
+          # has narrower permission boundary scoped to
+          # `sst deploy --stage preview-pr-*`.
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN_PREVIEW }}
+          aws-region: us-east-1
+
+      - name: SST preview deploy
+        run: pnpm sst deploy --stage preview-pr-${{ github.event.pull_request.number }}
+        env:
+          # NEXT_PUBLIC_SENTRY_DSN is a public Sentry ingest key — it's
+          # baked into the client bundle so storing as a `var` (visible
+          # in logs) is correct. SENTRY_AUTH_TOKEN (source-map upload)
+          # remains a secret. Per Round-5 IaC reviewer L4.
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL_PREVIEW }}
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+  cleanup-preview:
+    # Activate by flipping to: ${{ github.event.action == 'closed' }}
+    if: false
+    name: Cleanup preview (PR closed)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: preview
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN_PREVIEW }}
+          aws-region: us-east-1
+      # NOTE on guard-bash.sh: that hook only applies to Claude Code
+      # PreToolUse Bash invocations. GitHub Actions runners are a
+      # separate execution environment — the hook has no effect here.
+      # The Round-5 harness gap (guard-bash.sh blocking all `sst remove`
+      # variants) affects Claude sessions only; it is documented in
+      # docs/runbook/m1_post_scaffold_checklist.md as a manual patch for
+      # the user to apply before invoking `/sst-destroy-previews`
+      # locally.
+      - run: pnpm sst remove --stage preview-pr-${{ github.event.pull_request.number }}
+
+  deploy-prod:
+    # Activate by flipping to: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    if: false
+    name: Deploy to development account (Phase 0)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # Dev-stage deploy role — distinct from preview role
+          # (Round-5 IaC reviewer M1). Phase 1 migration to
+          # `marketing-prod` (per D47) flips this role target.
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN_DEV }}
+          aws-region: us-east-1
+      # `sst deploy --stage prod*`/`production*` is blocked by
+      # guard-bash.sh in Claude sessions; the `dev` stage corresponds to
+      # Phase 0 in the existing `development` AWS account (D47). Phase 1
+      # migration to `marketing-prod` flips the stage name + the OIDC
+      # role target.
+      - run: pnpm sst deploy --stage dev
+        env:
+          NEXT_PUBLIC_SITE_URL: https://my-quilty.com
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}

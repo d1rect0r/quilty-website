@@ -1,0 +1,74 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    "group:monorepos",
+    "group:recommended",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(chore)"
+  ],
+  "timezone": "America/New_York",
+  "schedule": ["before 4am on every weekday"],
+  "prHourlyLimit": 4,
+  "prConcurrentLimit": 8,
+  "labels": ["dependencies"],
+  "minimumReleaseAge": "3 days",
+  "packageRules": [
+    {
+      "description": "Group all minor + patch updates per ecosystem to reduce PR noise.",
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "all non-major dependencies",
+      "groupSlug": "all-minor-patch"
+    },
+    {
+      "description": "Pin major bumps individually for human review.",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Next.js + React + SST + observability stacks — review individually + always run e2e.",
+      "matchPackageNames": [
+        "next",
+        "react",
+        "react-dom",
+        "/^@sentry//",
+        "/^@vercel/otel$/",
+        "posthog-js",
+        "posthog-node",
+        "/^sst$/"
+      ],
+      "groupName": "framework + runtime + observability",
+      "groupSlug": "framework-runtime",
+      "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "Test infra — group + tolerate updates more aggressively.",
+      "matchPackageNames": [
+        "vitest",
+        "/^@vitest//",
+        "@playwright/test",
+        "/^@axe-core//",
+        "/^@testing-library//"
+      ],
+      "groupName": "test infrastructure",
+      "groupSlug": "test-infra"
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 4am on the first day of the month"]
+  },
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"],
+    "minimumReleaseAge": "0 days"
+  },
+  "rangeStrategy": "bump",
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/.velite/**",
+    "**/.turbo/**"
+  ]
+}
