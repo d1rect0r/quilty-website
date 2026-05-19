@@ -6,10 +6,16 @@ import { GpcHonoredIndicator } from '@/components/legal/GpcHonoredIndicator';
  * Marketing-tier site footer. Includes the CCPA §7025(c)(6) GPC honored
  * indicator (D62) when the request's `Sec-GPC: 1` header was detected at
  * the edge. M2 fills in real legal copy + "Your Privacy Choices" link.
+ *
+ * `COPYRIGHT_YEAR` is evaluated at module load (build time on the server)
+ * not at render time. This keeps marketing pages statically renderable —
+ * `new Date()` in the render path would force dynamic rendering and lose
+ * CloudFront caching. The copyright year ticks once a year via Renovate
+ * rebuilding the site, which is acceptable for a copyright footer.
  */
-export function Footer() {
-  const year = new Date().getFullYear();
+const COPYRIGHT_YEAR = new Date().getFullYear();
 
+export function Footer() {
   return (
     <footer
       role="contentinfo"
@@ -56,7 +62,7 @@ export function Footer() {
         </div>
 
         <div className="mt-10 flex flex-col items-start justify-between gap-4 border-t border-border-default pt-6 md:flex-row md:items-center">
-          <p>© {year} Quilty Inc. All rights reserved.</p>
+          <p>© {COPYRIGHT_YEAR} Quilty Inc. All rights reserved.</p>
           {/*
             Wrapped in Suspense so the surrounding marketing layout stays
             statically renderable. GpcHonoredIndicator awaits headers() — a
@@ -89,10 +95,16 @@ function FooterColumn({ title, links }: FooterColumnProps) {
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-fg-default">
         {title}
       </h2>
-      <ul className="space-y-2">
+      {/* WCAG 2.5.5 AA Target Size: every footer link gets min-h-11 (44px)
+          per Round-5 final-QA HIGH finding. The visual padding on the row
+          aligns with marketing chrome touch-target discipline. */}
+      <ul className="space-y-1">
         {links.map((link) => (
           <li key={link.href}>
-            <Link href={link.href} className="hover:text-fg-default">
+            <Link
+              href={link.href}
+              className="-mx-2 flex min-h-11 items-center rounded-md px-2 hover:text-fg-default"
+            >
               {link.label}
             </Link>
           </li>

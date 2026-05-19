@@ -3,6 +3,11 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'For business',
   description: 'Quilty for employers + clinical partners. Real content lands post-launch.',
+  robots: { index: false, follow: true },
+  alternates: {
+    canonical: '/en/for-business',
+    languages: { en: '/en/for-business', 'x-default': '/en/for-business' },
+  },
 };
 
 export default function ForBusinessPage() {

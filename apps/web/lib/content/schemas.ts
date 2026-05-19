@@ -47,10 +47,18 @@ export const ValuePropBlockSchema = z.object({
 });
 export type ValuePropBlock = z.infer<typeof ValuePropBlockSchema>;
 
-/** FeatureGrid — 2-3-4 column grid of named features. */
+/** FeatureGrid — 2-3-4 column grid of named features.
+ *
+ * `heading` is REQUIRED (not optional) — without it, the per-item `<h3>`
+ * elements would render directly under the page's `<h1>` (from a Hero
+ * block), skipping h2 and breaking the heading hierarchy (Round-5 final-QA
+ * a11y MEDIUM). Authors who genuinely want a section with no visible
+ * heading should use a different block (ValueProp, CTABanner) — the
+ * FeatureGrid is inherently a "named group of features" pattern.
+ */
 export const FeatureGridBlockSchema = z.object({
   type: z.literal('FeatureGrid'),
-  heading: z.string().min(1).max(120).optional(),
+  heading: z.string().min(1).max(120),
   items: z
     .array(
       z.object({

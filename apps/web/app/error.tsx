@@ -1,20 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
+import { logError } from '@/lib/observability/log-error';
 
-/**
- * Route-segment-level error boundary. Catches errors thrown in Server +
- * Client Components within the segment + below. Per Next.js convention:
- *   - Must be a Client Component (uses useEffect for error logging).
- *   - Receives `error` + `reset` props.
- *
- * The `reset()` call re-renders the segment (Next.js attempts to recover);
- * we surface a CTA so the user can choose.
- *
- * At M6+ the `useEffect` here will call `logError()` from the observability
- * adapter (D67) to dispatch to Sentry with PHI sanitization. At M1 the
- * adapter doesn't exist yet — error stays client-side only.
- */
 interface ErrorPageProps {
   error: Error & { digest?: string };
   reset: () => void;
@@ -22,13 +10,10 @@ interface ErrorPageProps {
 
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
   useEffect(() => {
-    // Commit 6 wires the Sentry/OTel adapter here. M1 = no-op (deliberate;
-    // we don't want partial PHI leaks before the sanitizer ships).
-    if (process.env.NODE_ENV === 'development') {
-      // Dev-only console for local debugging.
-
-      console.error('[ErrorBoundary]', error);
-    }
+    logError(error, {
+      boundary: 'app-error',
+      digest: error.digest,
+    });
   }, [error]);
 
   // Renders inside app/layout.tsx's <body> — does NOT route through any

@@ -13,6 +13,15 @@ import {
 // ("Quilty — Mental health, made personal") once the voice lands.
 export const metadata: Metadata = {
   description: 'Quilty — a mental-health peer-set product.',
+  // Per-page canonical + self-referencing hreflang. The root layout no
+  // longer ships a blanket canonical (Round-5 final-QA SEO C2 + M1); every
+  // marketing page MUST declare its own. `x-default` points at the English
+  // route for now — when next-intl ships at M5+ the locale layout will
+  // programmatically broaden this.
+  alternates: {
+    canonical: '/en',
+    languages: { en: '/en', 'x-default': '/en' },
+  },
 };
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';

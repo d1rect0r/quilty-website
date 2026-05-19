@@ -3,6 +3,11 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Pricing',
   description: 'Quilty pricing. Real content lands in M4 per roadmap.',
+  robots: { index: false, follow: true },
+  alternates: {
+    canonical: '/en/pricing',
+    languages: { en: '/en/pricing', 'x-default': '/en/pricing' },
+  },
 };
 
 export default function PricingPage() {

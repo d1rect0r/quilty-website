@@ -67,15 +67,20 @@ export function proxy(request: NextRequest): NextResponse {
 }
 
 /**
- * Matcher excludes static assets + the .well-known prefix (those files
- * must serve with their own Content-Type + no CSP override). Excludes
- * the /_next/ runtime + favicon.
+ * Matcher excludes static assets + the .well-known prefix + /api/* routes.
+ *
+ * `/api/*` is excluded because Route Handlers return JSON consumed
+ * programmatically — CSP headers have no effect, and the per-request
+ * header computation (CSP build + 7 security headers) is wasted CPU on
+ * a hot path (Round-5 final-QA perf-bundle MEDIUM). Auth/session security
+ * for Route Handlers is enforced inside the handler itself per
+ * ADR-0002 (CVE-2025-29927 — never authorize in middleware).
  */
 export const config = {
   matcher: [
-    // Negative-lookahead excludes static assets + favicon + the
-    // .well-known prefix (deeplink files served with their own
-    // Content-Type via next.config.ts headers()).
-    '/((?!_next/static|_next/image|favicon\\.ico|\\.well-known).*)',
+    // Negative-lookahead excludes static assets + favicon + .well-known
+    // (deeplink files served with their own Content-Type via
+    // next.config.ts headers()) + /api/* (Route Handlers).
+    '/((?!api|_next/static|_next/image|favicon\\.ico|\\.well-known).*)',
   ],
 };

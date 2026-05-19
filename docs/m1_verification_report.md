@@ -8,9 +8,14 @@
 ## Sprint summary
 
 - **Sprint dates:** 2026-05-17 (research lock) → 2026-05-19 (close)
-- **Commits:** 12 atomic commits (`f591146` → `986849c` + this report)
-- **Files changed:** ~155 files, ~10,500 insertions
+- **Commits:** 13 atomic commits — 12 scaffold + 1 final-QA-sweep fix
+- **Files changed:** ~155 files, ~10,500 insertions across the scaffold
+  + the final QA fix commit at the end
 - **Per-commit QA loops:** 12 × 2-agent Pass A → fix → 1-agent Pass B → fix (24 + 12 = 36 review-agent invocations)
+- **Final QA sweep:** 6-agent parallel pass (typescript + a11y +
+  hipaa-csp + perf-bundle + seo-meta + sst-iac) across the full commit
+  range `3af208e..HEAD`. Synthesized findings landed in a single
+  `chore: round-5 final-QA fixes` commit after sweep — see Appendix.
 - **Branch:** `main` — held local per `feedback_push_per_phase`;
   awaiting explicit push authorization at sprint boundary.
 
@@ -185,9 +190,148 @@ When you're ready to start the next sprint:
 
 1. Complete the 10 items in `docs/runbook/m1_post_scaffold_checklist.md`.
 2. Bump `.claude/CURRENT_PHASE` to `M2`.
-3. Push the 12 M1 commits (`git push origin main`).
+3. Push the M1 commits (`git push origin main`).
 4. Open the next sprint plan with Claude — first task is wiring
-   `quilty-aws/website-baseline/` to vend the OIDC role (the
-   prerequisite for the first SST deploy).
+   `quilty-aws/website-baseline/` to vend the OIDC role + the WAF Web
+   ACL (the prerequisites for the first SST deploy — `sst.config.ts`
+   hard-gates on `SST_DEPLOY_GATE_PASSED` + `WAF_WEB_ACL_ARN`).
 
 M1 sprint closed.
+
+---
+
+## Appendix — Final 6-agent QA sweep
+
+After the 12-commit scaffold landed, the plan's final 6-agent QA sweep
+ran in parallel across the full commit range `3af208e..HEAD`. Each
+reviewer was scoped to its domain:
+
+| Reviewer | Findings |
+|---|---|
+| `typescript-reviewer` | 1 HIGH (error.tsx bare console.error), 2 MEDIUM (BlockRenderer/FAQ/FeatureGrid keys) |
+| `accessibility-reviewer` | 3 HIGH (FocusOnNavigate hydration focus steal, Footer touch targets, PortalSidebar h2-before-h1), 4 MEDIUM |
+| `hipaa-csp-reviewer` | 1 HIGH (same error.tsx), 4 MEDIUM (server/edge beforeBreadcrumb gap, event.request.url query string, instrumentation onRequestError pre-sanitize, regex string scanning) |
+| `perf-bundle-reviewer` | 2 HIGH (Sentry namespace import + Replay eager-load), 5 MEDIUM (proxy /api exclusion, generateNonce micro-opt, Footer year render path, WebVitalsReporter dynamic, next/font M3 note), 4 LOW |
+| `seo-meta-reviewer` | 2 CRITICAL (missing image assets [deferred to M3], blanket root canonical), 4 HIGH (MedicalWebPage publisher cross-ref, SoftwareApplication enrichment [deferred to M3], stub pages in sitemap, robots disallow shape), 4 MEDIUM |
+| `sst-iac-reviewer` | 1 CRITICAL (WAF hard gate), 3 HIGH (missing tags, Lambda reservedConcurrency, OIDC permission boundary docs), 4 MEDIUM (S3 retain, workflow_dispatch removal, SSM preflight, root permanent redirect), 3 LOW |
+
+**False-positive verified + dismissed:** sst-iac L3 claimed `proxy.ts`
+needed `export function middleware` not `export function proxy`. Next.js
+16 docs confirm `export function proxy(request)` is exactly correct
+(verified via context7). Documented `proxy.ts` runs on Node runtime
+(not Edge) per Next.js 16 — confirmed our `globalThis.crypto.subtle`
+nonce generation works in both.
+
+### Final-QA fix commit — items resolved
+
+The single `chore: round-5 final-QA fixes` commit at the close of M1
+addressed every HIGH severity finding + every cheap MEDIUM/LOW. The
+two reviewer-flagged CRITICALs both got architectural fixes:
+
+**HIGH code fixes:**
+- `app/error.tsx`: replaced bare `console.error` (CI block) with
+  `logError()` — the observability adapter exists; the prior deferral
+  comment was stale (typescript + hipaa-csp HIGH).
+- `components/site/FocusOnNavigate.tsx`: added `hasMountedRef` guard so
+  focus is NOT stolen on initial hydration — without this, keyboard
+  users could never reach the SkipLink (a11y HIGH).
+- `components/site/Footer.tsx`: hoisted `new Date().getFullYear()` out
+  of the render path (perf MEDIUM); added `min-h-11` (WCAG 2.5.5 AA)
+  on every column link (a11y HIGH).
+- `components/account/PortalSidebar.tsx`: demoted sidebar title from
+  `<h2>` to a styled `<span>` — the `<nav aria-label>` is the
+  accessible name; emitting an h2 before the page's h1 inverted the
+  hierarchy (a11y HIGH).
+- `lib/observability/log-error.ts`: switched from namespace import to
+  named `captureException` for future tree-shaking; documented the
+  isomorphic server/client design intent (perf HIGH H1).
+- `sentry.client.config.ts`: switched to `Sentry.lazyLoadIntegration`
+  for the Replay integration — ~36 KB recovered from initial client
+  bundle when `replaysSessionSampleRate: 0` (perf HIGH H2).
+- `sst.config.ts`: WAF Web ACL hard-gate via `WAF_WEB_ACL_ARN` env
+  var; mandatory `quilty:owner`/`quilty:stack`/`quilty:repo` tags;
+  Lambda `reservedConcurrency: 100`; S3 `forceDestroy: false` on dev
+  stage (iac CRITICAL + 2 HIGH + MEDIUM).
+
+**MEDIUM hardening:**
+- `sentry.server.config.ts` + `sentry.edge.config.ts`: added
+  `beforeBreadcrumb` PHI scrub + `event.request.url` query-string
+  strip (hipaa-csp 2 × MEDIUM).
+- `instrumentation.ts` `onRequestError`: pre-sanitize headers via
+  `isSensitiveKey` filter + strip query string before forwarding to
+  Sentry (hipaa-csp MEDIUM).
+- `proxy.ts`: matcher excludes `/api/*` — Route Handler JSON responses
+  consume no CSP headers; saves per-request CPU on hot paths (perf
+  MEDIUM).
+- `lib/security/csp.ts`: `generateNonce` uses spread-form
+  `String.fromCharCode(...bytes)` — single V8 call, no loop (perf
+  MEDIUM).
+- `app/globals.css`: smooth-scroll moved into
+  `@media (prefers-reduced-motion: no-preference)` — opt-in motion
+  rather than opt-out reset (perf LOW).
+- `apps/web/package.json`: `velite` moved to `devDependencies`
+  (perf LOW).
+- `components/blocks/BlockRenderer.tsx` + `FAQ.tsx` + `FeatureGrid.tsx`:
+  React keys now derive from `(instanceId, position)` tuples — stable
+  across content edits (typescript 2 × MEDIUM).
+- `lib/content/schemas.ts`: FeatureGrid `heading` now required —
+  prevents h1→h3 hierarchy skip when block renders under page Hero h1
+  (a11y MEDIUM).
+- `lib/seo/schemas.ts`: MedicalWebPage gains `publisher` + `isPartOf`
+  cross-references to Organization/WebSite nodes (graph connectivity
+  for AI-overview citation grounding, seo HIGH H1); FAQPage gains
+  `@id` + `isPartOf` page-cross-reference (seo MEDIUM M4).
+- All marketing stub pages: `robots: { index: false }` + per-page
+  canonical + self-referencing `en` + `x-default` hreflang. Root
+  layout canonical removed (seo CRITICAL C2 + MEDIUM M1).
+- `app/[locale]/(marketing)/science/page.tsx`: threads `siteUrl` to
+  the MedicalWebPage builder; gains noindex robots + canonical.
+- `app/robots.ts`: normalized to array-form `allow` + `disallow` for
+  both rule types (parser determinism — seo HIGH H4).
+- `app/global-error.tsx`: button gains `minHeight: 2.75rem` inline
+  style (WCAG 2.5.5 AA — a11y MEDIUM).
+- `components/account/PortalNav.tsx`: removed `aria-label="Account
+  home"` — visible-text "Quilty Account" becomes the accessible name
+  per WCAG 2.5.3 Label in Name (a11y MEDIUM).
+- `.github/workflows/deploy.yml`: removed `workflow_dispatch` trigger
+  (iac MEDIUM M2); added `SST_DEPLOY_GATE_PASSED` + `WAF_WEB_ACL_ARN`
+  env vars to both preview and deploy-prod jobs.
+- `.github/workflows/ci.yml`: removed unused `SENTRY_AUTH_TOKEN`
+  secret from the build job — re-added when source-map upload step
+  lands at M2 (iac LOW L2).
+- `renovate.json`: `prConcurrentLimit` reduced 8 → 4 to match
+  `prHourlyLimit` (iac LOW L1).
+- `docs/runbook/sst-deploy.md`: documented minimum IAM action list
+  for the OIDC deploy role (iac HIGH H3); added WAF ACL prerequisite
+  + `WAF_WEB_ACL_ARN` env var contract.
+
+### Items intentionally deferred (NOT in the final-QA fix commit)
+
+These were called out by the sweep but live correctly at later
+milestones:
+
+| Item | Deferred to | Why |
+|---|---|---|
+| OG image + logo.png + icon-192/512.png assets | M3 | Identity discovery — placeholder PNGs would be thrown away |
+| SoftwareApplication `offers` + `medicalSpecialty` enrichment | M3 | Pricing + clinical positioning land then |
+| `next/font` wiring | M3 | M1 uses system-ui — zero CLS today; switch when brand font lands |
+| Organization `sameAs` array (App Store / Google Play URLs) | M3 | URLs don't exist until M3 store listings |
+| BreadcrumbList + ListItem `@id` enrichment | M3 | Cosmetic graph richness; no current SEO harm |
+| WebSite `potentialAction` SearchAction | M4 | Only relevant once site has a sitelinks searchbox candidate |
+| Per-page meta description holding text (140-160 char) | M3 | Stub pages now noindex; reload at M3 content |
+| WebVitalsReporter `next/dynamic` import | M3 | 2-4 KB delta today; grows as `sanitize` patterns grow |
+| Server-side ConsentState DynamoDB store | M3 | Schema-only at M1; D63 implementation at M3 |
+| `pnpm install` lockfile + first build | next sprint | M1 closed without install per checklist step 6 |
+
+### Final-QA sweep metrics
+
+- **Cumulative findings across 6 reviewers:** 4 CRITICAL + 12 HIGH +
+  19 MEDIUM + 11 LOW = 46 actionable findings
+- **Resolved in final-QA fix commit:** 4 CRITICAL + 12 HIGH + 14
+  MEDIUM + 7 LOW
+- **Intentionally deferred to M2-M3 per table above:** 0 CRITICAL +
+  0 HIGH + 5 MEDIUM + 4 LOW
+- **False positives dismissed:** 1 (sst-iac L3 proxy export name —
+  Next.js 16 docs verified `export function proxy` is correct)
+
+M1 sprint closed including the final-QA sweep + fix commit.

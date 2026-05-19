@@ -155,8 +155,14 @@ jobs:
         env:
           # NEXT_PUBLIC_SENTRY_DSN is a public ingest key — visible in
           # client bundles by design. Stored as a `var` so it isn't masked
-          # in logs (Round-5 IaC reviewer L4). SENTRY_AUTH_TOKEN
-          # (source-map upload) remains a secret.
+          # in logs (Round-5 IaC reviewer L4).
+          #
+          # SENTRY_AUTH_TOKEN intentionally NOT exported here (Round-5
+          # final-QA IaC L2) — there is no source-map upload step in this
+          # job. The token lands when `.github/workflows/deploy.yml`
+          # activates next sprint (and again at M2 when Lighthouse CI
+          # adds source-map upload to the build path). Adding the secret
+          # before there's a consumer creates confusion about whether
+          # the upload is already wired.
           NEXT_PUBLIC_SITE_URL: https://my-quilty.com
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}

@@ -3,6 +3,11 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'About',
   description: 'About Quilty. Real content lands in M3-M4 per roadmap.',
+  robots: { index: false, follow: true },
+  alternates: {
+    canonical: '/en/about',
+    languages: { en: '/en/about', 'x-default': '/en/about' },
+  },
 };
 
 export default function AboutPage() {

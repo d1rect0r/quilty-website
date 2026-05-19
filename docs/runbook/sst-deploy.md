@@ -14,25 +14,59 @@ Before the first SST deploy:
   - OIDC provider trust for `repo:<org>/quilty-website:ref:refs/heads/main`
     + `repo:<org>/quilty-website:pull_request`
   - `quilty-website-deploy-dev` IAM role with permission boundary
-    scoped to the SST stage namespace
+    scoped to the SST stage namespace (see "Required IAM actions"
+    below)
   - `quilty-website-deploy-preview` IAM role with narrower preview-only
     permission boundary
+  - **AWS WAF v2 Web ACL** — managed rule groups CommonRuleSet +
+    KnownBadInputs + IpReputation + AWSManagedRulesAmazonIpReputationList,
+    associated with the CloudFront distribution via the SST `transform.cdn`
+    hook (Round-5 final-QA IaC C1). Cost ~$10/mo + $0.60/M requests.
+    ARN exposed via SSM `/quilty/website/waf-web-acl-arn`.
   - SSM `/quilty/website/hosted-zone-id` — `my-quilty.com` hosted zone
     ID (cross-account, manually input or shared via SSM parameter
     replication)
   - SSM `/quilty/website/kms-cmk-arn` (optional) — for env var
     encryption if SST needs it
-- [ ] GitHub repository environments + secrets configured:
-  - Environment `preview`: secret `AWS_DEPLOY_ROLE_ARN_PREVIEW`
-  - Environment `production`: secret `AWS_DEPLOY_ROLE_ARN_DEV`,
-    `SENTRY_AUTH_TOKEN`; var `NEXT_PUBLIC_SENTRY_DSN`,
-    `NEXT_PUBLIC_SITE_URL_PREVIEW`
+- [ ] GitHub repository environments + secrets/vars configured:
+  - Environment `preview`:
+    - secret `AWS_DEPLOY_ROLE_ARN_PREVIEW`
+    - var `WAF_WEB_ACL_ARN` (read from SSM `/quilty/website/waf-web-acl-arn`)
+    - var `NEXT_PUBLIC_SITE_URL_PREVIEW`, `NEXT_PUBLIC_SENTRY_DSN`
+    - secret `SENTRY_AUTH_TOKEN`
+  - Environment `production`:
+    - secret `AWS_DEPLOY_ROLE_ARN_DEV`, `SENTRY_AUTH_TOKEN`
+    - var `NEXT_PUBLIC_SENTRY_DSN`, `WAF_WEB_ACL_ARN`
 - [ ] `.github/workflows/deploy.yml` `if: false` gates flipped to the
       documented conditions (PR-open for preview, PR-closed for cleanup,
       main-push for dev-stage deploy)
 - [ ] Harness gap patched: `.claude/hooks/guard-bash.sh` updated to
       allow `sst remove --stage <non-prod>` (user manual edit per
       `docs/runbook/m1_post_scaffold_checklist.md`)
+
+### Required IAM actions for the SST deploy roles
+
+The OIDC roles vended by `quilty-aws/website-baseline/` must permit
+(minimum, scoped to the SST stage namespace via permission boundary):
+
+- `cloudfront:CreateDistribution`, `UpdateDistribution`,
+  `CreateInvalidation`, `Get*`, `List*` — for the CDN
+- `lambda:CreateFunction`, `UpdateFunctionCode`, `UpdateFunctionConfiguration`,
+  `PublishVersion`, `Get*`, `List*`, `DeleteFunction` (preview only)
+- `s3:CreateBucket`, `PutBucketPolicy`, `PutObject`, `DeleteObject`,
+  `GetBucketLocation`, `ListBucket` — scoped to `quilty-web-*` buckets
+- `acm:RequestCertificate`, `DescribeCertificate`, `ListCertificates` —
+  for the my-quilty.com cert (us-east-1 only)
+- `ssm:GetParameter`, `GetParameters` — scoped to `/quilty/website/*`
+- `logs:CreateLogGroup`, `CreateLogStream`, `PutLogEvents` — for Lambda
+  + CloudFront logs
+- `iam:PassRole` — bounded to the SST-created Lambda execution role
+  ARN prefix only (`arn:aws:iam::<acct>:role/quilty-web-*`)
+- `wafv2:GetWebACL`, `ListWebACLs` — read-only on the WAF ACL ARN from
+  SSM (read; the ACL itself is managed by `quilty-aws/website-baseline/`)
+
+This is a stricter list than the default SST bootstrap example, which
+grants `AdministratorAccess`. Round-5 final-QA IaC H3.
 
 ## First deploy ceremony (one-time)
 

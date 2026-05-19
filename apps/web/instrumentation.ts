@@ -29,7 +29,20 @@ export function register() {
  * uncaught server-side errors to Sentry with span context attached.
  * Imported lazily so the Sentry SDK isn't loaded in environments where
  * SENTRY_DSN isn't configured.
+ *
+ * Pre-sanitizes the request payload before handing to Sentry — the
+ * Sentry SDK's own `beforeSend` is the load-bearing defense (D67), but
+ * this hook runs BEFORE that pipeline and the raw `request.headers`
+ * Headers object would otherwise reach the SDK's serializer with PHI-
+ * shaped auth headers intact (Round-5 final-QA HIPAA-CSP MEDIUM —
+ * request must be strip + sanitize at the chokepoint).
+ *
+ * Headers stripped: cookie, set-cookie, authorization, x-auth-*, x-api-key,
+ * x-forwarded-for, cf-connecting-ip — all enumerated in the sanitizer's
+ * PHI key denylist.
  */
+import { isSensitiveKey } from '@/lib/observability/sanitize';
+
 export async function onRequestError(
   err: unknown,
   request: { path: string; method: string; headers: Headers },
@@ -39,6 +52,20 @@ export async function onRequestError(
     routeType: 'render' | 'route' | 'action' | 'middleware';
   },
 ): Promise<void> {
+  const safeHeaders = new Headers();
+  for (const [key, value] of request.headers.entries()) {
+    if (isSensitiveKey(key)) continue;
+    safeHeaders.set(key, value);
+  }
+  // Strip query string from path — defense-in-depth alongside D31 design
+  // intent (URLs MUST NOT carry PHI; this guards against a future regression).
+  const qIdx = request.path.indexOf('?');
+  const safePath = qIdx === -1 ? request.path : request.path.slice(0, qIdx);
+
   const Sentry = await import('@sentry/nextjs');
-  Sentry.captureRequestError(err, request, context);
+  Sentry.captureRequestError(
+    err,
+    { path: safePath, method: request.method, headers: safeHeaders },
+    context,
+  );
 }

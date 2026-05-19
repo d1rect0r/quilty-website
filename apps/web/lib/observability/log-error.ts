@@ -1,4 +1,4 @@
-import * as Sentry from '@sentry/nextjs';
+import { captureException } from '@sentry/nextjs';
 import { sanitize } from '@/lib/observability/sanitize';
 import { logger } from '@/lib/observability/logger';
 
@@ -14,6 +14,15 @@ import { logger } from '@/lib/observability/logger';
  * Caller patterns:
  *   logError(new Error('oops'), { route: '/en/account', user_id_hash: 'h' });
  *   logError(err, { traced: true });  // attaches active span context
+ *
+ * Isomorphic by design: Client error boundaries (`app/error.tsx`,
+ * `app/global-error.tsx`) and Server Components / Route Handlers BOTH
+ * call this. The named `captureException` import lets the bundler
+ * resolve to the client SDK in client subtrees + the server SDK in
+ * server subtrees, and tree-shakes everything else. The Sentry client
+ * bundle is already paid for at app boot via `sentry.client.config.ts`,
+ * so this is a zero-bundle-cost re-use (Round-5 perf-bundle reviewer
+ * H1 — named import preserved; isomorphic on purpose).
  */
 
 export interface LogErrorContext {
@@ -38,7 +47,7 @@ export function logError(error: unknown, context: LogErrorContext = {}): void {
   // Sentry capture — Sentry's own `beforeSend` (in sentry.client.config.ts)
   // applies its sanitization pass too. Two-layer redaction (sanitize() here
   // + beforeSend in the SDK) is intentional defense-in-depth.
-  Sentry.captureException(err, {
+  captureException(err, {
     extra: sanitizedContext as Record<string, unknown>,
   });
 }

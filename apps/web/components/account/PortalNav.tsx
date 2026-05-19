@@ -17,10 +17,14 @@ export function PortalNav() {
       className="border-b border-border-default bg-bg-elevated"
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
+        {/* No aria-label here: WCAG 2.5.3 Label in Name. A custom aria-label
+            ("Account home") that doesn't contain the visible text ("Quilty
+            Account") makes voice-control users say a word they can't see
+            (Round-5 final-QA MEDIUM a11y). The link's accessible name is
+            now its visible text. */}
         <Link
           href="/en/account"
           className="text-base font-semibold text-fg-default"
-          aria-label="Account home"
         >
           Quilty Account
         </Link>

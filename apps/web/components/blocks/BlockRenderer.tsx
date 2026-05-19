@@ -26,9 +26,15 @@ import { CTABanner } from '@/components/blocks/CTABanner';
 export interface BlockRendererProps {
   block: Block;
   instanceId: string;
+  /**
+   * Absolute URL of the page these blocks render on. Threaded into blocks
+   * that emit JSON-LD with `isPartOf` cross-references (FAQ today; future
+   * blocks may need it too).
+   */
+  pageUrl: string;
 }
 
-export function BlockRenderer({ block, instanceId }: BlockRendererProps) {
+export function BlockRenderer({ block, instanceId, pageUrl }: BlockRendererProps) {
   switch (block.type) {
     case 'Hero':
       return <Hero block={block} instanceId={instanceId} />;
@@ -37,7 +43,7 @@ export function BlockRenderer({ block, instanceId }: BlockRendererProps) {
     case 'FeatureGrid':
       return <FeatureGrid block={block} instanceId={instanceId} />;
     case 'FAQ':
-      return <FAQ block={block} instanceId={instanceId} />;
+      return <FAQ block={block} instanceId={instanceId} pageUrl={pageUrl} />;
     case 'TestimonialQuote':
       return <TestimonialQuote block={block} instanceId={instanceId} />;
     case 'CTABanner':
@@ -63,16 +69,35 @@ export function BlockRenderer({ block, instanceId }: BlockRendererProps) {
  * grows past this, page-level consolidation belongs in the page route
  * file (collect entries, emit single JSON-LD) not in this renderer.
  */
-export function BlocksRenderer({ blocks }: { blocks: readonly Block[] }) {
+export interface BlocksRendererProps {
+  blocks: readonly Block[];
+  /**
+   * Absolute URL of the page these blocks render on. Required so FAQ blocks
+   * can emit graph-connected JSON-LD with `isPartOf` (Round-5 final-QA
+   * SEO M4). Each page route computes this from `NEXT_PUBLIC_SITE_URL` +
+   * its own path.
+   */
+  pageUrl: string;
+}
+
+export function BlocksRenderer({ blocks, pageUrl }: BlocksRendererProps) {
+  // React keys derive from the (block type, position) tuple — stable
+  // across content edits and unique within a page (Round-5 typescript-
+  // reviewer MEDIUM). Positional index is the documented Velite + typed-
+  // block contract: array order is the page's contract.
   return (
     <>
-      {blocks.map((block, idx) => (
-        <BlockRenderer
-          key={`${block.type}-${idx}`}
-          block={block}
-          instanceId={`block-${idx}-${block.type.toLowerCase()}`}
-        />
-      ))}
+      {blocks.map((block, idx) => {
+        const instanceId = `block-${idx}-${block.type.toLowerCase()}`;
+        return (
+          <BlockRenderer
+            key={instanceId}
+            block={block}
+            instanceId={instanceId}
+            pageUrl={pageUrl}
+          />
+        );
+      })}
     </>
   );
 }

@@ -5,9 +5,16 @@ import type { FAQBlock } from '@/lib/content/schemas';
 export interface FAQProps {
   block: FAQBlock;
   instanceId: string;
+  /**
+   * Absolute URL of the page this FAQ block renders on. Threaded through
+   * BlockRenderer from each page's route file so the emitted FAQPage
+   * JSON-LD can include `@id` + `isPartOf` cross-references back to the
+   * containing WebPage node (Round-5 final-QA SEO M4).
+   */
+  pageUrl: string;
 }
 
-export function FAQ({ block, instanceId }: FAQProps) {
+export function FAQ({ block, instanceId, pageUrl }: FAQProps) {
   const headingId = block.heading ? `${instanceId}-heading` : undefined;
   // Round-5 a11y reviewer fallback: unnamed <section> is skipped by some
   // AT. Provide aria-label fallback when no heading.
@@ -17,15 +24,19 @@ export function FAQ({ block, instanceId }: FAQProps) {
       aria-label={headingId ? undefined : 'Frequently asked questions'}
       className="mx-auto max-w-3xl px-6 py-16"
     >
-      <JsonLd data={buildFAQPageJsonLd(block.entries)} />
+      <JsonLd data={buildFAQPageJsonLd({ pageUrl, entries: block.entries })} />
       {block.heading ? (
         <h2 id={headingId} className="mb-8 text-3xl font-semibold text-fg-default">
           {block.heading}
         </h2>
       ) : null}
       <dl className="space-y-6">
-        {block.entries.map((entry) => (
-          <div key={entry.question}>
+        {/* Keys use the (instanceId, position) tuple — stable across content
+            edits, unique on the page even if multiple FAQ blocks exist
+            (Round-5 typescript-reviewer MEDIUM: prior content-based keys
+            broke when an entry's question was edited). */}
+        {block.entries.map((entry, idx) => (
+          <div key={`${instanceId}-entry-${idx}`}>
             <dt className="text-lg font-semibold text-fg-default">{entry.question}</dt>
             <dd className="mt-2 text-fg-muted">{entry.answer}</dd>
           </div>

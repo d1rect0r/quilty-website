@@ -3,6 +3,11 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Contact',
   description: 'Contact Quilty. Real content lands in M2-M3 per roadmap.',
+  robots: { index: false, follow: true },
+  alternates: {
+    canonical: '/en/contact',
+    languages: { en: '/en/contact', 'x-default': '/en/contact' },
+  },
 };
 
 export default function ContactPage() {

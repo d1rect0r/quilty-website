@@ -6,27 +6,30 @@ export interface FeatureGridProps {
 }
 
 export function FeatureGrid({ block, instanceId }: FeatureGridProps) {
-  const headingId = block.heading ? `${instanceId}-heading` : undefined;
-  // Round-5 a11y reviewer fallback: when no heading, the <section> would
-  // be an unnamed landmark (some AT skip it entirely). Provide aria-label
-  // fallback so the section is always exposed.
+  // `heading` is required by the schema (Round-5 final-QA a11y MEDIUM —
+  // forces a proper h1→h2→h3 hierarchy when this block appears under a
+  // page-level Hero h1).
+  const headingId = `${instanceId}-heading`;
   return (
     <section
       aria-labelledby={headingId}
-      aria-label={headingId ? undefined : 'Features'}
       className="mx-auto max-w-6xl px-6 py-16"
     >
-      {block.heading ? (
-        <h2
-          id={headingId}
-          className="mb-10 text-center text-3xl font-semibold text-fg-default"
-        >
-          {block.heading}
-        </h2>
-      ) : null}
+      <h2
+        id={headingId}
+        className="mb-10 text-center text-3xl font-semibold text-fg-default"
+      >
+        {block.heading}
+      </h2>
       <ul className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-        {block.items.map((item) => (
-          <li key={item.heading} className="rounded-lg border border-border-default p-6">
+        {/* Keys use the (instanceId, position) tuple — stable across content
+            edits (Round-5 typescript-reviewer MEDIUM: content-based keys
+            re-mount components on heading rename). */}
+        {block.items.map((item, idx) => (
+          <li
+            key={`${instanceId}-item-${idx}`}
+            className="rounded-lg border border-border-default p-6"
+          >
             <h3 className="text-lg font-semibold text-fg-default">{item.heading}</h3>
             <p className="mt-2 text-sm text-fg-muted">{item.body}</p>
           </li>

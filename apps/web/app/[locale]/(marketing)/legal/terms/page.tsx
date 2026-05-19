@@ -3,6 +3,10 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Terms of Service',
   description: 'Quilty terms of service. Lawyer-reviewed copy lands in M8 per roadmap.',
+  alternates: {
+    canonical: '/en/legal/terms',
+    languages: { en: '/en/legal/terms', 'x-default': '/en/legal/terms' },
+  },
 };
 
 export default function TermsPage() {

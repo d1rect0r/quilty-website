@@ -31,6 +31,7 @@ describe('BlockSchema discriminated union', () => {
   it('accepts a FeatureGrid with multiple items', () => {
     const input: Block = {
       type: 'FeatureGrid',
+      heading: 'What you get',
       items: [
         { heading: 'Private', body: 'End-to-end encryption.' },
         { heading: 'Personal', body: 'Tailored to you.' },
@@ -44,7 +45,17 @@ describe('BlockSchema discriminated union', () => {
     expect(() =>
       BlockSchema.parse({
         type: 'FeatureGrid',
+        heading: 'Empty grid',
         items: [],
+      }),
+    ).toThrow();
+  });
+
+  it('rejects FeatureGrid without heading (Round-5 final-QA a11y MEDIUM)', () => {
+    expect(() =>
+      BlockSchema.parse({
+        type: 'FeatureGrid',
+        items: [{ heading: 'Lonely item', body: 'No section heading above.' }],
       }),
     ).toThrow();
   });

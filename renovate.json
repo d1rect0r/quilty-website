@@ -11,7 +11,7 @@
   "timezone": "America/New_York",
   "schedule": ["before 4am on every weekday"],
   "prHourlyLimit": 4,
-  "prConcurrentLimit": 8,
+  "prConcurrentLimit": 4,
   "labels": ["dependencies"],
   "minimumReleaseAge": "3 days",
   "packageRules": [

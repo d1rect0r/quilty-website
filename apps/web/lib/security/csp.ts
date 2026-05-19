@@ -136,17 +136,22 @@ export function isPortalRoute(pathname: string): boolean {
 }
 
 /**
- * Crypto-strong nonce generator (Edge runtime compatible). Uses
+ * Crypto-strong nonce generator (Edge + Node runtime compatible). Uses
  * `crypto.getRandomValues` per the Web Crypto API which is available
  * in Lambda + Vercel Edge + Node 24 runtimes.
+ *
+ * The spread-form `String.fromCharCode(...bytes)` skips the per-byte
+ * append loop — single call into V8 instead of 16 string concatenations
+ * (Round-5 final-QA perf-bundle MEDIUM). At 16 bytes this is the spread
+ * limit's sweet spot; do not extend beyond ~125 bytes without switching
+ * back to a loop or using `Buffer.from(bytes).toString('base64url')`
+ * on the Node runtime.
  */
 export function generateNonce(): string {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
-  // Base64-url encode without padding for use in CSP header
-  let binary = '';
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
 }

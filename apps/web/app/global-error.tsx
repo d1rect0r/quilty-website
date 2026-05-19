@@ -39,16 +39,21 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               Reference: <code>{error.digest}</code>
             </p>
           ) : null}
+          {/* WCAG 2.5.5 AA Target Size — 44×44 minimum (Round-5 final-QA
+              MEDIUM). Inline styles only because global-error.tsx cannot
+              depend on any layout/CSS pipeline (root layout failed). */}
           <button
             type="button"
             onClick={reset}
             style={{
               marginTop: '2rem',
-              padding: '0.5rem 1rem',
+              minHeight: '2.75rem',
+              padding: '0.5rem 1.25rem',
               borderRadius: '0.375rem',
               border: '1px solid #ccc',
               background: '#fff',
               cursor: 'pointer',
+              fontSize: '1rem',
             }}
           >
             Try again

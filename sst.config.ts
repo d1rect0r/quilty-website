@@ -50,21 +50,31 @@
  */
 
 const DEPLOY_GATE_ENV = 'SST_DEPLOY_GATE_PASSED';
+const WAF_ACL_ARN_ENV = 'WAF_WEB_ACL_ARN';
 
 function shouldProvisionResources(): boolean {
   return process.env[DEPLOY_GATE_ENV] === 'true';
 }
 
 /**
- * Mandatory tag set per the `quilty-aws` topology convention (Round-5
- * IaC reviewer HIGH H1). Every SST-emitted resource must carry
- * `quilty:service` + `quilty:env` + `quilty:cost-center` so cost
- * reports + IAM policy scoping work correctly.
+ * Mandatory tag set per the `quilty-aws` topology convention. Every
+ * SST-emitted resource must carry the five `quilty:*` tags below so
+ * cost reports + IAM policy scoping (permission-boundary stack-name
+ * matching) + Phase 1 migration filters all work correctly.
+ *
+ * Round-5 final-QA IaC reviewer H1: `quilty:owner`, `quilty:stack`, and
+ * `quilty:repo` were missing from the earlier set. `quilty:stack` is
+ * load-bearing — `quilty-aws` IAM permission boundaries scope by stack
+ * namespace, so a deploy without it would fail policy conditions when
+ * the post-Phase-1 boundary is tightened.
  */
 function siteTagsFor(stage: string): Record<string, string> {
   return {
+    'quilty:owner': 'platform',
     'quilty:service': 'quilty-website',
     'quilty:env': stage,
+    'quilty:stack': `quilty-web-${stage}`,
+    'quilty:repo': 'quilty-website',
     'quilty:cost-center': 'marketing',
     workload: 'quilty-website',
     stage,
@@ -89,6 +99,24 @@ function defineSiteResources(stage: string) {
     throw new Error(
       'NEXT_PUBLIC_SENTRY_DSN is required at SST deploy time. Set it in ' +
         'the GitHub Actions environment vars (production/preview) — see ' +
+        'docs/runbook/sst-deploy.md prerequisites.',
+    );
+  }
+
+  // WAF Web ACL hard gate (Round-5 final-QA IaC C1). The CLAUDE.md NEVER
+  // list forbids a public hostname without WAF + rate limit; a single
+  // `SST_DEPLOY_GATE_PASSED` boolean is not enough — a second mechanical
+  // check on the WAF ACL ARN ensures the next-sprint activation cannot
+  // accidentally ship a WAF-less distribution. `quilty-aws/website-baseline/`
+  // is responsible for vending the ACL ARN as a SSM parameter that the
+  // deploy workflow exports to `WAF_WEB_ACL_ARN` for the dev stage. Preview
+  // stages reuse the same ACL (Cloudflare-style shared protection).
+  const wafAclArn = process.env[WAF_ACL_ARN_ENV];
+  if (!wafAclArn) {
+    throw new Error(
+      `${WAF_ACL_ARN_ENV} is required at SST deploy time — no public ` +
+        'hostname without WAF + rate limit per CLAUDE.md NEVER list. ' +
+        'Vended by quilty-aws/website-baseline/. See ' +
         'docs/runbook/sst-deploy.md prerequisites.',
     );
   }
@@ -121,19 +149,37 @@ function defineSiteResources(stage: string) {
       architecture: 'arm64',
       memory: '1024 MB',
       timeout: '15 seconds',
+      // reservedConcurrency caps a traffic spike or DDoS-style scale
+      // event from exhausting the dev-account concurrency pool that the
+      // Rust auth backend Lambdas share (Round-5 final-QA IaC H2). 100
+      // is calibrated to M1 expected traffic (zero today, hundreds at
+      // launch); revisit when post-launch CWV telemetry shows real load.
+      // Cost-neutral — reserved concurrency does not increase per-
+      // invocation cost.
+      reservedConcurrency: 100,
     },
     transform: {
       cdn(args) {
         args.tags = { ...args.tags, ...siteTagsFor(stage) };
+        // Wire the WAF Web ACL — CLAUDE.md NEVER list compliance
+        // (Round-5 final-QA IaC C1). The ARN is a runtime gate (see
+        // above) so this is always populated when the cdn transform runs.
+        args.webAclId = wafAclArn;
       },
       server(args) {
         args.tags = { ...args.tags, ...siteTagsFor(stage) };
       },
       assets(args) {
-        // S3 origin bucket tags per Round-5 IaC reviewer M2 — was
-        // missing from the original transform map; cost reports +
-        // bucket-level KMS/IAM scoping require these.
+        // S3 origin bucket tags + retention. `forceDestroy: false` on
+        // the dev stage keeps `sst remove --stage dev` from silently
+        // deleting the asset bucket (Round-5 final-QA IaC M1 — the app-
+        // level `removal: retain` does not propagate to resource-level
+        // S3 bucket policy in SST 4.x). Preview stages keep the default
+        // (forceDestroy: true) so PR cleanup actually frees S3.
         args.tags = { ...args.tags, ...siteTagsFor(stage) };
+        if (stage === 'dev') {
+          args.forceDestroy = false;
+        }
       },
     },
   });

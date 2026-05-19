@@ -3,6 +3,11 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Help',
   description: 'Quilty help center. Self-host vs vendor decision at M9+ per U3.',
+  robots: { index: false, follow: true },
+  alternates: {
+    canonical: '/en/help',
+    languages: { en: '/en/help', 'x-default': '/en/help' },
+  },
 };
 
 export default function HelpPage() {

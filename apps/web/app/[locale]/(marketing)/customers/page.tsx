@@ -3,6 +3,11 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Customers',
   description: 'Testimonials + case studies. Real content lands post-M4 per roadmap.',
+  robots: { index: false, follow: true },
+  alternates: {
+    canonical: '/en/customers',
+    languages: { en: '/en/customers', 'x-default': '/en/customers' },
+  },
 };
 
 export default function CustomersPage() {

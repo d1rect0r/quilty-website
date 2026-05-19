@@ -17,7 +17,11 @@
 name: Deploy (SST)
 
 on:
-  workflow_dispatch:
+  # workflow_dispatch removed (Round-5 final-QA IaC M2). A manual trigger
+  # would let any contributor with write access deploy any branch to
+  # preview-pr-* without a PR — bypassing required-reviewer gates on the
+  # `preview` GitHub Environment. Re-add only with an `actor`-scoped
+  # guard if a genuine ops use case appears.
   push:
     branches: [main]
   pull_request:
@@ -79,6 +83,12 @@ jobs:
           NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL_PREVIEW }}
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          # sst.config.ts hard-gates on WAF_WEB_ACL_ARN (Round-5 final-QA
+          # IaC C1 — no public hostname without WAF + rate limit). The
+          # ARN is vended by quilty-aws/website-baseline/ as a SSM param
+          # and exposed via this var.
+          SST_DEPLOY_GATE_PASSED: 'true'
+          WAF_WEB_ACL_ARN: ${{ vars.WAF_WEB_ACL_ARN }}
 
   cleanup-preview:
     # Activate by flipping to: ${{ github.event.action == 'closed' }}
@@ -147,3 +157,5 @@ jobs:
           NEXT_PUBLIC_SITE_URL: https://my-quilty.com
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SST_DEPLOY_GATE_PASSED: 'true'
+          WAF_WEB_ACL_ARN: ${{ vars.WAF_WEB_ACL_ARN }}

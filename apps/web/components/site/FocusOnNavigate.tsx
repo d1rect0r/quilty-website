@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
  * Route-change focus handler.
@@ -11,23 +11,28 @@ import { useEffect } from 'react';
  * on a new page with no announcement of the page change — focus stays
  * on the just-clicked link, which is now in the previous page's history.
  *
- * Pattern: on every pathname change, move focus to `<main id="main">`.
- * The `<main>` must have `tabIndex={-1}` (set in the layouts) so it can
- * receive programmatic focus without being in the tab order itself.
+ * Pattern: on every pathname change AFTER the initial hydration, move
+ * focus to `<main id="main">`. The `<main>` must have `tabIndex={-1}`
+ * (set in the layouts) so it can receive programmatic focus without
+ * being in the tab order itself.
  *
- * Per Round-5 a11y agent: this is the canonical 2026 community pattern
- * for App Router until Next.js ships native focus management.
+ * The `hasMountedRef` gate is load-bearing: without it, focus is stolen
+ * on initial hydration before the user has a chance to tab to the
+ * SkipLink — keyboard users would never reach it. The skip-link is the
+ * canonical WCAG 2.4.1 "bypass blocks" mechanism, so this guard is the
+ * Round-5 final-QA HIGH a11y finding (Footer / SkipLink reachability).
  */
 export function FocusOnNavigate() {
   const pathname = usePathname();
+  const hasMountedRef = useRef(false);
 
   useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
     const main = document.getElementById('main');
     if (main) {
-      // preventScroll: true — focus the landmark for AT but let the
-      // router handle scroll restoration. Round-5 a11y reviewer flagged
-      // the default (false) as causing jarring scroll-to-top on every
-      // navigation, including anchor links within the page.
       main.focus({ preventScroll: true });
     }
   }, [pathname]);

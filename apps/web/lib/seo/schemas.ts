@@ -74,6 +74,7 @@ export function buildBreadcrumbsJsonLd(
 }
 
 export interface MedicalWebPageInput {
+  siteUrl: string;
   url: string;
   name: string;
   description: string;
@@ -86,6 +87,11 @@ export interface MedicalWebPageInput {
  * ship for AI-overview citation graphs (ChatGPT/Claude/Perplexity read JSON-LD
  * heavily in 2026) + semantic clarity. `lastReviewed` and `reviewedBy` are
  * null at M1 until /science has a named clinical advisor — fill in M3+.
+ *
+ * `publisher: { '@id': siteUrl#organization }` cross-references the
+ * Organization node from the root layout so the JSON-LD graph stays
+ * connected — AI crawlers reading an unaffiliated medical page without
+ * organizational provenance discard it as low-trust (Round-5 final-QA SEO H1).
  */
 export function buildMedicalWebPageJsonLd(input: MedicalWebPageInput): JsonLd {
   // Spread-conditional pattern (safer under exactOptionalPropertyTypes than
@@ -98,11 +104,13 @@ export function buildMedicalWebPageJsonLd(input: MedicalWebPageInput): JsonLd {
   return {
     '@context': 'https://schema.org',
     '@type': 'MedicalWebPage',
-    '@id': input.url,
+    '@id': `${input.url}#webpage`,
     url: input.url,
     name: input.name,
     description: input.description,
     inLanguage: 'en-US',
+    isPartOf: { '@id': `${input.siteUrl}#website` },
+    publisher: { '@id': `${input.siteUrl}#organization` },
     medicalAudience: { '@type': 'MedicalAudience', audienceType: 'Patient' },
     ...(input.lastReviewed !== null && { lastReviewed: input.lastReviewed }),
     ...(input.reviewedBy !== null && {
@@ -116,11 +124,23 @@ export interface FaqEntry {
   answer: string;
 }
 
-export function buildFAQPageJsonLd(entries: FaqEntry[]): JsonLd {
+export interface FAQPageInput {
+  pageUrl: string;
+  entries: FaqEntry[];
+}
+
+/**
+ * FAQPage. Includes `@id` + `isPartOf` so the node is graph-connected to
+ * its containing page (Round-5 final-QA SEO M4 — orphan FAQPage nodes
+ * are devalued by AI-overview citation graphs).
+ */
+export function buildFAQPageJsonLd(input: FAQPageInput): JsonLd {
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    mainEntity: entries.map((entry) => ({
+    '@id': `${input.pageUrl}#faq`,
+    isPartOf: { '@id': `${input.pageUrl}#webpage` },
+    mainEntity: input.entries.map((entry) => ({
       '@type': 'Question',
       name: entry.question,
       acceptedAnswer: { '@type': 'Answer', text: entry.answer },

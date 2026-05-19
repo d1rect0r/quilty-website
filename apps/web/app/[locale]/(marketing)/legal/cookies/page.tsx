@@ -3,6 +3,10 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Cookie Policy',
   description: 'Quilty cookie policy. Lawyer-reviewed copy + ConsentState UI land in M8 per roadmap.',
+  alternates: {
+    canonical: '/en/legal/cookies',
+    languages: { en: '/en/legal/cookies', 'x-default': '/en/legal/cookies' },
+  },
 };
 
 export default function CookiesPage() {

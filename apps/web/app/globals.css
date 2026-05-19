@@ -134,10 +134,18 @@
   --color-warning-fg: var(--color-warning-500);
 }
 
-/* Baseline reset — applied after Tailwind's preflight */
+/* Baseline reset — applied after Tailwind's preflight.
+   Smooth scroll is opt-in via prefers-reduced-motion: no-preference per
+   Round-5 final-QA perf-bundle LOW (semantic correctness: opt-in for
+   motion, not opt-out, mirrors the reduced-motion block below). */
 html {
   text-size-adjust: 100%;
-  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 body {
