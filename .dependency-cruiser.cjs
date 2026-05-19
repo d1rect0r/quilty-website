@@ -1,0 +1,126 @@
+/**
+ * dependency-cruiser config.
+ *
+ * Enforces graph-level rules that ESLint can't see (it sees per-file,
+ * depcruise sees the whole import graph):
+ *
+ *   1. shadcn primitives (apps/web/components/ui/) MUST NOT import from
+ *      anywhere else in the app. Wrappers (apps/web/components/app/)
+ *      can pull from them; reverse is a structural violation. Mirrors
+ *      D18 "wrap-don't-edit" — the PreToolUse hook protects file
+ *      writes; this rule protects the import graph.
+ *   2. Direct vendor SDK imports (@sentry/*, posthog-*) MUST live ONLY
+ *      under apps/web/lib/observability/. ESLint catches per-file
+ *      static imports; depcruise catches transitive imports too.
+ *   3. No cycles. No orphans. (depcruise defaults.)
+ *
+ * Run on demand via `pnpm depcruise`; CI runs `--validate` (exit non-
+ * zero on rule violation).
+ */
+module.exports = {
+  forbidden: [
+    {
+      name: 'no-cycles',
+      severity: 'error',
+      from: {},
+      to: { circular: true },
+    },
+    {
+      name: 'no-shadcn-importing-app',
+      comment: 'shadcn primitives are wrap-only (D18); they must stay framework-agnostic.',
+      severity: 'error',
+      from: { path: '^apps/web/components/ui/' },
+      to: {
+        path: '^apps/web/(?!components/ui/|lib/utils)',
+        pathNot: ['^apps/web/lib/utils\\.ts$'],
+      },
+    },
+    {
+      name: 'no-direct-vendor-sdk-outside-observability',
+      comment:
+        'D67: vendor SDKs (@sentry/*, posthog-*) must be imported only through the observability adapter layer. Direct imports bypass PHI sanitization + consent gating.',
+      severity: 'error',
+      from: {
+        pathNot: [
+          '^apps/web/lib/observability/',
+          '^apps/web/sentry\\.(client|server|edge)\\.config\\.ts$',
+          '^apps/web/instrumentation\\.ts$',
+        ],
+      },
+      to: {
+        path: '^node_modules/(@sentry|posthog-js|posthog-node|amplitude-js)',
+      },
+    },
+    {
+      name: 'no-orphans',
+      comment:
+        'No source files that nothing else imports. Scaffolded-for-M2 deliverables (block library, lib/flags, replay-classes) are excluded — they exist to be consumed by Velite MDX + PostHog activation at M2-M3.',
+      severity: 'warn',
+      from: {
+        orphan: true,
+        pathNot: [
+          '\\.d\\.ts$',
+          '(^|/)\\.[^/]+\\.(js|cjs|mjs|ts|json)$',
+          '\\.config\\.(js|cjs|mjs|ts)$',
+          // Next.js convention files are loaded by the framework, not imported
+          'apps/web/app/.+\\.(tsx?|mjs)$',
+          'apps/web/instrumentation\\.ts$',
+          'apps/web/instrumentation-client\\.ts$',
+          'apps/web/proxy\\.ts$',
+          'apps/web/sentry\\..+\\.ts$',
+          'apps/web/next-env\\.d\\.ts$',
+          '__tests__|\\.test\\.|\\.spec\\.',
+          'tests/playwright/',
+          // M2-scoped scaffold — consumed at content-layer activation
+          'apps/web/components/blocks/',
+          'apps/web/lib/flags/',
+          'apps/web/lib/observability/(flag|replay-classes)\\.ts$',
+          'apps/web/lib/utils\\.ts$',
+          // Indirectly consumed via Next.js conventions or framework hooks
+          'apps/web/lib/seo/schemas\\.ts$',
+          'apps/web/lib/security/(csp|headers)\\.ts$',
+          'apps/web/lib/observability/sanitize\\.ts$',
+          'apps/web/components/site/SkipLink\\.tsx$',
+          'apps/web/components/seo/JsonLd\\.tsx$',
+          // Vitest setup files are loaded via vitest.config.ts setupFiles
+          'apps/web/vitest\\.setup\\.ts$',
+          // Empty workspace entrypoint — populated by OpenAPI codegen at M5
+          'packages/shared-types/src/index\\.ts$',
+        ],
+      },
+      to: {},
+    },
+  ],
+  options: {
+    doNotFollow: { path: 'node_modules' },
+    exclude: {
+      path: [
+        '\\.next/',
+        '\\.velite/',
+        '\\.turbo/',
+        '\\.sst/',
+        'dist/',
+        'coverage/',
+        'playwright-report/',
+        'test-results/',
+        '__tests__/',
+        '\\.test\\.',
+        '\\.spec\\.',
+        'tests/playwright/',
+      ],
+    },
+    // AST-only (no `tsConfig`): graph-structural rules don't need
+    // type-aware resolution and the workspace `extends` chain trips
+    // depcruise's tsconfig loader. Re-enable at M5 when the OpenAPI
+    // codegen pipeline lands and per-type analysis becomes valuable.
+    tsPreCompilationDeps: false,
+    enhancedResolveOptions: {
+      exportsFields: ['exports'],
+      conditionNames: ['import', 'require', 'node', 'default'],
+      mainFields: ['module', 'main', 'types', 'typings'],
+    },
+    reporterOptions: {
+      text: { highlightFocused: true },
+    },
+  },
+};

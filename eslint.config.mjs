@@ -74,9 +74,34 @@ export default tseslint.config(
   ...tseslint.configs.stylistic,
   ...nextCoreWebVitals,
   ...nextTypescript,
-  // Custom rules block — only ruleset overrides + settings, no plugin
-  // re-registration (eslint-config-next already wired the plugins).
+  // CommonJS config files (.cjs) — declare the script env so `module`,
+  // `require`, `__dirname` resolve. ESLint 9 flat config doesn't infer
+  // this from the file extension.
   {
+    files: ['**/*.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        module: 'readonly',
+        require: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        global: 'readonly',
+      },
+    },
+  },
+  // Custom rules block — only applies to TS/TSX/JS/JSX source files.
+  // Critical: the `files:` restriction is what keeps the `jsx-a11y/*`
+  // rule references in-scope only where eslint-config-next/core-web-vitals
+  // registered the plugin. Without `files:` this block would apply to
+  // `.cjs` config files (like `.dependency-cruiser.cjs`) where the
+  // jsx-a11y plugin isn't loaded → "Cannot find plugin" config error
+  // when lint-staged runs against arbitrary staged files.
+  {
+    files: ['**/*.{ts,tsx,js,jsx,mjs}'],
+    ignores: ['**/*.cjs', '**/*.config.cjs'],
     rules: {
       // PHI defense + observability chokepoint enforcement (D67)
       'no-console': 'error',

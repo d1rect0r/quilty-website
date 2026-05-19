@@ -1,0 +1,48 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["velite.config.ts"],
+      "project": ["*.ts", "*.mjs"],
+      "ignoreDependencies": [
+        "eslint-import-resolver-typescript",
+        "eslint-plugin-import",
+        "eslint-plugin-jsx-a11y",
+        "eslint-plugin-react-hooks"
+      ],
+      "ignoreBinaries": ["dot"]
+    },
+    "apps/web": {
+      "entry": [
+        "app/**/{page,layout,loading,error,not-found,template,default,route,global-error}.{ts,tsx}",
+        "app/{robots,sitemap,manifest,opengraph-image,twitter-image,icon,apple-icon}.{ts,tsx}",
+        "sentry.{client,server,edge}.config.ts",
+        "tests/playwright/global-{setup,teardown}.ts",
+        "tests/playwright/**/*.spec.ts"
+      ],
+      "project": [
+        "app/**/*.{ts,tsx}",
+        "components/**/*.{ts,tsx}",
+        "lib/**/*.{ts,tsx}",
+        "tests/**/*.{ts,tsx}"
+      ],
+      "ignore": [
+        "components/blocks/**",
+        "lib/flags/features.ts",
+        "lib/observability/flag.ts",
+        "lib/observability/replay-classes.ts",
+        "lib/utils.ts"
+      ],
+      "ignoreDependencies": [
+        "class-variance-authority",
+        "clsx",
+        "lucide-react",
+        "next-intl",
+        "tailwind-merge",
+        "web-vitals",
+        "@testing-library/user-event",
+        "tailwindcss"
+      ]
+    }
+  }
+}

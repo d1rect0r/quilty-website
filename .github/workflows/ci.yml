@@ -79,6 +79,31 @@ jobs:
       - run: pnpm lint
       - run: pnpm format:check
 
+  hygiene:
+    # Tier-1 dev-tooling gates (ADR-0007). Run early — fast, catches the
+    # version-drift / unused-deps / graph-rule classes of regression
+    # before the heavier typecheck + test jobs do.
+    name: Hygiene (syncpack + Knip + depcruise + type-coverage)
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Version drift check (syncpack)
+        run: pnpm syncpack:lint
+      - name: Unused exports / files / deps (Knip)
+        run: pnpm knip
+      - name: Import-graph rule validation (dependency-cruiser)
+        run: pnpm depcruise
+      - name: Type coverage threshold (≥97%)
+        run: pnpm type-coverage
+
   typecheck:
     name: Typecheck
     needs: install
@@ -140,7 +165,7 @@ jobs:
     # `test-e2e` was missing from `needs:`, letting axe failures slip
     # past the merge gate when branch protection only required `build`.
     name: Next.js build
-    needs: [lint, typecheck, test, test-e2e]
+    needs: [lint, hygiene, typecheck, test, test-e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

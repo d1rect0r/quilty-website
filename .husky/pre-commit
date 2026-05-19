@@ -13,6 +13,15 @@
 #     signing discipline
 #   - NEVER skip lint-staged; PHI sanitizer + a11y rules + ban-direct-
 #     vendor-SDK-imports rules ALL run via ESLint at this layer
+#
+# Node version pinning: the project pins Node 24 LTS in `engines`. If
+# the workstation has multiple Node versions installed (e.g., Homebrew
+# default is Node 25), prefer the Cellar path for node@24 when present
+# so the hook fires against the same Node version CI uses. Caller can
+# always override by exporting PATH before `git commit`.
+if [ -d "/opt/homebrew/opt/node@24/bin" ]; then
+  export PATH="/opt/homebrew/opt/node@24/bin:$PATH"
+fi
 set -e
 pnpm exec lint-staged
 # Full-graph typecheck at M1 — one workspace (`apps/web`) keeps this fast

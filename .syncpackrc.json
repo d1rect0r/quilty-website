@@ -1,0 +1,39 @@
+{
+  "$schema": "https://unpkg.com/syncpack/dist/schema.json",
+  "dependencyTypes": ["dev", "overrides", "peer", "pnpmOverrides", "prod", "resolutions"],
+  "indent": "  ",
+  "sortFirst": [
+    "name",
+    "version",
+    "description",
+    "private",
+    "type",
+    "packageManager",
+    "engines",
+    "scripts",
+    "dependencies",
+    "devDependencies",
+    "peerDependencies"
+  ],
+  "semverGroups": [
+    {
+      "label": "pnpm overrides may pin to caret",
+      "dependencyTypes": ["pnpmOverrides"],
+      "range": "^"
+    },
+    {
+      "label": "engines + Node + pnpm pin",
+      "packages": ["**"],
+      "dependencyTypes": ["engines"],
+      "range": ""
+    }
+  ],
+  "versionGroups": [
+    {
+      "label": "OpenTelemetry packages must match the root pnpm.overrides pin",
+      "dependencies": ["@opentelemetry/**"],
+      "packages": ["**"],
+      "policy": "sameRange"
+    }
+  ]
+}
