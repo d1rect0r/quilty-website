@@ -1,0 +1,44 @@
+{
+  "$schema": "https://raw.githubusercontent.com/GoogleChrome/lighthouse-ci/main/docs/configuration.md",
+  "ci": {
+    "collect": {
+      "startServerCommand": "pnpm --filter web exec next start",
+      "startServerReadyPattern": "ready - started server",
+      "url": [
+        "http://localhost:3000/en",
+        "http://localhost:3000/en/features",
+        "http://localhost:3000/en/pricing",
+        "http://localhost:3000/en/science",
+        "http://localhost:3000/en/legal/privacy"
+      ],
+      "numberOfRuns": 3,
+      "settings": {
+        "preset": "desktop",
+        "throttling": {
+          "rttMs": 40,
+          "throughputKbps": 10240,
+          "cpuSlowdownMultiplier": 1
+        },
+        "screenEmulation": { "disabled": false },
+        "emulatedUserAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 LHCI"
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["warn", { "minScore": 0.9 }],
+        "categories:accessibility": ["error", { "minScore": 0.95 }],
+        "categories:best-practices": ["warn", { "minScore": 0.9 }],
+        "categories:seo": ["error", { "minScore": 0.95 }],
+        "largest-contentful-paint": ["warn", { "maxNumericValue": 2500 }],
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1 }],
+        "total-blocking-time": ["warn", { "maxNumericValue": 200 }],
+        "interactive": ["warn", { "maxNumericValue": 3500 }],
+        "first-contentful-paint": ["warn", { "maxNumericValue": 1800 }],
+        "speed-index": ["warn", { "maxNumericValue": 3400 }]
+      }
+    }
+  }
+}

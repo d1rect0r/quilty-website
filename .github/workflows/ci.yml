@@ -186,8 +186,44 @@ jobs:
           # final-QA IaC L2) — there is no source-map upload step in this
           # job. The token lands when `.github/workflows/deploy.yml`
           # activates next sprint (and again at M2 when Lighthouse CI
-          # adds source-map upload to the build path). Adding the secret
-          # before there's a consumer creates confusion about whether
-          # the upload is already wired.
+          # adds source-map upload to the build path).
           NEXT_PUBLIC_SITE_URL: https://my-quilty.com
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+
+      - name: Bundle size budgets (size-limit)
+        run: pnpm size
+
+      - name: Upload build artifact for Lighthouse CI
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: |
+            apps/web/.next
+            apps/web/public
+          retention-days: 1
+
+  lighthouse:
+    # Lighthouse CI against pnpm start (production build) — CWV budgets
+    # in .lighthouserc.json. Fails the merge gate on a11y or SEO score
+    # regressions, warns on perf (calibrated as M1 baseline lands).
+    name: Lighthouse CI
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: apps/web
+      - name: Run Lighthouse CI
+        run: pnpm lhci
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
