@@ -103,6 +103,8 @@ jobs:
         run: pnpm depcruise
       - name: Type coverage threshold (≥97%)
         run: pnpm type-coverage
+      - name: Secret scan (secretlint)
+        run: pnpm secretlint
 
   typecheck:
     name: Typecheck

@@ -8,7 +8,9 @@
         "eslint-import-resolver-typescript",
         "eslint-plugin-import",
         "eslint-plugin-jsx-a11y",
-        "eslint-plugin-react-hooks"
+        "eslint-plugin-react-hooks",
+        "@secretlint/secretlint-rule-preset-recommend",
+        "csp_evaluator"
       ],
       "ignoreBinaries": ["dot"]
     },

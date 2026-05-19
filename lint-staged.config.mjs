@@ -19,6 +19,13 @@ const config = {
     'eslint --fix --max-warnings=0 --no-warn-ignored',
   ],
   '*.{json,md,mdx,css,yml,yaml}': ['prettier --write'],
+  // Secret scanning — Node-native complement to the project's gitleaks
+  // pre-commit hook. Runs only on changed files for speed; gitleaks
+  // continues to scan history. Per the dev-tooling research finding,
+  // this is the documented 2026 layered pattern (gitleaks history +
+  // secretlint per-file). Trufflehog on the .next build artifact
+  // catches NEXT_PUBLIC_* leakage at CI build time.
+  '*': ['secretlint --secretlintrc .secretlintrc.json'],
 };
 
 export default config;

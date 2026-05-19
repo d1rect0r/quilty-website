@@ -1,46 +1,18 @@
 #!/usr/bin/env sh
-# Husky commit-msg hook — enforces Conventional Commits prefix.
+# Husky commit-msg hook — Conventional Commits enforcement via
+# @commitlint/cli + @commitlint/config-conventional.
 #
 # Convention per CLAUDE.md "Git conventions" — atomic commits with one
-# of: feat / fix / refactor / docs / test / chore / style + an optional
-# scope in parens.
+# of: feat / fix / refactor / docs / test / chore / style + perf / build
+# / ci / revert + an optional scope in parens.
 #
-# Examples that pass:
-#   feat(web): scaffold next.js 16 app
-#   chore: turborepo + pnpm 10 + node 24 root configs
-#   docs(adr): scaffold ADR directory
-#   fix(security): tighten CSP report-uri validator
-#
-# Examples that fail:
-#   WIP: stuff
-#   Add some files
-#   Update docs
+# commitlint replaces the prior regex-only check — config in
+# commitlint.config.mjs at repo root. Merge / revert / fixup / squash
+# commits bypass per commitlint's defaults.
 
-commit_msg_file="$1"
-first_line=$(head -n1 "$commit_msg_file")
-
-# Allow merge commits, revert commits, and fixup/squash commits to bypass.
-case "$first_line" in
-  Merge*|Revert*|fixup!*|squash!*) exit 0 ;;
-esac
-
-# Conventional Commits regex: type(scope)?: summary
-# Permitted types: feat fix refactor docs test chore style perf build ci revert
-if echo "$first_line" | grep -qE '^(feat|fix|refactor|docs|test|chore|style|perf|build|ci|revert)(\([a-z0-9-]+\))?!?: .+'; then
-  exit 0
+# Use Node 24 if available (matches CI; engines field requires it).
+if [ -d "/opt/homebrew/opt/node@24/bin" ]; then
+  export PATH="/opt/homebrew/opt/node@24/bin:$PATH"
 fi
 
-echo "─────────────────────────────────────────────────────────────"
-echo "  Commit message does not match Conventional Commits format."
-echo "  First line: $first_line"
-echo ""
-echo "  Expected: <type>(<scope>)?: <summary>"
-echo "  Where <type> is one of:"
-echo "    feat fix refactor docs test chore style perf build ci revert"
-echo ""
-echo "  Examples:"
-echo "    feat(web): scaffold next.js 16 app"
-echo "    chore: bump dependencies"
-echo "    docs(adr): land ADR-0007 BFF pattern"
-echo "─────────────────────────────────────────────────────────────"
-exit 1
+pnpm exec commitlint --edit "$1"
