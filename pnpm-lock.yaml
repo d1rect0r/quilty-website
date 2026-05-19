@@ -144,8 +144,8 @@ importers:
         specifier: 4.2.4
         version: 4.2.4
       zod:
-        specifier: 3.24.1
-        version: 3.24.1
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       '@axe-core/playwright':
         specifier: 4.10.2
@@ -153,6 +153,9 @@ importers:
       '@playwright/test':
         specifier: 1.60.0
         version: 1.60.0
+      '@spotlightjs/overlay':
+        specifier: 4.5.0
+        version: 4.5.0
       '@tailwindcss/postcss':
         specifier: 4.3.0
         version: 4.3.0
@@ -2038,6 +2041,9 @@ packages:
   '@smithy/util-utf8@2.3.0':
     resolution: {integrity: sha512-R8Rdn8Hy72KKcebgLiv8jQcQkXoLMOGGv5uI1/k0l+snqkOzQ1R0ChUBCxWMlBsFMekWjq0wRudIweFs7sKT5A==}
     engines: {node: '>=14.0.0'}
+
+  '@spotlightjs/overlay@4.5.0':
+    resolution: {integrity: sha512-Pn8qnVI68082y/RCuZXX6lUctMRFxH5v48IctbC8WogOCWZ3VSdZoKqCAcDQpafZwTgoGADGPp/vIeYyqfNCaQ==}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -6728,6 +6734,9 @@ packages:
   zod@3.24.1:
     resolution: {integrity: sha512-muH7gBL9sI1nciMZV67X5fTKKBLtwpZ5VBp1vsOQzj1MhrBZ4wlVCm3gedKZWLp0Oyel8sIGfeiz54Su+OVT+A==}
 
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
   zod@4.4.3:
     resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
@@ -8655,6 +8664,8 @@ snapshots:
     dependencies:
       '@smithy/util-buffer-from': 2.2.0
       tslib: 2.8.1
+
+  '@spotlightjs/overlay@4.5.0': {}
 
   '@standard-schema/spec@1.1.0': {}
 
@@ -14110,6 +14121,8 @@ snapshots:
       zod: 4.4.3
 
   zod@3.24.1: {}
+
+  zod@3.25.76: {}
 
   zod@4.4.3: {}
 

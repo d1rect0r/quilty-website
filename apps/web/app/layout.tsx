@@ -1,6 +1,7 @@
 import { JsonLd } from '@/components/seo/JsonLd';
 import { WebVitalsReporter } from '@/lib/observability/web-vitals';
 import { buildOrganizationJsonLd } from '@/lib/seo/schemas';
+import { Spotlight } from '@/components/dev/Spotlight';
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
@@ -62,6 +63,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <JsonLd data={buildOrganizationJsonLd(siteUrl)} />
         <WebVitalsReporter />
+        {/* Sentry Spotlight — dev-only debug overlay. The component
+            gates internally on NODE_ENV; the production minifier
+            tree-shakes the dynamic import body out of the prod bundle. */}
+        <Spotlight />
         {children}
       </body>
     </html>

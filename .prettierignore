@@ -22,3 +22,8 @@ public/
 
 # Plain-text well-known files (preserve byte-for-byte)
 apps/web/public/.well-known/
+
+# Claude Code harness — agent definitions + skills are guard-write
+# protected by policy; prettier would otherwise alphabetize fields and
+# rewrite list markers, creating churn the harness must reject.
+.claude/
