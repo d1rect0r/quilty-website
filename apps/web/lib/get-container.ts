@@ -24,18 +24,31 @@
  *   own globalThis — so the singleton is per-runtime by construction.
  */
 
-/* eslint-disable-next-line @typescript-eslint/no-empty-object-type --
- * The Container interface is intentionally empty at the scaffold commit. Each
- * subsequent extraction commit widens it with that package's port surface:
- *   - @quilty/security        — Sanitizer, RedirectValidator, CspBuilder, HeadersBuilder
+import type { CspBuilder, HeadersBuilder, Sanitizer } from '@quilty/security';
+
+/**
+ * Typed Container surface.
+ *
+ * Widened at each extraction commit. Current ports come from:
+ *   - @quilty/security        — Sanitizer, CspBuilder, HeadersBuilder
+ *
+ * Subsequent extraction commits add:
  *   - @quilty/observability   — Analytics, ErrorReporter, Logger, Replay, FeatureFlagEvaluator
  *   - @quilty/consent         — ConsentStore
  *   - @quilty/email           — EmailSender
  *   - @quilty/captcha         — Captcha
  *   - @quilty/rate-limit      — RateLimiter
- * Forcing a sentinel property here would break the widening pattern.
+ *
+ * RedirectValidator is exported from @quilty/security as a config-bound
+ * factory consumers instantiate per call site (the allowlist differs per
+ * caller — auth callback vs sign-out vs OAuth state extension), so it is
+ * not on Container.
  */
-export interface Container {}
+export interface Container {
+  readonly sanitizer: Sanitizer;
+  readonly cspBuilder: CspBuilder;
+  readonly headersBuilder: HeadersBuilder;
+}
 
 declare global {
   var __quiltyContainer: Container | undefined;

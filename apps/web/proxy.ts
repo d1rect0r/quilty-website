@@ -1,11 +1,11 @@
-import { NextResponse, type NextRequest } from 'next/server';
 import {
   buildMarketingCsp,
   buildPortalCsp,
+  buildSecurityHeaders,
   generateNonce,
   isPortalRoute,
-} from '@/lib/security/csp';
-import { buildSecurityHeaders } from '@/lib/security/headers';
+} from '@quilty/security';
+import { NextResponse, type NextRequest } from 'next/server';
 
 /**
  * Next.js 16 `proxy.ts` (renamed from `middleware.ts` per S4 + ADR-0005).

@@ -19,6 +19,7 @@
         "app/**/{page,layout,loading,error,not-found,template,default,route,global-error}.{ts,tsx}",
         "app/{robots,sitemap,manifest,opengraph-image,twitter-image,icon,apple-icon}.{ts,tsx}",
         "sentry.{client,server,edge}.config.ts",
+        "composition.{server,client,edge}.ts",
         "tests/playwright/global-{setup,teardown}.ts",
         "tests/playwright/**/*.spec.ts"
       ],

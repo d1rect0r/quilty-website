@@ -31,11 +31,21 @@
  * packages land in subsequent extraction commits.
  */
 
+import { makeCspBuilder, makeHeadersBuilder, makeSanitizer } from '@quilty/security';
 import type { Container } from './lib/get-container';
 
 export function makeClientContainer(): Container {
   return {
-    // Filled as @quilty/* packages land:
+    // Sanitizer ships in the client bundle so client-side analytics adapters
+    // (Amplitude browser SDK) scrub PHI before emitting per D67.
+    sanitizer: makeSanitizer(),
+    // CspBuilder + HeadersBuilder are server-only by responsibility but
+    // exposed in the client Container for type-shape consistency. Client
+    // code MUST NOT call them (no body would render the right value at
+    // request time).
+    cspBuilder: makeCspBuilder(),
+    headersBuilder: makeHeadersBuilder(),
+    // Filled as remaining @quilty/* packages land:
     //   observability — Sentry browser SDK (error-triggered replay) +
     //                   Amplitude analytics/experiments adapter wrapped
     //                   with the ConsentStore-gated wrapper per D35 +

@@ -1,5 +1,5 @@
+import { isSensitiveKey } from '@quilty/security';
 import { registerOTel } from '@vercel/otel';
-import { isSensitiveKey } from '@/lib/observability/sanitize';
 
 /**
  * OpenTelemetry-first instrumentation (D56). Sentry's JS SDK is OTel-native

@@ -1,20 +1,18 @@
 /**
- * Lints our proxy.ts CSP outputs against Google's csp_evaluator.
+ * Lints the CSP outputs against Google's csp_evaluator.
  *
  * Catches well-known CSP bypass classes (overly-broad whitelists,
  * unsafe-inline + nonce coexistence, missing strict-dynamic, etc.).
- * Trusted Types is MDN Baseline 2026 as of May; our spine ships
- * `require-trusted-types-for 'script'` report-only at M1 + enforced
- * at M6 — csp_evaluator surfaces Trusted-Types-relevant findings too.
+ * Trusted Types is MDN Baseline as of 2026; our spine ships
+ * `require-trusted-types-for 'script'` report-only and enforces at the
+ * M8 launch gate — csp_evaluator surfaces Trusted-Types-relevant findings
+ * too.
  *
- * Fails the test suite on any HIGH severity finding.
- *
- * Run as part of `pnpm test`. CI hygiene job picks this up via the
- * shared test invocation.
+ * Fails on any HIGH severity finding.
  */
 import { createRequire } from 'node:module';
-import { describe, it, expect } from 'vitest';
-import { buildMarketingCsp, buildPortalCsp } from '@/lib/security/csp';
+import { describe, expect, it } from 'vitest';
+import { buildMarketingCsp, buildPortalCsp } from '../domain/csp-builder.js';
 // csp_evaluator ships CommonJS only; createRequire is the documented bridge.
 const nodeRequire = createRequire(import.meta.url);
 const { CspParser } = nodeRequire('csp_evaluator/dist/parser.js');
@@ -39,8 +37,6 @@ describe('csp_evaluator — Google bypass database', () => {
     const csp = buildMarketingCsp({ isDevelopment: false });
     const high = highFindings(csp);
     if (high.length > 0) {
-      // Emit diagnostic so the failure surfaces the actual finding
-      // without making the assertion message inscrutable.
       // eslint-disable-next-line no-console
       console.error('Marketing CSP HIGH findings:', high);
     }

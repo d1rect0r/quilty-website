@@ -1,8 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { buildHstsValue, buildSecurityHeaders, currentHstsPhase } from '@/lib/security/headers';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  buildHstsValue,
+  buildSecurityHeaders,
+  currentHstsPhase,
+} from '../domain/headers-builder.js';
 
 describe('buildHstsValue', () => {
-  it('starts at max-age=300 in M1 phase', () => {
+  it('starts at max-age=300 in the initial phase', () => {
     expect(buildHstsValue('m1')).toBe('max-age=300');
   });
 
@@ -18,7 +22,7 @@ describe('buildHstsValue', () => {
   });
 
   it('only emits preload directive in the launch phase', () => {
-    // preload submission is irreversible — never emit before M8 launch.
+    // preload submission is irreversible — never emit before launch.
     expect(buildHstsValue('m1')).not.toContain('preload');
     expect(buildHstsValue('m2-m6')).not.toContain('preload');
     expect(buildHstsValue('m7')).not.toContain('preload');
@@ -35,7 +39,7 @@ describe('currentHstsPhase', () => {
     vi.unstubAllEnvs();
   });
 
-  it('defaults to m1 when HSTS_PHASE unset', () => {
+  it('defaults to the initial phase when HSTS_PHASE unset', () => {
     vi.stubEnv('HSTS_PHASE', '');
     expect(currentHstsPhase()).toBe('m1');
   });
@@ -45,7 +49,7 @@ describe('currentHstsPhase', () => {
     expect(currentHstsPhase()).toBe('m8-launch');
   });
 
-  it('falls back to m1 on invalid input (defense-in-depth)', () => {
+  it('falls back to the initial phase on invalid input (defense-in-depth)', () => {
     vi.stubEnv('HSTS_PHASE', 'malicious; preload');
     expect(currentHstsPhase()).toBe('m1');
   });
@@ -62,7 +66,7 @@ describe('buildSecurityHeaders', () => {
   const byKey = (headers: ReturnType<typeof buildSecurityHeaders>, k: string) =>
     headers.find((h) => h.key === k);
 
-  it('emits Strict-Transport-Security with the m1 ramp value by default', () => {
+  it('emits Strict-Transport-Security with the initial-phase value by default', () => {
     const headers = buildSecurityHeaders();
     expect(byKey(headers, 'Strict-Transport-Security')?.value).toBe('max-age=300');
   });

@@ -9,7 +9,14 @@
     "turbo.json",
     "sst.config.ts"
   ],
-  "globalEnv": ["NODE_ENV", "CI", "NEXT_PUBLIC_SITE_URL"],
+  "globalEnv": [
+    "NODE_ENV",
+    "CI",
+    "NEXT_PUBLIC_SITE_URL",
+    "SENTRY_INGEST_HOST",
+    "SENTRY_CSP_REPORT_URI",
+    "HSTS_PHASE"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

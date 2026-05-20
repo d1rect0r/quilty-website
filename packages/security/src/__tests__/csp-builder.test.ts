@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildMarketingCsp,
   buildPortalCsp,
   generateNonce,
   isPortalRoute,
-} from '@/lib/security/csp';
+} from '../domain/csp-builder.js';
 
 describe('buildMarketingCsp', () => {
   it('does not include a nonce', () => {
@@ -80,8 +80,6 @@ describe('isPortalRoute', () => {
   });
 
   it('does not over-match /api/auth-internal or /api/webhooks-other (trailing-slash discipline)', () => {
-    // Round-5 HIPAA/CSP reviewer flagged the original prefix matches as
-    // over-broad; verify the tightened trailing-slash version.
     expect(isPortalRoute('/api/auth-internal')).toBe(false);
     expect(isPortalRoute('/api/webhooks-other')).toBe(false);
     expect(isPortalRoute('/api/authentication')).toBe(false);
@@ -104,10 +102,8 @@ describe('generateNonce', () => {
 });
 
 describe('Sentry CSP report-uri env var handling', () => {
-  // SENTRY_CSP_REPORT_URI is read at module-load, so we cannot test the
-  // presence-vs-absence behavior via vi.stubEnv after import. Document
-  // the invariant via a smoke check on the current value (`''` by default
-  // in CI without the env var set) and a sanitization assertion.
+  // SENTRY_CSP_REPORT_URI is read at module-load, so re-import after
+  // env-stubbing to pick up the new value.
   beforeEach(() => {
     vi.resetModules();
   });
@@ -117,8 +113,7 @@ describe('Sentry CSP report-uri env var handling', () => {
 
   it('omits report-uri when SENTRY_CSP_REPORT_URI is unset (default)', async () => {
     vi.stubEnv('SENTRY_CSP_REPORT_URI', '');
-    // Re-import to pick up the new env value
-    const mod = await import('@/lib/security/csp');
+    const mod = await import('../domain/csp-builder.js');
     const csp = mod.buildMarketingCsp();
     expect(csp).not.toContain('report-uri');
   });
@@ -128,9 +123,24 @@ describe('Sentry CSP report-uri env var handling', () => {
     // be filtered out by sanitizeCspValue — the resulting CSP must not
     // contain the injected payload.
     vi.stubEnv('SENTRY_CSP_REPORT_URI', 'https://evil.example.com/r; script-src *');
-    const mod = await import('@/lib/security/csp');
+    const mod = await import('../domain/csp-builder.js');
     const csp = mod.buildMarketingCsp();
     expect(csp).not.toContain('script-src *');
     expect(csp).not.toContain('evil.example.com');
+  });
+
+  it('falls back to the wildcard host when SENTRY_INGEST_HOST contains injection chars', async () => {
+    // Mirror coverage for the ingest-host env. If an attacker controls
+    // the env value and tries to break out of connect-src, the
+    // sanitizeCspValue guard must reject it and the connect-src
+    // fallback (wildcard) must apply.
+    vi.stubEnv('SENTRY_INGEST_HOST', 'https://hostile.example.com; default-src *');
+    const mod = await import('../domain/csp-builder.js');
+    const csp = mod.buildMarketingCsp();
+    expect(csp).not.toContain('hostile.example.com');
+    expect(csp).not.toContain('default-src *');
+    expect(csp).toContain('connect-src');
+    // The fallback wildcard is the only Sentry host that survives sanitization.
+    expect(csp).toContain('https://*.ingest.us.sentry.io');
   });
 });

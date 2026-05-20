@@ -14,12 +14,15 @@
  * @quilty/* packages land.
  */
 
+import { makeCspBuilder, makeHeadersBuilder, makeSanitizer } from '@quilty/security';
 import type { Container } from './lib/get-container';
 
 export function makeEdgeContainer(): Container {
   return {
-    // Filled as @quilty/* packages land:
-    //   security      — CspBuilder + HeadersBuilder + RedirectValidator (no Node deps)
+    sanitizer: makeSanitizer(),
+    cspBuilder: makeCspBuilder(),
+    headersBuilder: makeHeadersBuilder(),
+    // Filled as remaining @quilty/* packages land:
     //   observability — Sentry edge SDK
     //   consent       — Sec-GPC detector (cookie write is server-side; edge only reads)
   };

@@ -103,6 +103,13 @@ module.exports = {
           'apps/web/vitest\\.setup\\.ts$',
           // Empty workspace entrypoint — populated by OpenAPI codegen at M5
           'packages/shared-types/src/index\\.ts$',
+          // Type-only modules in workspace packages. depcruise with
+          // tsPreCompilationDeps: false does not follow `import type`
+          // edges, so type-only `ports.ts` + `errors.ts` files surface as
+          // orphan even though they ARE imported via `import type` from
+          // their package's index barrel + tests. Re-evaluate when M5
+          // flips tsPreCompilationDeps on.
+          'packages/[^/]+/src/(ports|errors)\\.ts$',
         ],
       },
       to: {},

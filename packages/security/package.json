@@ -1,0 +1,31 @@
+{
+  "name": "@quilty/security",
+  "version": "0.1.0",
+  "description": "PHI sanitizer + CSP + security headers + redirect validator + forms primitives (CSRF, honeypot, time-trap stubs).",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./testing": {
+      "types": "./src/__fakes__/index.ts",
+      "default": "./src/__fakes__/index.ts"
+    }
+  },
+  "scripts": {
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@vitest/coverage-v8": "2.1.8",
+    "csp_evaluator": "1.1.5",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}

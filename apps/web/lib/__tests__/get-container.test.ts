@@ -1,5 +1,18 @@
+import { makeCspBuilder, makeHeadersBuilder, makeSanitizer } from '@quilty/security';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { __resetContainerForTesting, getContainer, type Container } from '../get-container';
+
+function makeTestContainer(): Container {
+  // Real factories from @quilty/security so the Container has the actual
+  // shape it ships with. The identity-stability tests don't care about
+  // contents; what matters is that the *same* object identity is returned
+  // across calls.
+  return {
+    sanitizer: makeSanitizer(),
+    cspBuilder: makeCspBuilder(),
+    headersBuilder: makeHeadersBuilder(),
+  };
+}
 
 describe('getContainer', () => {
   afterEach(() => {
@@ -7,7 +20,7 @@ describe('getContainer', () => {
   });
 
   it('returns the factory result on first call', () => {
-    const expected: Container = {};
+    const expected = makeTestContainer();
     const factory = vi.fn<() => Container>(() => expected);
 
     const result = getContainer(factory);
@@ -21,7 +34,7 @@ describe('getContainer', () => {
     // documented in ADR-0010 against the Next.js 16 webpack chunk-duplication
     // scenario. If this test fails, vendor SDKs may be initialized twice
     // and the PHI sanitizer chokepoint discipline is at risk.
-    const factory = vi.fn<() => Container>(() => ({}));
+    const factory = vi.fn<() => Container>(makeTestContainer);
 
     const first = getContainer(factory);
     const second = getContainer(factory);
@@ -36,9 +49,9 @@ describe('getContainer', () => {
     // First caller wins. Subsequent callers that pass a different factory
     // still get the originally-anchored instance — preventing accidental
     // re-composition mid-process.
-    const initialContainer: Container = {};
+    const initialContainer = makeTestContainer();
     const initialFactory = vi.fn<() => Container>(() => initialContainer);
-    const replacementFactory = vi.fn<() => Container>(() => ({}));
+    const replacementFactory = vi.fn<() => Container>(makeTestContainer);
 
     const first = getContainer(initialFactory);
     const second = getContainer(replacementFactory);
@@ -50,8 +63,8 @@ describe('getContainer', () => {
   });
 
   it('rebuilds after __resetContainerForTesting', () => {
-    const firstContainer: Container = {};
-    const secondContainer: Container = {};
+    const firstContainer = makeTestContainer();
+    const secondContainer = makeTestContainer();
     const firstFactory = vi.fn<() => Container>(() => firstContainer);
     const secondFactory = vi.fn<() => Container>(() => secondContainer);
 

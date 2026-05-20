@@ -21,16 +21,21 @@
 
 import 'server-only';
 
+import { makeCspBuilder, makeHeadersBuilder, makeSanitizer } from '@quilty/security';
 import type { Container } from './lib/get-container';
 
 export function makeServerContainer(): Container {
   return {
-    // Filled as @quilty/* packages land:
-    //   security    — Sanitizer / RedirectValidator / CspBuilder / HeadersBuilder
-    //   observability — sanitized loggers + Sentry SDK + Amplitude server adapter
-    //   consent     — DynamoDB-backed ConsentStore
-    //   email       — AWS SES EmailSender wrapped with PHI sanitizer per D67
-    //   captcha     — Turnstile verifyToken endpoint
-    //   rate-limit  — DynamoDB-backed RateLimiter
+    sanitizer: makeSanitizer(),
+    cspBuilder: makeCspBuilder(),
+    headersBuilder: makeHeadersBuilder(),
+    // Filled as remaining @quilty/* packages land:
+    //   observability — Sentry server SDK + Amplitude server SDK +
+    //                   CloudWatch logger; each adapter wrapped with the
+    //                   sanitizer above per D67
+    //   consent       — DynamoDB-backed ConsentStore
+    //   email         — AWS SES EmailSender wrapped with PHI sanitizer per D67
+    //   captcha       — Turnstile verifyToken endpoint
+    //   rate-limit    — DynamoDB-backed RateLimiter
   };
 }
