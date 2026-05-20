@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { logError } from '@/lib/observability/log-error';
+import { makeClientContainer } from '@/composition.client';
+import { getContainer } from '@/lib/get-container';
 
 interface ErrorPageProps {
   error: Error & { digest?: string };
@@ -10,9 +11,18 @@ interface ErrorPageProps {
 
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
   useEffect(() => {
-    logError(error, {
+    // The Container's errorReporter is the wrapped Sentry adapter:
+    // PHI sanitizer runs over the context before the SDK sees it
+    // (D67 architectural seal per ADR-0010).
+    const container = getContainer(makeClientContainer);
+    container.errorReporter.captureException(error, {
       boundary: 'app-error',
-      digest: error.digest,
+      ...(error.digest !== undefined && { digest: error.digest }),
+    });
+    container.logger.error(error.message, {
+      boundary: 'app-error',
+      error_name: error.name,
+      ...(error.digest !== undefined && { digest: error.digest }),
     });
   }, [error]);
 

@@ -1,6 +1,6 @@
+import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
-import path from 'node:path';
 
 /**
  * Vitest config (expanded in Commit 8 from the M1-bootstrap stub in
@@ -41,14 +41,15 @@ export default defineConfig({
         '**/sentry.{client,server,edge}.config.ts',
       ],
       thresholds: {
-        // M1 floor — tighten as code expands. Per-file thresholds enforced
-        // on the four load-bearing primitives (Round-5 reviewer).
+        // Apps/web floor — tighten as code expands. Per-file thresholds
+        // for the load-bearing primitives that still live in apps/web
+        // (sanitizer + csp moved to @quilty/security with their own
+        // ≥90% targets; content schemas + BlockRenderer move to
+        // @quilty/content at the content extraction).
         lines: 60,
         functions: 60,
         statements: 60,
         branches: 50,
-        'lib/observability/sanitize.ts': { lines: 80, functions: 80 },
-        'lib/security/csp.ts': { lines: 80, functions: 80 },
         'lib/content/schemas.ts': { lines: 80, functions: 80 },
         'components/blocks/BlockRenderer.tsx': { lines: 80, functions: 80 },
       },

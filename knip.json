@@ -29,13 +29,7 @@
         "lib/**/*.{ts,tsx}",
         "tests/**/*.{ts,tsx}"
       ],
-      "ignore": [
-        "components/blocks/**",
-        "lib/flags/features.ts",
-        "lib/observability/flag.ts",
-        "lib/observability/replay-classes.ts",
-        "lib/utils.ts"
-      ],
+      "ignore": ["components/blocks/**", "lib/flags/features.ts", "lib/utils.ts"],
       "ignoreDependencies": [
         "class-variance-authority",
         "clsx",

@@ -1,5 +1,5 @@
+import { sanitize } from '@quilty/security';
 import * as Sentry from '@sentry/nextjs';
-import { sanitize } from '@/lib/observability/sanitize';
 
 /**
  * Sentry server-side config per D42a + D67. Replay is client-only; the
@@ -35,6 +35,9 @@ Sentry.init({
   beforeBreadcrumb(breadcrumb) {
     if (breadcrumb.data) {
       breadcrumb.data = sanitize(breadcrumb.data) as Record<string, unknown>;
+    }
+    if (breadcrumb.message) {
+      breadcrumb.message = sanitize(breadcrumb.message);
     }
     return breadcrumb;
   },

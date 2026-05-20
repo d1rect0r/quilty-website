@@ -1,16 +1,36 @@
+import {
+  makeAmplitudeAnalytics,
+  makeCloudWatchLogger,
+  makeDefaultDenyConsentReader,
+  makeEnvFlagEvaluator,
+  makeSentryErrorReporter,
+  wrapAnalytics,
+  wrapErrorReporter,
+  wrapLogger,
+} from '@quilty/observability';
 import { makeCspBuilder, makeHeadersBuilder, makeSanitizer } from '@quilty/security';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { __resetContainerForTesting, getContainer, type Container } from '../get-container';
 
 function makeTestContainer(): Container {
-  // Real factories from @quilty/security so the Container has the actual
+  // Real factories from the workspace packages so the Container has the
   // shape it ships with. The identity-stability tests don't care about
   // contents; what matters is that the *same* object identity is returned
   // across calls.
+  const sanitizer = makeSanitizer();
+  const logger = wrapLogger({ adapter: makeCloudWatchLogger(), sanitizer });
   return {
-    sanitizer: makeSanitizer(),
+    sanitizer,
     cspBuilder: makeCspBuilder(),
     headersBuilder: makeHeadersBuilder(),
+    logger,
+    analytics: wrapAnalytics({
+      adapter: makeAmplitudeAnalytics({ logger }),
+      consentReader: makeDefaultDenyConsentReader(),
+      sanitizer,
+    }),
+    errorReporter: wrapErrorReporter({ adapter: makeSentryErrorReporter(), sanitizer }),
+    featureFlags: makeEnvFlagEvaluator(),
   };
 }
 

@@ -1,0 +1,44 @@
+{
+  "name": "@quilty/observability",
+  "version": "0.1.0",
+  "description": "Observability spine — Analytics (Amplitude) + ErrorReporter (Sentry) + Logger (CloudWatch) + Replay (Sentry) + FeatureFlagEvaluator (env-vars). Default-deny consent gate + PHI sanitizer chokepoint at the factory layer.",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./testing": {
+      "types": "./src/__fakes__/index.ts",
+      "default": "./src/__fakes__/index.ts"
+    }
+  },
+  "scripts": {
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@quilty/security": "workspace:*",
+    "@sentry/nextjs": "10.53.1"
+  },
+  "peerDependencies": {
+    "next": "^16.0.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@types/react": "19.0.2",
+    "@vitejs/plugin-react": "4.3.4",
+    "@vitest/coverage-v8": "2.1.8",
+    "jsdom": "25.0.1",
+    "next": "16.2.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}

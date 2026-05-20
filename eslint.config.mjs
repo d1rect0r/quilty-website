@@ -33,21 +33,17 @@ const VENDOR_SDK_IMPORTS = [
   {
     name: '@sentry/nextjs',
     message:
-      'Import observability primitives from @/lib/observability/log-error or @/lib/observability/logger. Direct @sentry/nextjs imports outside lib/observability/ bypass the PHI sanitizer (D67).',
+      'Import observability primitives from @quilty/observability (ErrorReporter / Replay / Logger ports). Direct @sentry/nextjs imports bypass the PHI sanitizer chokepoint per D67.',
   },
   {
-    name: 'posthog-js',
+    name: '@amplitude/analytics-browser',
     message:
-      'Import analytics via @/lib/observability/track. Direct posthog-js imports bypass the consent gate + PHI sanitizer (D67 + D35).',
+      'Import analytics via @quilty/observability (Analytics port). Direct Amplitude imports bypass the consent gate + PHI sanitizer per D35 + D67.',
   },
   {
-    name: 'posthog-node',
+    name: '@amplitude/analytics-node',
     message:
-      'Import analytics via @/lib/observability/track. Direct posthog-node imports bypass the consent gate + PHI sanitizer (D67 + D35).',
-  },
-  {
-    name: 'amplitude-js',
-    message: 'Web tier uses PostHog (D42b Round-5 revised). Import via @/lib/observability/track.',
+      'Import analytics via @quilty/observability (Analytics port). Direct Amplitude imports bypass the consent gate + PHI sanitizer per D35 + D67.',
   },
 ];
 
@@ -164,27 +160,33 @@ export default tseslint.config(
       },
     },
   },
-  // Allow console in the logger itself (it's the single chokepoint that
-  // owns the structured-JSON emission).
+  // Allow console in the CloudWatch logger adapter + the WebVitalsReporter
+  // component — the two chokepoints that own direct console.log emission.
+  // All other code must call container.logger.* methods, which compose the
+  // PHI sanitizer wrapper around the chokepoint adapter.
   {
-    files: ['apps/web/lib/observability/logger.ts'],
+    files: [
+      'packages/observability/src/adapters/cloudwatch-logger.ts',
+      'packages/observability/src/components/WebVitalsReporter.tsx',
+    ],
     rules: {
       'no-console': 'off',
     },
   },
-  // Allow vendor SDK imports inside the adapter chokepoint surface only.
+  // Allow vendor SDK imports inside the adapter chokepoint surface.
   // Two tiers covered by this override:
-  //   1. The legacy apps/web adapter surface (Sentry init + OTel + observability
-  //      adapter modules). Removed as the corresponding code migrates to
-  //      packages/observability/ and packages/security/.
-  //   2. The workspace package adapter surface (packages/<role>/src/adapters/*).
-  //      Each adapter file IS the chokepoint by design — vendor names appear
-  //      only in adapter filenames per META-1 (vendor-agnostic role-shaped
-  //      identifiers everywhere else). depcruise enforces the same boundary
-  //      at the transitive graph layer.
+  //   1. The Sentry init files at apps/web/sentry.{client,server,edge}.config.ts
+  //      + apps/web/instrumentation.ts. These are Next.js convention files
+  //      bound to their fixed paths and cannot live inside a workspace
+  //      package; they retain direct @sentry/nextjs import access.
+  //   2. The workspace package adapter surface
+  //      (packages/<role>/src/adapters/*). Each adapter file IS the
+  //      chokepoint by design — vendor names appear only in adapter
+  //      filenames per META-1 (vendor-agnostic role-shaped identifiers
+  //      everywhere else). depcruise enforces the same boundary at the
+  //      transitive graph layer.
   {
     files: [
-      'apps/web/lib/observability/**',
       'apps/web/sentry.*.config.ts',
       'apps/web/instrumentation.ts',
       'packages/*/src/adapters/**/*.ts',

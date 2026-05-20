@@ -1,7 +1,7 @@
-import { JsonLd } from '@/components/seo/JsonLd';
-import { WebVitalsReporter } from '@/lib/observability/web-vitals';
-import { buildOrganizationJsonLd } from '@/lib/seo/schemas';
+import { WebVitalsReporter } from '@quilty/observability';
 import { Spotlight } from '@/components/dev/Spotlight';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { buildOrganizationJsonLd } from '@/lib/seo/schemas';
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 

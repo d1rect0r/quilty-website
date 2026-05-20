@@ -2,40 +2,65 @@
  * Server-runtime composition root.
  *
  * Invoked from Server Components, Route Handlers, server actions, and the
- * proxy.ts handler. Wires server-only adapters: AWS SES (EmailSender),
- * Sentry server SDK (ErrorReporter), CloudWatch (Logger), DynamoDB-backed
- * stores (ConsentStore, RateLimiter), Turnstile (Captcha verify endpoint),
- * etc. See ADR-0010 for the composition-root rationale.
+ * proxy.ts handler. Wires server-side adapters: Sentry server SDK, the
+ * Amplitude analytics adapter (currently a logger-only stub until the
+ * BAA upgrade lands), CloudWatch logger, env-var feature flags. The
+ * Replay port wires the in-memory adapter on the server (Sentry Replay
+ * is browser-only). See ADR-0010 for the composition-root rationale.
  *
  * Discipline:
  *   - Adapter modules are imported here and ONLY here in apps/web. Other
  *     modules consume the typed ports through the Container returned by
- *     getContainer(). ESLint's no-restricted-imports rule + dep-cruiser's
- *     cross-package-imports-must-use-barrel rule enforce this together.
- *   - All cross-cutting concerns (PHI sanitization, consent gate, default-
- *     deny, replay mask-class floor) compose HERE, not at call sites.
- *
- * The Container is empty at the scaffold commit; subsequent extraction
- * commits add ports as their packages land.
+ *     getContainer().
+ *   - All cross-cutting concerns compose HERE via the wrapper factories
+ *     (wrapAnalytics, wrapErrorReporter, wrapLogger, wrapReplay) — never
+ *     at call sites. The Cerebral-lesson chokepoint is the wrapper
+ *     composition; the architectural seal is in ADR-0010.
  */
 
 import 'server-only';
 
+import {
+  makeAmplitudeAnalytics,
+  makeCloudWatchLogger,
+  makeDefaultDenyConsentReader,
+  makeEnvFlagEvaluator,
+  makeSentryErrorReporter,
+  wrapAnalytics,
+  wrapErrorReporter,
+  wrapLogger,
+} from '@quilty/observability';
 import { makeCspBuilder, makeHeadersBuilder, makeSanitizer } from '@quilty/security';
 import type { Container } from './lib/get-container';
 
 export function makeServerContainer(): Container {
+  const sanitizer = makeSanitizer();
+
+  // Logger is consumed by the Amplitude analytics stub for its pre-launch
+  // CloudWatch emission, so it's constructed first.
+  const wrappedLogger = wrapLogger({
+    adapter: makeCloudWatchLogger(),
+    sanitizer,
+  });
+
   return {
-    sanitizer: makeSanitizer(),
+    sanitizer,
     cspBuilder: makeCspBuilder(),
     headersBuilder: makeHeadersBuilder(),
-    // Filled as remaining @quilty/* packages land:
-    //   observability — Sentry server SDK + Amplitude server SDK +
-    //                   CloudWatch logger; each adapter wrapped with the
-    //                   sanitizer above per D67
-    //   consent       — DynamoDB-backed ConsentStore
-    //   email         — AWS SES EmailSender wrapped with PHI sanitizer per D67
-    //   captcha       — Turnstile verifyToken endpoint
-    //   rate-limit    — DynamoDB-backed RateLimiter
+    logger: wrappedLogger,
+    // Default-deny ConsentReader pending @quilty/consent extraction;
+    // structurally compatible with the real ConsentStore that lands
+    // in a later commit (composition root swaps stub → real store
+    // without changing the wrapper API).
+    analytics: wrapAnalytics({
+      adapter: makeAmplitudeAnalytics({ logger: wrappedLogger }),
+      consentReader: makeDefaultDenyConsentReader(),
+      sanitizer,
+    }),
+    errorReporter: wrapErrorReporter({
+      adapter: makeSentryErrorReporter(),
+      sanitizer,
+    }),
+    featureFlags: makeEnvFlagEvaluator(),
   };
 }

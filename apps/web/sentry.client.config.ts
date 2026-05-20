@@ -1,5 +1,6 @@
+import { makeSentryReplay, wrapReplay } from '@quilty/observability';
+import { sanitize } from '@quilty/security';
 import * as Sentry from '@sentry/nextjs';
-import { sanitize } from '@/lib/observability/sanitize';
 
 /**
  * Sentry client-side config per D42a + D68 + D67.
@@ -8,16 +9,18 @@ import { sanitize } from '@/lib/observability/sanitize';
  *   - replaysSessionSampleRate: 0 — no always-on replay (HIPAA-aligned)
  *   - replaysOnErrorSampleRate: 1.0 — capture replay only when an error
  *     fires (debugging value vs PHI surface area trade-off)
- *   - maskAllText / blockAllMedia / maskAllInputs default-on
+ *   - maskAllText / blockAllMedia / maskAllInputs default-on (enforced
+ *     by the wrapReplay floor in @quilty/observability)
  *   - Clinical-state-implying controls additionally carry the
- *     `sentry-block` class (see lib/observability/replay-classes.ts)
- *   - Loaded lazily via `Sentry.lazyLoadIntegration` — the integration
- *     constructor + DOM serializer (~36 KB gzipped) only ship to the
- *     browser when an error actually fires, since replaysSessionSampleRate
- *     is 0. Recovered bundle weight per Round-5 perf-bundle reviewer H2.
+ *     REPLAY_BLOCK_CLASS constant exported from @quilty/observability
+ *   - Loaded lazily via `Sentry.lazyLoadIntegration` (inside the
+ *     makeSentryReplay adapter) — the integration constructor + DOM
+ *     serializer (~36 KB gzipped) only ship to the browser when an
+ *     error actually fires, since replaysSessionSampleRate is 0
  *
  * PHI sanitization via beforeSend (D67):
- *   - Belt-and-suspenders with logError()'s upstream sanitize() pass
+ *   - Belt-and-suspenders with the @quilty/observability wrappers'
+ *     upstream sanitize() pass at the port boundary
  *   - Drops any breadcrumb or extra context containing PHI keys
  */
 
@@ -57,37 +60,33 @@ Sentry.init({
   },
 
   beforeBreadcrumb(breadcrumb) {
-    // Strip PHI-shaped fields from breadcrumb data before they're stored.
+    // Strip PHI-shaped fields from breadcrumb data + message. The message
+    // is free text the Sentry SDK populates from navigation events, fetch
+    // URLs, and console output — a fetch breadcrumb's message may contain
+    // a query-string fragment if D31's URL-no-PHI invariant is ever
+    // violated; sanitizing here defends in depth.
     if (breadcrumb.data) {
       breadcrumb.data = sanitize(breadcrumb.data) as Record<string, unknown>;
+    }
+    if (breadcrumb.message) {
+      breadcrumb.message = sanitize(breadcrumb.message);
     }
     return breadcrumb;
   },
 });
 
 /**
- * Lazy-load the Replay integration. `lazyLoadIntegration` returns a Promise
- * that resolves to the integration constructor only after the DOM
- * serializer chunk has been fetched. Combined with `replaysSessionSampleRate: 0`
- * + `replaysOnErrorSampleRate: 1.0`, this means the replay chunk is fetched
- * only when an error actually fires — recovering ~36 KB from the initial
- * client bundle (Round-5 perf-bundle reviewer H2).
+ * Replay integration is added through `wrapReplay` so the D68 floor
+ * (`sessionSampleRate: 0`, mask + block defaults) is enforced via the
+ * port wrapper rather than a raw `Sentry.addIntegration` call. The
+ * underlying adapter still uses `Sentry.lazyLoadIntegration` so the DOM
+ * serializer chunk (~36 KB gzipped) is fetched only when an error fires.
  *
- * If the lazy load fails (offline, CSP block, etc.) we silently swallow —
- * losing replay on errors is acceptable; losing the entire app is not.
+ * The wrapper is intentionally NOT wired through the Container — this is
+ * the single Replay init site by design. A dual path (config file +
+ * Container property) would create two init code paths with different
+ * enforcement coverage.
  */
 if (typeof window !== 'undefined') {
-  void Sentry.lazyLoadIntegration('replayIntegration')
-    .then((replayIntegration) => {
-      Sentry.addIntegration(
-        replayIntegration({
-          maskAllText: true,
-          blockAllMedia: true,
-          maskAllInputs: true,
-        }),
-      );
-    })
-    .catch(() => {
-      // Replay unavailable — Sentry continues to capture errors without it.
-    });
+  void wrapReplay({ adapter: makeSentryReplay() }).initialize();
 }

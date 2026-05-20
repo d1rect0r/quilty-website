@@ -9,10 +9,14 @@
  *      can pull from them; reverse is a structural violation. Mirrors
  *      D18 "wrap-don't-edit" — the PreToolUse hook protects file
  *      writes; this rule protects the import graph.
- *   2. Direct vendor SDK imports (@sentry/*, posthog-*) MUST live ONLY
- *      under apps/web/lib/observability/. ESLint catches per-file
- *      static imports; depcruise catches transitive imports too.
- *   3. No cycles. No orphans. (depcruise defaults.)
+ *   2. Direct vendor SDK imports (@sentry/*, @amplitude/*) MUST live
+ *      ONLY under packages/<role>/src/adapters/ + the Next.js Sentry
+ *      convention files (sentry.{client,server,edge}.config.ts +
+ *      instrumentation.ts). ESLint catches per-file static imports;
+ *      depcruise catches transitive imports too.
+ *   3. Cross-package imports go through the package barrel only
+ *      (index.ts or __fakes__/index.ts).
+ *   4. No cycles. No orphans (depcruise defaults).
  *
  * Run on demand via `pnpm depcruise`; CI runs `--validate` (exit non-
  * zero on rule violation).
@@ -36,19 +40,19 @@ module.exports = {
       },
     },
     {
-      name: 'no-direct-vendor-sdk-outside-observability',
+      name: 'no-direct-vendor-sdk-outside-adapter-chokepoint',
       comment:
-        'D67: vendor SDKs (@sentry/*, posthog-*) must be imported only through the observability adapter layer. Direct imports bypass PHI sanitization + consent gating.',
+        'D67 + D78: vendor SDKs must be imported only through the adapter chokepoint. The adapter surface comprises (a) packages/<role>/src/adapters/<vendor>.ts files for workspace-package adapters and (b) the Next.js convention files apps/web/sentry.{client,server,edge}.config.ts + apps/web/instrumentation.ts which are bound to fixed paths and cannot live inside a workspace package. Direct vendor imports anywhere else bypass the PHI sanitizer chokepoint and consent gating.',
       severity: 'error',
       from: {
         pathNot: [
-          '^apps/web/lib/observability/',
+          '^packages/[^/]+/src/adapters/',
           '^apps/web/sentry\\.(client|server|edge)\\.config\\.ts$',
           '^apps/web/instrumentation\\.ts$',
         ],
       },
       to: {
-        path: '^node_modules/(@sentry|posthog-js|posthog-node|amplitude-js)',
+        path: '^node_modules/(@sentry|@amplitude)',
       },
     },
     {
@@ -64,7 +68,7 @@ module.exports = {
     {
       name: 'no-orphans',
       comment:
-        'No source files that nothing else imports. Scaffolded-for-M2 deliverables (block library, lib/flags, replay-classes) are excluded — they exist to be consumed by Velite MDX + PostHog activation at M2-M3.',
+        'No source files that nothing else imports. Scaffolded deliverables (block library + lib/flags) are excluded — they exist to be consumed by Velite MDX content + the runtime-toggle flags adapter at their activation triggers.',
       severity: 'warn',
       from: {
         orphan: true,
@@ -88,15 +92,13 @@ module.exports = {
           'apps/web/next-env\\.d\\.ts$',
           '__tests__|\\.test\\.|\\.spec\\.',
           'tests/playwright/',
-          // M2-scoped scaffold — consumed at content-layer activation
+          // Scaffolded for future activation — consumed at content-layer
+          // activation when MDX content lands.
           'apps/web/components/blocks/',
           'apps/web/lib/flags/',
-          'apps/web/lib/observability/(flag|replay-classes)\\.ts$',
           'apps/web/lib/utils\\.ts$',
           // Indirectly consumed via Next.js conventions or framework hooks
           'apps/web/lib/seo/schemas\\.ts$',
-          'apps/web/lib/security/(csp|headers)\\.ts$',
-          'apps/web/lib/observability/sanitize\\.ts$',
           'apps/web/components/site/SkipLink\\.tsx$',
           'apps/web/components/seo/JsonLd\\.tsx$',
           // Vitest setup files are loaded via vitest.config.ts setupFiles

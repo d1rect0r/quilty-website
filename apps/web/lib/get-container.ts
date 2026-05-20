@@ -24,6 +24,7 @@
  *   own globalThis — so the singleton is per-runtime by construction.
  */
 
+import type { Analytics, ErrorReporter, FeatureFlagEvaluator, Logger } from '@quilty/observability';
 import type { CspBuilder, HeadersBuilder, Sanitizer } from '@quilty/security';
 
 /**
@@ -31,9 +32,9 @@ import type { CspBuilder, HeadersBuilder, Sanitizer } from '@quilty/security';
  *
  * Widened at each extraction commit. Current ports come from:
  *   - @quilty/security        — Sanitizer, CspBuilder, HeadersBuilder
+ *   - @quilty/observability   — Analytics, ErrorReporter, Logger, FeatureFlagEvaluator
  *
  * Subsequent extraction commits add:
- *   - @quilty/observability   — Analytics, ErrorReporter, Logger, Replay, FeatureFlagEvaluator
  *   - @quilty/consent         — ConsentStore
  *   - @quilty/email           — EmailSender
  *   - @quilty/captcha         — Captcha
@@ -43,11 +44,29 @@ import type { CspBuilder, HeadersBuilder, Sanitizer } from '@quilty/security';
  * factory consumers instantiate per call site (the allowlist differs per
  * caller — auth callback vs sign-out vs OAuth state extension), so it is
  * not on Container.
+ *
+ * The observability ports are bound to factory wrappers (wrapAnalytics,
+ * wrapErrorReporter, wrapLogger) — never the raw adapters, per the
+ * ADR-0010 architectural seal.
+ *
+ * `Replay` is intentionally NOT on the Container. Sentry Replay's
+ * initialization lives in `apps/web/sentry.client.config.ts` (the
+ * Next.js Sentry SDK convention file). That file composes through
+ * `wrapReplay` so the D68 floor enforcement still applies, but there
+ * is no programmatic `container.replay.initialize()` surface — a
+ * dual-path Container property would create two init sites with
+ * different enforcement coverage. The wrapper + adapter remain exported
+ * from `@quilty/observability` for test composition and any future
+ * non-Sentry Replay vendor.
  */
 export interface Container {
   readonly sanitizer: Sanitizer;
   readonly cspBuilder: CspBuilder;
   readonly headersBuilder: HeadersBuilder;
+  readonly analytics: Analytics;
+  readonly errorReporter: ErrorReporter;
+  readonly logger: Logger;
+  readonly featureFlags: FeatureFlagEvaluator;
 }
 
 declare global {
