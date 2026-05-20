@@ -78,6 +78,13 @@ module.exports = {
           'apps/web/instrumentation-client\\.ts$',
           'apps/web/proxy\\.ts$',
           'apps/web/sentry\\..+\\.ts$',
+          // Composition roots + container accessor — entrypoints consumed
+          // by Next.js runtime hooks (instrumentation register, Route
+          // Handler init, proxy bootstrap). They are wired in as the
+          // workspace packages land in subsequent extraction commits;
+          // until then they are intentionally orphan.
+          'apps/web/composition\\.(server|client|edge)\\.ts$',
+          'apps/web/lib/get-container\\.ts$',
           'apps/web/next-env\\.d\\.ts$',
           '__tests__|\\.test\\.|\\.spec\\.',
           'tests/playwright/',
