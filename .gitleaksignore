@@ -1,0 +1,11 @@
+# gitleaks fingerprint allowlist
+#
+# Each line is `<path>:<rule-id>:<line>` from `gitleaks protect --verbose` output.
+# Add a fingerprint only when the match is a verified false positive — a public
+# identifier, a documented constant, or a non-secret string that crosses the
+# entropy heuristic by coincidence. Never bypass a real secret here; rotate it
+# instead.
+
+# Public elliptic curve identifier (NIST P-256) used by AWS Cognito ACM keys.
+# Not a secret — published algorithm name in the AWS Cognito public API.
+docs/research/round_6_foundation_audit/_raw/11-quilty-aws-auth-verification.md:generic-api-key:180
