@@ -2,8 +2,8 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "workspaces": {
     ".": {
-      "entry": ["velite.config.ts"],
-      "project": ["*.ts", "*.mjs"],
+      "entry": ["velite.config.ts", "turbo/generators/config.ts"],
+      "project": ["*.ts", "*.mjs", "turbo/generators/**/*.ts"],
       "ignoreDependencies": [
         "eslint-import-resolver-typescript",
         "eslint-plugin-import",

@@ -1,0 +1,24 @@
+// Parameterized contract test for the {{ pascalCase portName }} port.
+
+import { describe, expect, it } from 'vitest';
+
+import { make{{ pascalCase portName }}Fake } from '../__fakes__/{{ kebabCase portName }}.fake.js';
+import type { {{ pascalCase portName }} } from '../ports.js';
+
+interface AdapterFactory {
+  readonly name: string;
+  readonly make: () => {{ pascalCase portName }};
+}
+
+const adapters: readonly AdapterFactory[] = [
+  { name: 'test fake', make: () => make{{ pascalCase portName }}Fake() },
+  // Add real adapters here (e.g. `{ name: 'vendor-x', make: () => makeVendorX{{ pascalCase portName }}() }`).
+];
+
+describe.each(adapters)('{{ pascalCase portName }} contract — $name', ({ make }) => {
+  it('constructs an adapter implementing the port shape', () => {
+    const instance = make();
+    expect(instance).toBeDefined();
+    // Replace with real contract assertions.
+  });
+});

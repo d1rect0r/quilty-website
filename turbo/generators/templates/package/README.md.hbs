@@ -1,0 +1,53 @@
+# @quilty/{{ kebabCase name }}
+
+{{ description }}
+
+## Architecture
+
+Hexagonal-by-boundary. Public surface area:
+
+- **Ports** (`src/ports.ts`) — typed interfaces consumers depend on.
+- **Domain** (`src/domain/`) — pure logic + factory wrappers (PHI sanitize, consent gate, cross-cutting).
+- **Adapters** (`src/adapters/<vendor>.ts`) — vendor implementations. Vendor SDK imports are confined here per META-1.
+- **Fakes** (`src/__fakes__/<port>.fake.ts`) — in-memory implementations exported via the `./testing` subpath; consumed by contract tests and by apps that wire fakes in dev.
+
+## Public API
+
+Consumers import the factory + type from the package barrel:
+
+```ts
+import { make{{ pascalCase portName }} } from '@quilty/{{ kebabCase name }}';
+import type { {{ pascalCase portName }} } from '@quilty/{{ kebabCase name }}';
+
+const {{ camelCase portName }}: {{ pascalCase portName }} = make{{ pascalCase portName }}();
+```
+
+`{{ pascalCase portName }}` is a type-only re-export, so it MUST be imported with `import type` (enforced by `verbatimModuleSyntax: true` in `tsconfig.base.json`).
+
+Test consumers import fakes from the testing subpath:
+
+```ts
+import { make{{ pascalCase portName }}Fake } from '@quilty/{{ kebabCase name }}/testing';
+```
+
+Deep imports into the package (`@quilty/{{ kebabCase name }}/src/...`) are forbidden by `.dependency-cruiser.cjs` rule `cross-package-imports-must-use-barrel`.
+
+## Adapter substitution
+
+Adapter selection is package-internal. The composition root (`apps/web/composition.*.ts`) imports a factory function from the package barrel; the factory reads its config (env vars, feature flags, runtime detection) and selects the underlying adapter. Consumers never reach across the package boundary into `adapters/`.
+
+```ts
+// apps/web/composition.server.ts
+import { make{{ pascalCase portName }} } from '@quilty/{{ kebabCase name }}';
+
+const {{ camelCase portName }} = make{{ pascalCase portName }}({
+  // factory inspects env to pick the in-memory adapter vs the real vendor adapter
+});
+```
+
+Deep imports (e.g. `@quilty/{{ kebabCase name }}/adapters/some-vendor`) are both ESM-`exports`-forbidden (the `package.json` lists only `"."` and `"./testing"`) AND blocked by `.dependency-cruiser.cjs` rule `cross-package-imports-must-use-barrel`. Two layers of enforcement, intentional.
+
+## Tests
+
+- `src/__tests__/<port>.contract.test.ts` — parameterized over every adapter via `describe.each`. Run with `pnpm --filter @quilty/{{ kebabCase name }} test`.
+- META-3 baseline: ≥85% line coverage. Load-bearing packages (security, observability, consent, email, rate-limit) target ≥95%.

@@ -1,0 +1,13 @@
+// In-memory fake for the {{ pascalCase portName }} port.
+
+import type { {{ pascalCase portName }} } from '../ports.js';
+
+export interface {{ pascalCase portName }}FakeOptions {
+  readonly _placeholder?: never;
+}
+
+export function make{{ pascalCase portName }}Fake(_options: {{ pascalCase portName }}FakeOptions = {}): {{ pascalCase portName }} {
+  return {
+    _placeholder: true,
+  };
+}

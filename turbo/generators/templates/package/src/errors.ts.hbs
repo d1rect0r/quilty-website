@@ -1,0 +1,8 @@
+// Typed errors for @quilty/{{ kebabCase name }}.
+//
+// One discriminated union per package; consumers narrow by `kind` and let
+// the type system enumerate every failure path.
+
+export type {{ pascalCase portName }}Error =
+  | { readonly kind: 'unknown'; readonly cause?: unknown }
+  | { readonly kind: 'invalid_input'; readonly reason: string };

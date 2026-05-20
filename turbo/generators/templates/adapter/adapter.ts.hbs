@@ -1,0 +1,30 @@
+// {{ kebabCase vendor }} adapter for {{ pascalCase portName }}.
+//
+// Vendor SDK imports are confined to this file per META-1. The ESLint
+// override at eslint.config.mjs allows vendor SDK imports inside
+// packages/<role>/src/adapters/<vendor>.ts files only; if you find yourself
+// reaching for a vendor SDK elsewhere, route the call through this adapter.
+
+import type { {{ pascalCase portName }} } from '../ports.js';
+
+export interface {{ pascalCase portName }}{{ pascalCase vendor }}Options {
+  // Vendor-specific configuration knobs (API key shape, endpoint, region, etc.)
+  readonly _placeholder?: never;
+}
+
+export function make{{ pascalCase vendor }}{{ pascalCase portName }}(
+  _options: {{ pascalCase portName }}{{ pascalCase vendor }}Options = {},
+): {{ pascalCase portName }} {
+  // TODO: implement adapter against the vendor SDK.
+  //
+  // Discipline:
+  //   - Throw `NotImplementedError` from any operation until the real
+  //     implementation lands. Contract tests should skip this adapter
+  //     until then via describe.skipIf in the parameterized test.
+  //   - All inbound user data must go through @quilty/security's Sanitizer
+  //     BEFORE it reaches the vendor SDK (D67 chokepoint).
+
+  return {
+    _placeholder: true,
+  };
+}

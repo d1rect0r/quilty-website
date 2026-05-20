@@ -1,0 +1,15 @@
+// In-memory adapter for {{ pascalCase portName }}.
+//
+// This is the production-grade fallback adapter — NOT a degenerate test stub.
+// Apps wire this adapter when the real vendor is unavailable (sandbox lift
+// pending, DDB table not yet provisioned, dev-time fast-loop, etc.). Test
+// suites consume it via the `@quilty/{{ kebabCase name }}/testing` subpath.
+
+import type { {{ pascalCase portName }} } from '../ports.js';
+
+export function makeInMemory{{ pascalCase portName }}(): {{ pascalCase portName }} {
+  return {
+    _placeholder: true,
+    // Replace with real in-memory operation implementations.
+  };
+}

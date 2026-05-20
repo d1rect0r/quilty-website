@@ -1,0 +1,22 @@
+// Vendor-specific tests for the {{ kebabCase vendor }} {{ pascalCase portName }} adapter.
+//
+// Vendor-specific tests assert vendor-specific behavior (env-var shape, SDK
+// call patterns, error mapping). The cross-adapter contract assertions live
+// in src/__tests__/{{ kebabCase portName }}.contract.test.ts and run parameterized
+// across every adapter.
+
+import { describe, expect, it } from 'vitest';
+
+import { make{{ pascalCase vendor }}{{ pascalCase portName }} } from './{{ kebabCase vendor }}.js';
+
+describe('{{ pascalCase vendor }} {{ pascalCase portName }} adapter', () => {
+  it('constructs without throwing', () => {
+    const instance = make{{ pascalCase vendor }}{{ pascalCase portName }}({});
+    expect(instance).toBeDefined();
+  });
+
+  // Add vendor-specific assertions:
+  //   - configuration validation
+  //   - error mapping from vendor SDK errors to port errors
+  //   - retry / backoff behavior unique to this vendor
+});

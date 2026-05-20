@@ -1,0 +1,25 @@
+
+// ----------------------------------------------------------------------
+// {{ pascalCase portName }} port (added by `turbo gen port`)
+//
+// Manual follow-up after generation:
+//   1. Extend the {{ pascalCase portName }}Error discriminated union in errors.ts
+//      with kinds specific to this port's failure modes.
+//   2. Re-export {{ pascalCase portName }} + {{ pascalCase portName }}Result + {{ pascalCase portName }}Error
+//      from src/index.ts so consumers can import them from the package barrel.
+// ----------------------------------------------------------------------
+
+// {{ pascalCase portName }}Error must be added to src/errors.ts before this file
+// will typecheck. The discriminated-union pattern (see the package's initial
+// error type) is the project convention; an inline error shape here would
+// lose the exhaustive-narrowing benefit.
+import type { {{ pascalCase portName }}Error } from './errors.js';
+
+export type {{ pascalCase portName }}Result<T> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly error: {{ pascalCase portName }}Error };
+
+export interface {{ pascalCase portName }} {
+  // TODO: define operations specific to this port.
+  readonly _placeholder: true;
+}

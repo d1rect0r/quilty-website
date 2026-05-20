@@ -1,0 +1,31 @@
+// Public barrel for @quilty/{{ kebabCase name }}.
+//
+// Consumers import from this file (or from "@quilty/{{ kebabCase name }}/testing"
+// for the in-memory fakes subpath). Deep imports into src/* are forbidden by
+// .dependency-cruiser.cjs rule "cross-package-imports-must-use-barrel".
+
+import { makeInMemory{{ pascalCase portName }} } from './adapters/in-memory.js';
+import type { {{ pascalCase portName }} } from './ports.js';
+
+export type { {{ pascalCase portName }}, {{ pascalCase portName }}Result } from './ports.js';
+export type { {{ pascalCase portName }}Error } from './errors.js';
+
+/**
+ * Factory: returns a default {{ pascalCase portName }} implementation.
+ *
+ * The scaffolded default selects the in-memory adapter. When real vendor
+ * adapters land, replace the body with adapter selection (env-var driven,
+ * runtime-detected, etc.) and wire cross-cutting concerns here — the
+ * factory is the single package-level chokepoint per the composition-root
+ * convention (apps/web/composition.*.ts consumes this function, not the
+ * adapters directly).
+ *
+ * Cross-cutting wrappers to add as the package matures (delete the ones
+ * that don't apply):
+ *   - PHI sanitization via @quilty/security (D67 chokepoint)
+ *   - Consent gate via @quilty/consent (D35 / Cerebral lesson)
+ *   - Default-deny semantics for analytics/marketing surfaces
+ */
+export function make{{ pascalCase portName }}(): {{ pascalCase portName }} {
+  return makeInMemory{{ pascalCase portName }}();
+}

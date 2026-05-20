@@ -1,0 +1,22 @@
+// In-memory fake for the {{ pascalCase portName }} port.
+//
+// Distinct from src/adapters/in-memory.ts: the adapter is production-grade
+// (real semantics), while this fake is test-shaped (deterministic, can be
+// configured with seed data per test). Contract tests consume both via
+// describe.each so the same assertions run against every adapter.
+
+import type { {{ pascalCase portName }} } from '../ports.js';
+
+export interface {{ pascalCase portName }}FakeOptions {
+  // Add test-time configuration knobs here (seed data, deterministic clock,
+  // error-injection hooks, etc.). Keep options minimal — over-configurable
+  // fakes drift from the production adapter's behavior.
+  readonly _placeholder?: never;
+}
+
+export function make{{ pascalCase portName }}Fake(_options: {{ pascalCase portName }}FakeOptions = {}): {{ pascalCase portName }} {
+  return {
+    _placeholder: true,
+    // Implement port operations against in-memory state.
+  };
+}

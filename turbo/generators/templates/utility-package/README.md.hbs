@@ -1,0 +1,19 @@
+# @quilty/{{ kebabCase name }}
+
+{{ description }}
+
+## Utility package
+
+This package exposes typed exports (builders, helpers, schemas) without the ports/adapters/fakes layer that hexagonal packages use. It has no vendor seams and no consent gating responsibilities; consumers import from the package barrel like any other library.
+
+## Public API
+
+```ts
+import { /* exports */ } from '@quilty/{{ kebabCase name }}';
+```
+
+Deep imports into `src/*` are forbidden by `.dependency-cruiser.cjs` rule `cross-package-imports-must-use-barrel`. Add exports to `src/index.ts` to widen the public surface.
+
+## Tests
+
+`pnpm --filter @quilty/{{ kebabCase name }} test`. META-3 baseline ≥85% coverage.

@@ -1,0 +1,8 @@
+// Testing barrel for @quilty/{{ kebabCase name }}.
+//
+// Exposed via the "@quilty/{{ kebabCase name }}/testing" subpath export. The
+// .dependency-cruiser.cjs rule "cross-package-imports-must-use-barrel"
+// allowlists exactly two paths per package: src/index.ts and
+// src/__fakes__/index.ts. Consumer test files must import from one of those.
+
+export { make{{ pascalCase portName }}Fake } from './{{ kebabCase portName }}.fake.js';

@@ -1,0 +1,28 @@
+// Ports (typed interfaces) exported by @quilty/{{ kebabCase name }}.
+//
+// Naming discipline (META-1):
+//   ports are role-shaped, never vendor-shaped. {{ pascalCase portName }} is the role.
+//   Vendor SDK imports appear ONLY in src/adapters/<vendor>.ts files.
+
+import type { {{ pascalCase portName }}Error } from './errors.js';
+
+/**
+ * Standard Result envelope. Every port operation that can fail returns a
+ * Result so callers get exhaustive type-narrowing without try/catch.
+ */
+export type {{ pascalCase portName }}Result<T> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly error: {{ pascalCase portName }}Error };
+
+/**
+ * {{ pascalCase portName }} port.
+ *
+ * Replace this stub interface with the real surface area. Keep the interface
+ * narrow: each method should map to a single user-facing operation.
+ */
+export interface {{ pascalCase portName }} {
+  // TODO: define operations specific to this port.
+  // Example shape (delete and replace):
+  //   ping(): Promise<{{ pascalCase portName }}Result<void>>;
+  readonly _placeholder: true;
+}
