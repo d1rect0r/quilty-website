@@ -52,6 +52,16 @@ module.exports = {
       },
     },
     {
+      name: 'cross-package-imports-must-use-barrel',
+      comment:
+        'Workspace packages expose their public API through index.ts (or src/__fakes__/index.ts for consumer tests). Deep imports into a package internal path bypass the public-API contract and re-create the chokepoint risk D67/D78 close. ESLint enforces this at the import statement layer; depcruise enforces it across the transitive graph.',
+      severity: 'error',
+      from: { path: '^apps/web/' },
+      to: {
+        path: '^packages/[^/]+/src/(?!index\\.ts$|__fakes__/index\\.ts$)',
+      },
+    },
+    {
       name: 'no-orphans',
       comment:
         'No source files that nothing else imports. Scaffolded-for-M2 deliverables (block library, lib/flags, replay-classes) are excluded — they exist to be consumed by Velite MDX + PostHog activation at M2-M3.',

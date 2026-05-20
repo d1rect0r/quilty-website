@@ -172,15 +172,22 @@ export default tseslint.config(
       'no-console': 'off',
     },
   },
-  // Allow vendor SDK imports inside lib/observability/ (this is where the
-  // adapter layer lives by design). Per Round-5 reviewer M2: PostHog flag
-  // evaluation must live in lib/observability/flag.ts (already inside
-  // this override), NOT in lib/flags/ where features.ts is env-var-only.
+  // Allow vendor SDK imports inside the adapter chokepoint surface only.
+  // Two tiers covered by this override:
+  //   1. The legacy apps/web adapter surface (Sentry init + OTel + observability
+  //      adapter modules). Removed as the corresponding code migrates to
+  //      packages/observability/ and packages/security/.
+  //   2. The workspace package adapter surface (packages/<role>/src/adapters/*).
+  //      Each adapter file IS the chokepoint by design — vendor names appear
+  //      only in adapter filenames per META-1 (vendor-agnostic role-shaped
+  //      identifiers everywhere else). depcruise enforces the same boundary
+  //      at the transitive graph layer.
   {
     files: [
       'apps/web/lib/observability/**',
       'apps/web/sentry.*.config.ts',
       'apps/web/instrumentation.ts',
+      'packages/*/src/adapters/**/*.ts',
     ],
     rules: {
       'no-restricted-imports': 'off',
