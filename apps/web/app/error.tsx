@@ -69,12 +69,13 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
           id="error-heading"
           ref={headingRef}
           tabIndex={-1}
-          // focus-visible (not focus) so Windows High Contrast Mode's
-          // forced-colors UA ring still appears for keyboard users
-          // (WCAG 1.4.11). The element is programmatically focused
-          // on mount + not tab-reachable, so mouse users never see
-          // the ring; HCM users do.
-          className="text-fg-default mt-2 text-4xl font-semibold focus-visible:outline-none"
+          // outline:transparent (not outline:none) so the Windows High
+          // Contrast Mode forced-colors UA can recolor the outline in
+          // place (WCAG 1.4.11). Mouse users see nothing visible in
+          // normal rendering; HCM users see the recolored ring. The
+          // element is programmatically focused on mount + not
+          // tab-reachable, so this fires only on the mount focus.
+          className="text-fg-default focus-visible:outline-border-focus mt-2 text-4xl font-semibold outline-2 outline-offset-2 outline-transparent"
         >
           Unexpected error
         </h1>

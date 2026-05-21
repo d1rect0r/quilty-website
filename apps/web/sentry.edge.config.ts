@@ -29,6 +29,11 @@ Sentry.init({
     }
     if (typeof event.message === 'string') event.message = sanitize(event.message);
     if (event.request) {
+      // Edge handlers can also carry request body data when a streamed
+      // request errors mid-flight; null unconditionally before
+      // sanitize() since the key-denylist won't reach a body whose
+      // field name is not on the denylist.
+      event.request.data = undefined;
       if (event.request.url) {
         const qIdx = event.request.url.indexOf('?');
         if (qIdx !== -1) event.request.url = event.request.url.slice(0, qIdx);

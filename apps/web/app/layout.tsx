@@ -3,6 +3,7 @@ import {
   buildIconMetadata,
   buildOpenGraphMetadata,
   buildOrganizationJsonLd,
+  buildWebSiteJsonLd,
   JsonLd,
 } from '@quilty/seo';
 import { Spotlight } from '@/components/dev/Spotlight';
@@ -85,7 +86,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
+        {/* Organization + WebSite emitted at the root so the
+            graph-connected `isPartOf` reference from per-page
+            MedicalWebPage / FAQPage nodes always resolves — AI
+            citation graphs devalue dangling references. */}
         <JsonLd data={buildOrganizationJsonLd(siteUrl)} />
+        <JsonLd data={buildWebSiteJsonLd(siteUrl)} />
         <WebVitalsReporter />
         {/* Sentry Spotlight — dev-only debug overlay. The component
             gates internally on NODE_ENV; the production minifier

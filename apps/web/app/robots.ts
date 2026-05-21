@@ -45,7 +45,12 @@ export default function robots(): MetadataRoute.Robots {
   const allowRule = (userAgent: string): AllowRule => ({
     userAgent,
     allow: ['/'],
-    disallow: ['/account/', '/api/'],
+    // `/dev/` blocks the dev-only `/dev/boom` throw route + any future
+    // dev-only diagnostic page. The route is NODE_ENV-gated at the
+    // page level, but blocking at the robots layer too means a
+    // misconfigured build that ships NODE_ENV=development cannot be
+    // indexed by mistake.
+    disallow: ['/account/', '/api/', '/dev/'],
   });
 
   const blockRule = (userAgent: string): BlockRule => ({

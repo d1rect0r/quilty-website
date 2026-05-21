@@ -235,11 +235,12 @@ function defineSiteResources(stage: string) {
             lgArgs.tags = { ...lgArgs.tags, ...tags };
             // Audit-clock protection: any stage that could host real
             // auth/consent/step-up events must retain the log group on
-            // teardown. Preview stages are ephemeral PR builds with no
-            // real user events, so they keep the default destroy-on-
-            // remove behavior. `dev` + every `prod*` stage retains.
-            const isAuditStage =
-              stage === 'dev' || stage.startsWith('prod') || stage === 'production';
+            // teardown. The closed-enum guard matches exactly `dev`,
+            // `production`, and `prod` — prefix-matching `prod*` was
+            // tempting but would silently retain ad-hoc `prod-hotfix`
+            // ephemeral clones we may want to teardown freely. Add new
+            // audit-bearing stage names here explicitly.
+            const isAuditStage = stage === 'dev' || stage === 'production' || stage === 'prod';
             if (isAuditStage) {
               opts.retainOnDelete = true;
             }

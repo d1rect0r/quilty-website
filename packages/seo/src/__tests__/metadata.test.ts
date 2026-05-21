@@ -18,17 +18,14 @@ describe('buildOpenGraphMetadata', () => {
     const ogImages = md.openGraph?.images;
     expect(Array.isArray(ogImages)).toBe(true);
     if (Array.isArray(ogImages)) {
-      const first = ogImages[0] as {
-        url: string;
-        width: number;
-        height: number;
-        alt: string;
-        type: string;
-      };
-      expect(first.width).toBe(1200);
-      expect(first.height).toBe(630);
-      expect(first.alt).toBe('Quilty placeholder share card.');
-      expect(first.type).toBe('image/png');
+      expect(ogImages).toHaveLength(1);
+      const first = ogImages[0] as
+        | { url: string; width: number; height: number; alt: string; type: string }
+        | undefined;
+      expect(first?.width).toBe(1200);
+      expect(first?.height).toBe(630);
+      expect(first?.alt).toBe('Quilty placeholder share card.');
+      expect(first?.type).toBe('image/png');
     }
     const twitter = md.twitter as Record<string, unknown> | undefined;
     expect(twitter?.['card']).toBe('summary_large_image');

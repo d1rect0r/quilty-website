@@ -31,6 +31,13 @@ Sentry.init({
     }
     if (typeof event.message === 'string') event.message = sanitize(event.message);
     if (event.request) {
+      // The Sentry server SDK can auto-attach the parsed POST body to
+      // event.request.data when a Route Handler throws mid-request.
+      // Free text in a Route Handler body is the most direct PHI
+      // carrier path — null the field unconditionally before the
+      // sanitize() pass (the key-denylist sanitize won't catch a body
+      // field whose name is not on the denylist).
+      event.request.data = undefined;
       // Strip query string from request.url — D31 forbids PHI in URLs,
       // but defence-in-depth catches a future URL that drifts.
       if (event.request.url) {

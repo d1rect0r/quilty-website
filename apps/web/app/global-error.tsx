@@ -166,8 +166,8 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               prefetch={false}
               className="global-error-cta"
               style={{
-                minHeight: '2.75rem',
-                minWidth: '2.75rem',
+                minHeight: '44px',
+                minWidth: '44px',
                 padding: '0.5rem 1.25rem',
                 borderRadius: '0.375rem',
                 border: '1px solid #ccc',
@@ -185,8 +185,8 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               href={supportHref}
               className="global-error-cta"
               style={{
-                minHeight: '2.75rem',
-                minWidth: '2.75rem',
+                minHeight: '44px',
+                minWidth: '44px',
                 padding: '0.5rem 1.25rem',
                 display: 'inline-flex',
                 alignItems: 'center',

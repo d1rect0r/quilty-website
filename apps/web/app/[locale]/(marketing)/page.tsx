@@ -1,9 +1,4 @@
-import {
-  buildBreadcrumbsJsonLd,
-  buildSoftwareApplicationJsonLd,
-  buildWebSiteJsonLd,
-  JsonLd,
-} from '@quilty/seo';
+import { buildBreadcrumbsJsonLd, buildSoftwareApplicationJsonLd, JsonLd } from '@quilty/seo';
 import type { Metadata } from 'next';
 
 // Use the root layout's title template default (no `title` here so the page
@@ -29,7 +24,8 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 export default function HomePage() {
   return (
     <>
-      <JsonLd data={buildWebSiteJsonLd(SITE_URL)} />
+      {/* WebSite is now emitted in app/layout.tsx so every route has
+          a resolvable `isPartOf` anchor — do not re-emit here. */}
       <JsonLd data={buildSoftwareApplicationJsonLd(SITE_URL)} />
       <JsonLd data={buildBreadcrumbsJsonLd(SITE_URL, [{ name: 'Home', url: `${SITE_URL}/en` }])} />
 
