@@ -175,13 +175,14 @@ export default tseslint.config(
       },
     },
   },
-  // Allow console in the CloudWatch logger adapter + the WebVitalsReporter
-  // component — the two chokepoints that own direct console.log emission.
+  // Allow console in the Logger adapter chokepoints + the WebVitalsReporter
+  // component — the three chokepoints that own direct console.log emission.
   // All other code must call container.logger.* methods, which compose the
   // PHI sanitizer wrapper around the chokepoint adapter.
   {
     files: [
       'packages/observability/src/adapters/cloudwatch-logger.ts',
+      'packages/observability/src/adapters/browser-logger.ts',
       'packages/observability/src/components/WebVitalsReporter.tsx',
     ],
     rules: {

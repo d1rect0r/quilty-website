@@ -19,7 +19,7 @@ export default function AccountSubscriptionPage() {
       <h1 className="text-fg-default text-3xl font-semibold">Subscription</h1>
       <p className="text-fg-muted mt-4">
         Stripe Customer Portal (hosted redirect per D44) + RevenueCat IAP routing copy + plan-switch
-        + cancel flow all land in M7. M1 reserves the URL.
+        + cancel flow all land at the subscription activation. URL is reserved.
       </p>
     </PortalSidebar>
   );

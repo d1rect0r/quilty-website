@@ -11,8 +11,9 @@ import type { MetadataRoute } from 'next';
 
 const SUPPORTED_LOCALES = ['en'] as const;
 
-// Public marketing routes — reserved at M1 even when content is a stub.
-// Locking URLs prevents painful 301-chains later.
+// Public marketing routes — declared even when content is a stub so
+// the URL surface is locked. Locking URLs prevents painful 301-chains
+// later.
 const MARKETING_ROUTES = [
   '',
   '/features',

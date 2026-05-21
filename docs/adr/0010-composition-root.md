@@ -6,7 +6,7 @@
 - **Deciders:** Volodymyr Petrychenko
 - **Originating discussion:** `docs/research/round_6_foundation_audit/_raw/17-composition-and-test-patterns.md` § Composition root pattern
 - **Related decisions:** D77 (composition root pattern), D78 (vendor SDK chokepoint), D79 (cross-package barrel rule)
-- **Related ADRs:** [ADR-0001](0001-monorepo-shape.md). Forward references to `0008-modular-monolith.md` and `0009-hexagonal-by-boundary.md` — both pending; they land in the closing-wave ADR batch alongside the full body of this ADR. Link these once those files exist.
+- **Related ADRs:** [ADR-0001](0001-monorepo-shape.md), [ADR-0008](0008-modular-monolith.md), [ADR-0009](0009-hexagonal-by-boundary.md), [ADR-0011](0011-container-discriminated-union.md)
 - **Related research:** `docs/research/round_6_foundation_audit/_raw/12-enterprise-consumer-app-architecture.md` § Composition roots in enterprise React apps; `docs/research/round_6_foundation_audit/_raw/14-typescript-hexagonal-implementation.md` § Container shapes
 - **Software versions assumed:** Next.js 16.2, TypeScript 5.7, Node 24
 
@@ -90,5 +90,3 @@ The raw SDK instance must never appear as a `Container` property. Reviewers of C
 - The 3×3 trigger: when at least 3 packages each expose 3 or more ports AND the manual composition factory exceeds ~150 lines, evaluate a DI container library. `@evyweb/ioctopus` is the leading candidate (referenced in `_raw/17-composition-and-test-patterns.md`).
 - If Next.js publishes an official RSC composition primitive that subsumes this pattern.
 - If `globalThis` singleton races appear in production (Sentry breadcrumb traces showing duplicate container init) — investigate before adopting another mechanism.
-
-_Full ADR body — including the deeper rationale, the empirical chunk-duplication reproduction notes, and the Cal.com / Stripe / Linear precedent comparison — lands in the M1.5 closing-wave ADR batch (Commit 37 of the sprint plan). This stub captures the load-bearing surface so the implementation at Commit 3 has a permanent reference point._

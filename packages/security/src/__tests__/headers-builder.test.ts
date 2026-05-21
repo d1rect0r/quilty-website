@@ -2,28 +2,29 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildHstsValue, buildSecurityHeaders, currentHstsPhase } from '../domain/headers-builder';
 
 describe('buildHstsValue', () => {
-  it('starts at max-age=300 in the initial phase', () => {
-    expect(buildHstsValue('m1')).toBe('max-age=300');
+  it('starts at max-age=300 in the scaffold phase', () => {
+    expect(buildHstsValue('scaffold')).toBe('max-age=300');
   });
 
   it('progresses through ramp phases', () => {
-    expect(buildHstsValue('m1')).toBe('max-age=300');
-    expect(buildHstsValue('m2-m6')).toBe('max-age=86400');
-    expect(buildHstsValue('m7')).toBe('max-age=604800');
-    expect(buildHstsValue('m8-prelaunch')).toContain('max-age=31536000');
-    expect(buildHstsValue('m8-prelaunch')).toContain('includeSubDomains');
-    expect(buildHstsValue('m8-launch')).toContain('max-age=63072000');
-    expect(buildHstsValue('m8-launch')).toContain('includeSubDomains');
-    expect(buildHstsValue('m8-launch')).toContain('preload');
+    expect(buildHstsValue('scaffold')).toBe('max-age=300');
+    expect(buildHstsValue('short-ramp')).toBe('max-age=86400');
+    expect(buildHstsValue('medium-ramp')).toBe('max-age=604800');
+    expect(buildHstsValue('long-ramp')).toContain('max-age=31536000');
+    expect(buildHstsValue('long-ramp')).toContain('includeSubDomains');
+    expect(buildHstsValue('preload')).toContain('max-age=63072000');
+    expect(buildHstsValue('preload')).toContain('includeSubDomains');
+    expect(buildHstsValue('preload')).toContain('preload');
   });
 
-  it('only emits preload directive in the launch phase', () => {
-    // preload submission is irreversible — never emit before launch.
-    expect(buildHstsValue('m1')).not.toContain('preload');
-    expect(buildHstsValue('m2-m6')).not.toContain('preload');
-    expect(buildHstsValue('m7')).not.toContain('preload');
-    expect(buildHstsValue('m8-prelaunch')).not.toContain('preload');
-    expect(buildHstsValue('m8-launch')).toContain('preload');
+  it('only emits preload directive in the final phase', () => {
+    // preload submission is irreversible — never emit before the
+    // explicit `preload` phase.
+    expect(buildHstsValue('scaffold')).not.toContain('preload');
+    expect(buildHstsValue('short-ramp')).not.toContain('preload');
+    expect(buildHstsValue('medium-ramp')).not.toContain('preload');
+    expect(buildHstsValue('long-ramp')).not.toContain('preload');
+    expect(buildHstsValue('preload')).toContain('preload');
   });
 });
 
@@ -35,19 +36,19 @@ describe('currentHstsPhase', () => {
     vi.unstubAllEnvs();
   });
 
-  it('defaults to the initial phase when HSTS_PHASE unset', () => {
+  it('defaults to the scaffold phase when HSTS_PHASE unset', () => {
     vi.stubEnv('HSTS_PHASE', '');
-    expect(currentHstsPhase()).toBe('m1');
+    expect(currentHstsPhase()).toBe('scaffold');
   });
 
   it('accepts valid phases via env', () => {
-    vi.stubEnv('HSTS_PHASE', 'm8-launch');
-    expect(currentHstsPhase()).toBe('m8-launch');
+    vi.stubEnv('HSTS_PHASE', 'preload');
+    expect(currentHstsPhase()).toBe('preload');
   });
 
-  it('falls back to the initial phase on invalid input (defense-in-depth)', () => {
+  it('falls back to the scaffold phase on invalid input (defense-in-depth)', () => {
     vi.stubEnv('HSTS_PHASE', 'malicious; preload');
-    expect(currentHstsPhase()).toBe('m1');
+    expect(currentHstsPhase()).toBe('scaffold');
   });
 });
 
@@ -62,13 +63,13 @@ describe('buildSecurityHeaders', () => {
   const byKey = (headers: ReturnType<typeof buildSecurityHeaders>, k: string) =>
     headers.find((h) => h.key === k);
 
-  it('emits Strict-Transport-Security with the initial-phase value by default', () => {
+  it('emits Strict-Transport-Security with the scaffold-phase value by default', () => {
     const headers = buildSecurityHeaders();
     expect(byKey(headers, 'Strict-Transport-Security')?.value).toBe('max-age=300');
   });
 
-  it('emits Strict-Transport-Security with the launch ramp value when HSTS_PHASE=m8-launch', () => {
-    vi.stubEnv('HSTS_PHASE', 'm8-launch');
+  it('emits Strict-Transport-Security with the preload ramp value when HSTS_PHASE=preload', () => {
+    vi.stubEnv('HSTS_PHASE', 'preload');
     const headers = buildSecurityHeaders();
     expect(byKey(headers, 'Strict-Transport-Security')?.value).toContain('preload');
   });
@@ -98,7 +99,7 @@ describe('buildSecurityHeaders', () => {
     expect(byKey(headers, 'Referrer-Policy')?.value).toBe('strict-origin-when-cross-origin');
   });
 
-  it('emits Permissions-Policy with default-deny camera/mic/geo/payment (M7 adds payment allowlist for Stripe)', () => {
+  it('emits Permissions-Policy with default-deny camera/mic/geo/payment (Stripe activation adds the payment allowlist)', () => {
     const headers = buildSecurityHeaders();
     const value = byKey(headers, 'Permissions-Policy')?.value ?? '';
     expect(value).toContain('camera=()');

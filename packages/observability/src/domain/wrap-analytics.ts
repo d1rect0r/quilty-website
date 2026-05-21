@@ -23,16 +23,25 @@
 
 import type { ConsentReader } from '@quilty/consent';
 import type { Sanitizer } from '@quilty/security';
-import type { Analytics, AnalyticsCallContext, AnalyticsEvent } from '../ports';
+import type { Analytics, AnalyticsCallContext, AnalyticsEvent, Logger } from '../ports';
 
 export interface WrappedAnalyticsOptions {
   readonly adapter: Analytics;
   readonly consentReader: ConsentReader;
   readonly sanitizer: Sanitizer;
+  /**
+   * Optional Logger for observability on consent-read failures. The
+   * fail-closed posture means a broken ConsentReader silently drops
+   * 100% of analytics; passing the wrapped logger here surfaces the
+   * symptom via the structured-log channel. The logger reference is
+   * intentionally optional so existing call sites compose without
+   * change; new call sites should always pass it.
+   */
+  readonly logger?: Logger;
 }
 
 export function wrapAnalytics(options: WrappedAnalyticsOptions): Analytics {
-  const { adapter, consentReader, sanitizer } = options;
+  const { adapter, consentReader, sanitizer, logger } = options;
 
   return {
     track: async <E extends AnalyticsEvent>(
@@ -40,11 +49,19 @@ export function wrapAnalytics(options: WrappedAnalyticsOptions): Analytics {
       ctx?: AnalyticsCallContext,
     ): Promise<void> => {
       // Step 1 — consent gate. Fail-closed: any throw / rejection is a
-      // deny. Cerebral-lesson posture (D35).
+      // deny. Cerebral-lesson posture (D35). When a logger is wired,
+      // emit a structured warn so a chronically broken ConsentReader
+      // shows up in CloudWatch / Sentry breadcrumb traces rather than
+      // dropping silently — the wrapped logger composes the sanitizer
+      // so error.message + fields are safe to emit.
       let consent;
       try {
         consent = await consentReader.read();
-      } catch {
+      } catch (err) {
+        logger?.warn('analytics_consent_read_failed', {
+          event_name: event.name,
+          error_name: err instanceof Error ? err.name : 'unknown',
+        });
         return;
       }
       if (!consent.analytics) return;

@@ -6,8 +6,7 @@
  * port abstraction. CSP construction + security-header composition
  * are pure functions exported directly from the package barrel — they
  * have no closed-over state and no vendor to swap, so the factory
- * shape would be over-engineering (confirmed by the Wave-1-close
- * research synthesis).
+ * shape would be over-engineering.
  *
  * Naming discipline (META-1): ports are role-shaped, never vendor-shaped.
  */
@@ -75,7 +74,13 @@ export interface CspOptions {
 // Security-header shape (D60, D94)
 // ---------------------------------------------------------------------------
 
-export type HstsPhase = 'm1' | 'm2-m6' | 'm7' | 'm8-prelaunch' | 'm8-launch';
+/**
+ * HSTS ramp phases (D60). The 5-stage ramp progresses from a tiny
+ * `max-age` (rollback-safe) up to the preload-eligible value. Phase
+ * names are operational identifiers — they appear in the `HSTS_PHASE`
+ * env var + the runbook + the test matrix.
+ */
+export type HstsPhase = 'scaffold' | 'short-ramp' | 'medium-ramp' | 'long-ramp' | 'preload';
 
 export interface SecurityHeaderEntry {
   readonly key: string;

@@ -56,6 +56,10 @@ export function makeClientContainer(): ClientContainer {
       adapter: makeAmplitudeAnalytics({ logger: wrappedLogger }),
       consentReader: makeDefaultDenyConsentReader(),
       sanitizer,
+      // Observability for a chronically broken ConsentReader — a
+      // silently-failing reader would otherwise drop 100% of
+      // analytics with no signal.
+      logger: wrappedLogger,
     }),
     errorReporter: wrapErrorReporter({
       adapter: makeSentryErrorReporter(),

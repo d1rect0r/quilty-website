@@ -19,7 +19,11 @@
 import type { LogFields, LogLevel, Logger } from '../ports';
 
 function emitDev(level: LogLevel, msg: string, fields: LogFields): void {
-  // eslint-disable-next-line no-console
+  // Direct console.log allowed here — this adapter IS the chokepoint
+  // for browser-side log emission (eslint.config.mjs allowlists this
+  // file alongside cloudwatch-logger.ts + WebVitalsReporter.tsx).
+  // Everywhere else must call container.logger.* which composes the
+  // PHI sanitizer wrapper around this adapter.
   console.log(
     JSON.stringify({
       timestamp: new Date().toISOString(),

@@ -29,7 +29,7 @@ import type { Metadata } from 'next';
  * `robots: { index: false, follow: false }`.
  *
  * TypeScript reviewer flagged this fragility — enforcing at type-level
- * would require a custom Next.js plugin; defensive documentation is the M1
+ * would require a custom Next.js plugin; defensive documentation is the current
  * solution.
  */
 export const metadata: Metadata = {

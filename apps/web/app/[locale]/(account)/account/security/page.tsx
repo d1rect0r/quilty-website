@@ -19,7 +19,8 @@ export default function AccountSecurityPage() {
       <h1 className="text-fg-default text-3xl font-semibold">Security</h1>
       <p className="text-fg-muted mt-4">
         Passkeys (D50 Plus tier) + TOTP + email MFA + backup codes (D55) + active-session list (D51
-        DynamoDB store) + step-up auth via <code>prompt=login</code> (D54) all land in M6.
+        DynamoDB store) + step-up auth via <code>prompt=login</code> (D54) all land at the
+        auth-integration activation.
       </p>
     </PortalSidebar>
   );

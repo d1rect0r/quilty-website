@@ -45,20 +45,30 @@ export function register() {
 
 export async function onRequestError(
   err: unknown,
-  request: { path: string; method: string; headers: Headers },
+  request: {
+    path: string;
+    method: string;
+    // Next.js 16 passes `headers` as a plain Record<string, string | string[] | undefined>,
+    // not a fetch `Headers` instance. Treating it as the latter throws
+    // `headers.entries is not a function` at every invocation and
+    // silently kills the Sentry capture path. Type accordingly + walk
+    // entries via Object.entries.
+    headers: Record<string, string | string[] | undefined>;
+  },
   context: {
     routerKind: 'Pages Router' | 'App Router';
     routePath: string;
     routeType: 'render' | 'route' | 'action' | 'middleware';
   },
 ): Promise<void> {
-  // Sentry 10.x `captureRequestError` expects a plain header record, not
-  // a Headers object. Build a string-record so PHI keys are skipped at
-  // the boundary .
+  // Sentry 10.x `captureRequestError` expects a plain header record.
+  // Walk Object.entries (the Next 16 headers shape) and reject PHI-shaped
+  // keys at the boundary so the SDK's serializer never sees them.
   const safeHeaders: Record<string, string> = {};
-  for (const [key, value] of request.headers.entries()) {
+  for (const [key, rawValue] of Object.entries(request.headers)) {
+    if (rawValue === undefined) continue;
     if (isSensitiveKey(key)) continue;
-    safeHeaders[key] = value;
+    safeHeaders[key] = Array.isArray(rawValue) ? rawValue.join(', ') : rawValue;
   }
   // Strip query string from path — defense-in-depth alongside D31 design
   // intent (URLs MUST NOT carry PHI; this guards against a future regression).

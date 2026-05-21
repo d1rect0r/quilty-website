@@ -14,7 +14,7 @@ import { NextResponse, type NextRequest } from 'next/server';
  *   1. CSP per-route branching (D59) — marketing static / portal nonce
  *   2. Trusted Types report-only header (D57)
  *   3. Security headers baseline (D33 + D58 + D60)
- *   4. Sec-GPC header pass-through stub (D63 implementation lands at M3)
+ *   4. Sec-GPC header pass-through stub (D63 full implementation lands with the consent-banner activation)
  *   5. Nonce propagation via `x-nonce` request header so Server Components
  *      can read it via `(await headers()).get('x-nonce')`
  *
@@ -25,9 +25,45 @@ import { NextResponse, type NextRequest } from 'next/server';
  */
 
 const isDev = process.env.NODE_ENV === 'development';
+const DEFAULT_LOCALE = 'en';
+
+/**
+ * Apply the response-side security header stack (CSP-Report-Only +
+ * HSTS + COOP + CORP + nosniff + frame-options + referrer + permissions).
+ * Extracted so the apex-locale redirect path AND the
+ * NextResponse.next() path both flow through the same header build,
+ * preventing the apex 307 from being served bare.
+ */
+function applySecurityHeaders(
+  response: NextResponse,
+  options: { readonly portal: boolean; readonly nonce: string | undefined },
+): void {
+  const cspValue =
+    options.portal && options.nonce !== undefined
+      ? buildPortalCsp(options.nonce, { isDevelopment: isDev })
+      : buildMarketingCsp({ isDevelopment: isDev });
+  response.headers.set('Content-Security-Policy-Report-Only', cspValue);
+  for (const { key, value } of buildSecurityHeaders()) {
+    response.headers.set(key, value);
+  }
+}
 
 export function proxy(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
+
+  // Apex → default locale redirect lives HERE (not in next.config.ts
+  // `redirects()`) so the response carries the full security-header
+  // stack. The prior wiring redirected via next.config which fires
+  // before proxy, leaving the apex 307 bare of CSP + HSTS. Bots
+  // scraping the apex now receive the same posture as locale routes.
+  if (pathname === '/') {
+    const target = request.nextUrl.clone();
+    target.pathname = `/${DEFAULT_LOCALE}`;
+    const redirect = NextResponse.redirect(target, 307);
+    applySecurityHeaders(redirect, { portal: false, nonce: undefined });
+    return redirect;
+  }
+
   const portal = isPortalRoute(pathname);
   const nonce = portal ? generateNonce() : undefined;
 
@@ -43,23 +79,12 @@ export function proxy(request: NextRequest): NextResponse {
     request: { headers: requestHeaders },
   });
 
-  // CSP — report-only at M1, flipped to enforce at M8 (D32 + D59).
-  const cspValue =
-    portal && nonce
-      ? buildPortalCsp(nonce, { isDevelopment: isDev })
-      : buildMarketingCsp({ isDevelopment: isDev });
-  response.headers.set('Content-Security-Policy-Report-Only', cspValue);
-
-  // Other security headers (HSTS, COOP, CORP, X-Content-Type-Options,
-  // X-Frame-Options, Referrer-Policy, Permissions-Policy).
-  for (const { key, value } of buildSecurityHeaders()) {
-    response.headers.set(key, value);
-  }
+  applySecurityHeaders(response, { portal, nonce });
 
   // Sec-GPC is a REQUEST-only signal per the spec (browser → server). We
   // do NOT echo it on responses — server consumers read it from the
-  // request directly. The CloudFront Function edge layer (D63 / M3) sets
-  // a persistent opt-out cookie when Sec-GPC: 1 is detected; downstream
+  // request directly. The CloudFront Function edge layer (D63) sets a
+  // persistent opt-out cookie when Sec-GPC: 1 is detected; downstream
   // Server Components + Route Handlers (e.g. GpcHonoredIndicator) read
   // the header from the request, not from any response echo.
 

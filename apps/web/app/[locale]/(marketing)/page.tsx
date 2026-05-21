@@ -4,14 +4,14 @@ import type { Metadata } from 'next';
 // Use the root layout's title template default (no `title` here so the page
 // renders as plain "Quilty" rather than "Home · Quilty" — a11y
 // reviewer flagged "Home" as too vague for WCAG 2.4.2 Page Titled).
-// M3 identity discovery may replace this with a topical homepage title
+// The identity-discovery milestone may replace this with a topical homepage title
 // ("Quilty — Mental health, made personal") once the voice lands.
 export const metadata: Metadata = {
   description: 'Quilty — a mental-health peer-set product.',
   // Per-page canonical + self-referencing hreflang. The root layout no
-  // longer ships a blanket canonical (SEO C2 + M1); every
+  // longer ships a blanket canonical; every
   // marketing page MUST declare its own. `x-default` points at the English
-  // route for now — when next-intl ships at M5+ the locale layout will
+  // route for now — when next-intl wiring lands the locale layout will
   // programmatically broaden this.
   alternates: {
     canonical: '/en',
@@ -37,9 +37,10 @@ export default function HomePage() {
           Mental health, made personal.
         </h1>
         <p className="text-fg-muted mt-6 text-lg">
-          M3 identity discovery will replace this hero with real voice + visual. M1 ships the
-          structural baseline — locale segment, route groups, JSON-LD graph, security spine,
-          observability adapters — so every future page is addition-not-rebuild.
+          The identity-discovery milestone will replace this hero with real voice + visual. The
+          current scaffold ships the structural baseline — locale segment, route groups, JSON-LD
+          graph, security spine, observability adapters — so every future page is
+          addition-not-rebuild.
         </p>
       </section>
     </>

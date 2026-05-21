@@ -45,6 +45,7 @@ export function makeEdgeContainer(): EdgeContainer {
       adapter: makeAmplitudeAnalytics({ logger: wrappedLogger }),
       consentReader: makeDefaultDenyConsentReader(),
       sanitizer,
+      logger: wrappedLogger,
     }),
     errorReporter: wrapErrorReporter({
       adapter: makeSentryErrorReporter(),

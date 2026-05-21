@@ -31,9 +31,9 @@ Sentry.init({
   // Tracing — Sentry auto-consumes the OTel spans emitted from instrumentation.ts.
   tracesSampleRate: 0.1,
 
-  // Replay — error-triggered only at M1 (HIPAA-aligned). The integration
-  // is added below via lazyLoadIntegration so the worker chunk only
-  // ships when an error actually fires.
+  // Replay — error-triggered only (HIPAA-aligned, per D68). The
+  // integration is added below via lazyLoadIntegration so the worker
+  // chunk only ships when an error actually fires.
   replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 1.0,
 

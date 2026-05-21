@@ -57,6 +57,7 @@ export function makeServerContainer(): ServerContainer {
       adapter: makeAmplitudeAnalytics({ logger: wrappedLogger }),
       consentReader: makeDefaultDenyConsentReader(),
       sanitizer,
+      logger: wrappedLogger,
     }),
     errorReporter: wrapErrorReporter({
       adapter: makeSentryErrorReporter(),

@@ -3,13 +3,13 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * Playwright e2e + a11y test config per D22 + ADR-0006.
  *
- * Browser matrix: Chromium + WebKit. Firefox is omitted at M1 (mobile +
- * Safari = highest user surface; Chrome covers the rest). Add Firefox at
- * the M2 launch gate if Lighthouse CI flags a regression.
+ * Browser matrix: Chromium + WebKit. Firefox is omitted (mobile +
+ * Safari = highest user surface; Chrome covers the rest). Add Firefox
+ * if Lighthouse CI flags a Gecko-specific regression.
  *
- * Test orchestration: spawns `pnpm dev` once via global-setup; tears down
- * via global-teardown. M2+ may switch to `pnpm build && pnpm start` for
- * production-mode assertions.
+ * Test orchestration: spawns `pnpm dev` once via global-setup; tears
+ * down via global-teardown. Switch to `pnpm build && pnpm start` for
+ * production-mode assertions once the build path stabilises.
  *
  * Tag conventions:
  *   - `@a11y` — axe-core assertions; tagged tests run via `pnpm test:a11y`

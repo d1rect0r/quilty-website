@@ -2,13 +2,12 @@
  * Public barrel for @quilty/security.
  *
  * CSP + Security-Headers + Redirect-Validator helpers are exported as
- * plain functions, not as factory-returned port objects. The factory
- * shape was confirmed over-engineering by the Wave-1-close research:
- * a port is a seam where the implementation can swap. CSP/header
- * construction is pure string composition with no vendor to swap and
- * no closed-over state worth abstracting. Direct function exports
- * remove dead client-bundle code + ~30 lines of factory ceremony with
- * no loss of testability.
+ * plain functions, not as factory-returned port objects. A port is a
+ * seam where the implementation can swap. CSP/header construction is
+ * pure string composition with no vendor to swap and no closed-over
+ * state worth abstracting — the factory shape would be
+ * over-engineering. Direct function exports remove dead client-bundle
+ * code + ~30 lines of factory ceremony with no loss of testability.
  *
  * Deep imports into `src/*` are forbidden by `.dependency-cruiser.cjs`
  * rule `cross-package-imports-must-use-barrel`.

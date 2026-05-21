@@ -6,7 +6,7 @@
  *   - Portal tier: nonce + strict-dynamic. Used for /[locale]/(account)/*,
  *     /api/auth/*.
  *
- * Both tiers: report-only until the M8 launch gate flips them to enforce
+ * Both tiers: report-only until the launch gate flips them to enforce
  * after 2-4 clean weeks of report-only data (D32 + D60).
  *
  * Report sink: Sentry's `/api/<project>/security/` endpoint (D61). The
@@ -70,8 +70,9 @@ export function buildMarketingCsp(opts: CspOptions = {}): string {
     `form-action 'self'`,
     `frame-ancestors 'none'`,
     `upgrade-insecure-requests`,
-    // Trusted Types report-only pre-launch (D57). At the M8 enforce flip,
-    // the header itself moves from Report-Only to enforcing.
+    // Trusted Types report-only pre-launch (D57). At the launch
+    // enforce flip, the header itself moves from Report-Only to
+    // enforcing.
     `require-trusted-types-for 'script'`,
   ];
   if (SENTRY_REPORT_URI) {

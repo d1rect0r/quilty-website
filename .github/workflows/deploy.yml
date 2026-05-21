@@ -1,9 +1,11 @@
-# SST 4.x deploy pipeline — INERT at M1 per the plan.
+# SST 4.x deploy pipeline — INERT until the `DEPLOY_ENABLED` repo
+# variable is flipped to `true` AND `quilty-aws/website-baseline/`
+# vends the OIDC role + permission boundary.
 #
-# Every job is gated `if: false` until the next sprint vends the OIDC
-# role + permission boundary in `quilty-aws/website-baseline/`.
-# Activation = flipping the `if:` flags + populating the SSM parameter
-# references in the deploy steps.
+# Activation: Settings → Secrets and variables → Actions → Variables →
+# set `DEPLOY_ENABLED` to `true`. All three jobs gate on the variable so
+# turning the deploy pipeline on/off is a one-edit operation in the
+# Settings UI, reversible without a code change.
 #
 # Per ADR-0001 D2 + U5 + U6: SST runs in the `development` AWS account
 # at Phase 0; DNS records land via `quilty-aws/dns/` (production account)
@@ -44,8 +46,13 @@ permissions:
 
 jobs:
   preview:
-    # Activate by flipping to: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
-    if: false
+    # Activation gate — flip the `DEPLOY_ENABLED` repo variable to `true`
+    # (Settings → Secrets and variables → Actions → Variables) once
+    # quilty-aws/website-baseline/ has vended the OIDC role +
+    # permission boundary + SSM params. Gating on a variable rather than
+    # editing this `if:` line keeps activation reviewable in the Settings
+    # UI and reversible without a code change.
+    if: ${{ vars.DEPLOY_ENABLED == 'true' && github.event_name == 'pull_request' && github.event.action != 'closed' }}
     name: Preview deploy (PR)
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -91,8 +98,7 @@ jobs:
           WAF_WEB_ACL_ARN: ${{ vars.WAF_WEB_ACL_ARN }}
 
   cleanup-preview:
-    # Activate by flipping to: ${{ github.event.action == 'closed' }}
-    if: false
+    if: ${{ vars.DEPLOY_ENABLED == 'true' && github.event.action == 'closed' }}
     name: Cleanup preview (PR closed)
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -123,8 +129,7 @@ jobs:
       - run: pnpm sst remove --stage preview-pr-${{ github.event.pull_request.number }}
 
   deploy-prod:
-    # Activate by flipping to: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-    if: false
+    if: ${{ vars.DEPLOY_ENABLED == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     name: Deploy to development account (Phase 0)
     runs-on: ubuntu-latest
     timeout-minutes: 25

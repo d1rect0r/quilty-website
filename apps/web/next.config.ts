@@ -25,13 +25,18 @@ async function wellKnownHeaders() {
   ];
 }
 
+type RedirectsReturn = Awaited<ReturnType<NonNullable<NextConfig['redirects']>>>;
+
 /**
- * Versioned redirect table (D16). Root `/` is unlocalized — redirect to the
- * default locale segment. Add 301-permanent entries here when content moves;
- * never blanket-301 to homepage (Google soft-404 trap).
+ * Versioned redirect table (D16). Root `/` → default locale is owned
+ * by `proxy.ts` (so the redirect response carries the full CSP +
+ * security-header stack); historic content-moved redirects land here
+ * with `permanent: true` since `next.config.ts` redirects fire before
+ * the proxy + apply to static assets too. Never blanket-301 to
+ * homepage — Google soft-404 trap.
  */
-async function siteRedirects() {
-  return [{ source: '/', destination: '/en', permanent: false }];
+async function siteRedirects(): Promise<RedirectsReturn> {
+  return [];
 }
 
 const config: NextConfig = {

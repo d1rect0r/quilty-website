@@ -2,9 +2,9 @@
  * Security headers baseline per D33 + D58. Applied via `proxy.ts` to every
  * response.
  *
- * HSTS ramp (D60): ships `max-age=300` (5 minutes) at scaffold time —
- * submitting to hstspreload.org is deferred to the M8 launch gate
- * (irreversible 6-12 months). Ramp schedule:
+ * HSTS ramp (D60): ships `max-age=300` (5 minutes) at the scaffold
+ * phase — submitting to hstspreload.org is the irreversible 6-12-month
+ * commitment deferred to the launch gate. Ramp schedule:
  *   5min → 1day → 1week → 1year → 1yr+includeSubDomains →
  *   2yr+includeSubDomains+preload.
  */
@@ -12,44 +12,44 @@
 import type { HstsPhase, SecurityHeaderEntry } from '../ports';
 
 const HSTS_PHASES: ReadonlySet<HstsPhase> = new Set([
-  'm1',
-  'm2-m6',
-  'm7',
-  'm8-prelaunch',
-  'm8-launch',
+  'scaffold',
+  'short-ramp',
+  'medium-ramp',
+  'long-ramp',
+  'preload',
 ]);
 
 /**
  * HSTS value for the current ramp phase. The default ships a short
  * max-age so a misconfiguration can be rolled back in <5 minutes. The
- * M8 launch gate flips this to the preload-eligible value.
+ * launch gate flips this to the preload-eligible value.
  */
 export function buildHstsValue(phase: HstsPhase): string {
   switch (phase) {
-    case 'm1':
+    case 'scaffold':
       return 'max-age=300';
-    case 'm2-m6':
+    case 'short-ramp':
       return 'max-age=86400';
-    case 'm7':
+    case 'medium-ramp':
       return 'max-age=604800';
-    case 'm8-prelaunch':
+    case 'long-ramp':
       return 'max-age=31536000; includeSubDomains';
-    case 'm8-launch':
+    case 'preload':
       return 'max-age=63072000; includeSubDomains; preload';
   }
 }
 
 /**
  * Read the current HSTS ramp phase from env. Server-only env var (not
- * `NEXT_PUBLIC_` — no browser exposure). Falls back to `'m1'` if unset
- * or invalid.
+ * `NEXT_PUBLIC_` — no browser exposure). Falls back to `'scaffold'` if
+ * unset or invalid.
  */
 export function currentHstsPhase(): HstsPhase {
   const raw = process.env.HSTS_PHASE;
   if (raw && HSTS_PHASES.has(raw as HstsPhase)) {
     return raw as HstsPhase;
   }
-  return 'm1';
+  return 'scaffold';
 }
 
 /**
@@ -62,7 +62,7 @@ export function currentHstsPhase(): HstsPhase {
  *   - CORP: same-origin (D58)
  *   - Referrer-Policy: strict-origin-when-cross-origin (D33)
  *   - Permissions-Policy: default-deny camera/microphone/geolocation/payment
- *     (M7 adds payment allowlist for Stripe)
+ *     (Stripe activation adds the payment allowlist)
  *
  * Does NOT include the CSP header — caller adds it per-tier via the
  * CspBuilder port.

@@ -2,7 +2,7 @@
 
 > **Decision references:** D127 (CloudWatch retention floor), D129 (OpenTelemetry-aligned log format), D176 (what may land in 6yr-retained logs), D67 (PHI sanitizer chokepoint at `wrapLogger`/`wrapErrorReporter`)
 > **Architectural references:** ADR-0010 (composition root), ADR-0005 (security-headers + CSP origin)
-> **Owned files:** `sst.config.ts` (`transform.server` args), `packages/observability/src/wrappers/` (logger/error-reporter chokepoint), `packages/security/src/domain/sanitizer.ts` (PHI denylist)
+> **Owned files:** `sst.config.ts` (`transform.server` args), `packages/observability/src/domain/wrap-{logger,error-reporter,analytics,replay}.ts` (sanitizer chokepoint wrappers), `packages/security/src/domain/sanitizer.ts` (PHI denylist + HMAC pseudonymisation)
 > **Audience:** platform + security; changes require security-team sign-off
 
 ## Why 6 years

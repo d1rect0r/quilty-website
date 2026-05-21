@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 
 /**
  * Locale segment layout. Wraps every public + portal page in the locale-
- * specific provider context (next-intl wires here at M2). At M1, EN is the
+ * specific provider context (next-intl wires here at the i18n milestone). For the English-only launch, EN is the
  * only supported locale — unknown locales trigger notFound() so we never
  * serve content under a fake locale prefix.
  */
@@ -30,7 +30,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
     notFound();
   }
 
-  // next-intl provider wraps `children` here at M2 (D25). For M1 the layout
+  // next-intl provider wraps `children` here at the i18n milestone (D25). Until then the layout
   // is a transparent wrapper that asserts locale validity.
   return <>{children}</>;
 }

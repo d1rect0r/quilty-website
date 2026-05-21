@@ -11,7 +11,7 @@
  *   - Semantic: design-system roles (foreground, background, accent, danger,
  *               success, etc.) — references primitives.
  *   - Component: optional per-component overrides (lands as components are
- *               extracted; empty at M1).
+ *               extracted; populated when shared components land).
  *
  * Dark mode (D20): light tokens ship now; dark variants will live in
  *   [data-theme="dark"] selector + matching semantic overrides. Pre-hydration
@@ -39,7 +39,7 @@
   --color-neutral-900: oklch(20.8% 0.042 265.75);
   --color-neutral-950: oklch(12.9% 0.042 264.7);
 
-  /* Brand placeholder (M3 identity discovery replaces these) */
+  /* Brand placeholder (identity-discovery milestone replaces these) */
   --color-brand-50: oklch(97.1% 0.014 254.6);
   --color-brand-500: oklch(58% 0.18 260);
   --color-brand-700: oklch(45% 0.21 264);
@@ -80,7 +80,7 @@
   --color-warning-fg: var(--color-warning-700);
 
   /* ── Typography ────────────────────────────────────────────────────── */
-  /* `next/font` lands in M3 identity discovery (D17/D21). Until then, the
+  /* `next/font` lands at the identity-discovery milestone (D17/D21). Until then, the
      stack is OS-native fonts so there's no dangling CSS variable reference
      (typescript-reviewer flagged the old `var(--font-quilty-sans)`
      placeholder as silently broken). When `next/font` ships, swap this to
@@ -104,7 +104,7 @@
   --spacing-ring-width: 2px;
   --spacing-ring-offset: 2px;
 
-  /* ── Component layer — empty at M1; per-component overrides arrive as they're built ── */
+  /* ── Component layer — empty for now; per-component overrides arrive as they're built ── */
 }
 
 /* Dark-mode overrides (D20). Every semantic token used as text or focus

@@ -3,7 +3,7 @@
   "ci": {
     "collect": {
       "startServerCommand": "pnpm --filter web exec next start",
-      "startServerReadyPattern": "ready - started server",
+      "startServerReadyPattern": "Ready in",
       "url": [
         "http://localhost:3000/en",
         "http://localhost:3000/en/features",

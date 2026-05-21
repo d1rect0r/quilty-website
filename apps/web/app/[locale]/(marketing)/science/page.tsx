@@ -4,8 +4,8 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Science',
   description:
-    'The research + clinical evidence behind Quilty. Real content + named clinical reviewer land in M3-M4 per roadmap.',
-  // Stub-page protection: keep out of the index until M3-M4 fills in real
+    'The research + clinical evidence behind Quilty. Real content + named clinical reviewer activate at the identity-discovery milestone.',
+  // Stub-page protection: keep out of the index until the identity-discovery milestone fills in real
   // content . Sitemap still lists this route so
   // Search Console picks it up the moment we un-noindex.
   robots: { index: false, follow: true },
@@ -33,7 +33,7 @@ export default function SciencePage() {
       <h1 className="text-fg-default text-4xl font-semibold">Science</h1>
       <p className="text-fg-muted mt-4">
         Coming soon — content + named clinical reviewer (lastReviewed + reviewedBy per D27) land in
-        M3-M4.
+        the identity-discovery milestone activation.
       </p>
     </section>
   );
