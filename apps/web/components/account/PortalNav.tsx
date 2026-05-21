@@ -17,14 +17,14 @@ export function PortalNav() {
         {/* No aria-label here: WCAG 2.5.3 Label in Name. A custom aria-label
             ("Account home") that doesn't contain the visible text ("Quilty
             Account") makes voice-control users say a word they can't see
-            (Round-5 final-QA MEDIUM a11y). The link's accessible name is
+            . The link's accessible name is
             now its visible text. */}
         <Link href="/en/account" className="text-fg-default text-base font-semibold">
           Quilty Account
         </Link>
         <nav aria-label="Account">
           {/* min-h-11 (44px) per WCAG 2.5.5 Target Size AA — same treatment as
-              the marketing Header per Round-5 a11y reviewer cross-check. */}
+              the marketing Header per architecture lock a11y reviewer cross-check. */}
           <ul className="text-fg-muted flex items-center gap-1 text-sm">
             <li>
               <Link

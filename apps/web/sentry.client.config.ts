@@ -43,13 +43,13 @@ Sentry.init({
     if (event.extra) event.extra = sanitize(event.extra) as Record<string, unknown>;
     if (event.contexts) event.contexts = sanitize(event.contexts) as typeof event.contexts;
     if (event.tags) event.tags = sanitize(event.tags) as typeof event.tags;
-    // event.request added per Round-5 HIPAA reviewer — Sentry browser SDK
+    // event.request added per architecture lock HIPAA reviewer — Sentry browser SDK
     // auto-populates request.url + request.headers + request.cookies on
     // the client side. Even though D31 says URLs never carry PHI, that's
     // design intent not enforcement; sanitize at the boundary too.
     if (event.request) {
       // Strip query string from request.url — defense-in-depth alongside
-      // the D31 design intent (Round-5 final-QA HIPAA-CSP MEDIUM).
+      // the D31 design intent .
       if (event.request.url) {
         const qIdx = event.request.url.indexOf('?');
         if (qIdx !== -1) event.request.url = event.request.url.slice(0, qIdx);

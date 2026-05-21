@@ -20,13 +20,13 @@ export function PortalSidebar({ title, sections, children }: PortalSidebarProps)
   return (
     <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 px-6 py-10 md:grid-cols-[14rem_1fr]">
       {/* The `<nav>` itself is the landmark — no wrapping `<aside>` needed.
-          Round-5 SEO/a11y cross-check flagged the prior double-landmark
+          SEO/a11y cross-check flagged the prior double-landmark
           (aside + nested labeled nav) as redundant for AT users.
 
           The sidebar title renders as a styled `<span>` (presentational
           only). The page's `<h1>` lives in the page route file — emitting
           an `<h2>` here before the page's `<h1>` mounts would invert the
-          heading hierarchy (Round-5 final-QA HIGH a11y finding). The
+          heading hierarchy . The
           `<nav aria-label>` is what AT users hear; the visual label is
           decorative reinforcement. */}
       <nav aria-label={title}>

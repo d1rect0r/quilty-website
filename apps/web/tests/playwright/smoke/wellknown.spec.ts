@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 /**
  * .well-known files must serve as `application/json` regardless of file
- * extension (S8 + Round-5 audit). iOS silently fails universal-link
+ * extension (S8 + audit review). iOS silently fails universal-link
  * verification on `application/octet-stream`.
  */
 

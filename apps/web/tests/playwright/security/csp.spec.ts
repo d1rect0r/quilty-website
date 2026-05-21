@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
  * static CSP (CDN-cacheable); portal + auth routes ship nonce + strict-
  * dynamic. The branching lives in apps/web/proxy.ts.
  *
- * Round-5 a11y reviewer cross-check: explicit `expect(csp).toBeDefined()`
+ * a11y reviewer cross-check: explicit `expect(csp).toBeDefined()`
  * before shape assertions — `?? ''` fallback would mask absence (negative
  * assertions trivially pass against empty string).
  */

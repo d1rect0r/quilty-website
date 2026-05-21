@@ -32,7 +32,7 @@ interface BlockRule {
 
 /**
  * Both rule shapes use array-form `allow` + `disallow` for parser
- * consistency (Round-5 final-QA SEO H4 — string-vs-array mixing in
+ * consistency (SEO H4 — string-vs-array mixing in
  * `MetadataRoute.Robots` is permitted by Next.js types but some
  * crawler parsers do not coalesce a missing `Allow` line under a
  * `Disallow: /` rule the same way they coalesce an explicit

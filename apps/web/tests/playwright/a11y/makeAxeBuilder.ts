@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { test as base } from '@playwright/test';
 
 /**
- * Shared `makeAxeBuilder` fixture per D22 + Round-5 a11y reviewer.
+ * Shared `makeAxeBuilder` fixture per D22 + a11y reviewer.
  *
  * Tag set: WCAG 2.2 AA — the full WCAG 2.0 + 2.1 + 2.2 Level A + AA bands.
  * This is the legal floor for ADA / EAA / Section 508 per D23.
@@ -34,6 +34,7 @@ export const test = base.extend<{
 }>({
   makeAxeBuilder: async ({ page }, use) => {
     const builder = () => new AxeBuilder({ page }).withTags([...WCAG_22_AA_TAGS]);
+    // eslint-disable-next-line react-hooks/rules-of-hooks -- `use` here is Playwright's fixture-callback parameter, not React's `use` hook.
     await use(builder);
   },
 });

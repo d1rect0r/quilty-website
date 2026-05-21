@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Features',
   description: 'What Quilty does. Real content lands in M4 per roadmap.',
-  // Stub-page noindex until real content lands (Round-5 final-QA SEO H3).
+  // Stub-page noindex until real content lands .
   // Sitemap continues to list this route; flip robots.index when M4 ships.
   robots: { index: false, follow: true },
   alternates: {

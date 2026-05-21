@@ -21,7 +21,7 @@ export default defineConfig({
   testDir: './tests/playwright',
   // Honor tsconfig path aliases — without this, Playwright's TS transform
   // does not resolve `@/*` at runtime, and every spec importing the
-  // makeAxeBuilder fixture would crash on module load (Round-5 TS
+  // makeAxeBuilder fixture would crash on module load (TS
   // reviewer cross-check). Playwright 1.45+ supports this key.
   tsconfig: './tsconfig.json',
   fullyParallel: true,

@@ -4,7 +4,7 @@
  * Visually hidden via the `.skip-link:not(:focus)` rule in globals.css until
  * focused — on focus, the rule no longer applies and the link becomes
  * visible. Styling here pins it to a known location + ensures z-index +
- * background so it's actually readable on focus (Round-5 a11y reviewer
+ * background so it's actually readable on focus (a11y reviewer
  * flagged the fragility of mixing Tailwind sr-only + the CSS class).
  *
  * Must be the first thing in every layout's tab order.

@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/nextjs';
 
 /**
  * Sentry Edge-runtime config per D42a + D67. Used by proxy.ts (Next.js
- * 16 file convention per Round-5 audit) + any Route Handler running on
+ * 16 file convention per audit review) + any Route Handler running on
  * the Edge.
  */
 

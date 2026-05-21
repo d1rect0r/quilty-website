@@ -27,7 +27,7 @@ test('@security marketing route carries full headers baseline', async ({ request
   expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
 
   // Permissions policy default-deny — explicit toBeDefined before shape
-  // assertions (Round-5 TS reviewer cross-check parity with csp.spec.ts).
+  // assertions (TS reviewer cross-check parity with csp.spec.ts).
   const perm = headers['permissions-policy'];
   expect(perm, 'Permissions-Policy header must be set').toBeDefined();
   expect(perm).toContain('camera=()');

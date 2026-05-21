@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     'The research + clinical evidence behind Quilty. Real content + named clinical reviewer land in M3-M4 per roadmap.',
   // Stub-page protection: keep out of the index until M3-M4 fills in real
-  // content (Round-5 final-QA SEO H3). Sitemap still lists this route so
+  // content . Sitemap still lists this route so
   // Search Console picks it up the moment we un-noindex.
   robots: { index: false, follow: true },
   alternates: {

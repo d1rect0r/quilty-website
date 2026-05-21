@@ -16,7 +16,7 @@ export function Header() {
         <nav aria-label="Primary">
           {/* Real nav items land in M2 with the marketing IA scope (per U2).
               Every interactive element has min-h-11 (44px) to satisfy WCAG 2.5.5
-              Target Size (AA) — Round-5 a11y reviewer finding. */}
+              Target Size (AA) — a11y reviewer finding. */}
           <ul className="text-fg-muted flex items-center gap-2 text-sm">
             <li>
               <Link

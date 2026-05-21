@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   // No `alternates.canonical` at the root layout — relative canonicals
   // resolve against `metadataBase` and would point every page back at the
   // homepage, causing Google to fold every stub into the apex URL
-  // (Round-5 final-QA SEO C2). Each page declares its own canonical via
+  // . Each page declares its own canonical via
   // its own `generateMetadata` / `metadata` export.
   robots: {
     index: true,

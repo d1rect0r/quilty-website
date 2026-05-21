@@ -20,7 +20,7 @@ import { useEffect, useRef } from 'react';
  * on initial hydration before the user has a chance to tab to the
  * SkipLink — keyboard users would never reach it. The skip-link is the
  * canonical WCAG 2.4.1 "bypass blocks" mechanism, so this guard is the
- * Round-5 final-QA HIGH a11y finding (Footer / SkipLink reachability).
+ *(Footer / SkipLink reachability).
  */
 export function FocusOnNavigate() {
   const pathname = usePathname();

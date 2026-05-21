@@ -102,7 +102,7 @@ describe('sanitize (sync)', () => {
     expect(sanitize(jwt)).toBe('[REDACTED]');
   });
 
-  it('does NOT redact innocent 3-dot strings (Round-5 JWT false-positive fix)', () => {
+  it('does NOT redact innocent 3-dot strings (JWT false-positive fix)', () => {
     // Domain names, semvers, and other 3-dot non-JWT strings pass untouched.
     // Real JWTs start with `ey` (base64url of JSON `{`) and are always
     // >= 40 chars in compact form.
@@ -111,7 +111,7 @@ describe('sanitize (sync)', () => {
     expect(sanitize('api.example.com')).toBe('api.example.com');
   });
 
-  it('redacts HTTP auth headers + session cookies (Round-5 reviewer fix)', () => {
+  it('redacts HTTP auth headers + session cookies (reviewer fix)', () => {
     const input = {
       route: '/en/account',
       headers: {

@@ -8,7 +8,7 @@ import { test, expect } from '@/tests/playwright/a11y/makeAxeBuilder';
  *     change focus target for FocusOnNavigate)
  *   - Have a focusable skip-link as the first interactive element
  *   - Pass axe-core WCAG 2.2 AA — enforces the landmark + bypass-block
- *     surface beyond what structural assertions cover (Round-5 a11y
+ *     surface beyond what structural assertions cover (a11y
  *     reviewer requested axe sweep on these pages explicitly).
  */
 
@@ -41,7 +41,7 @@ for (const path of PAGES) {
     await expect(skipLink).toBeAttached();
     await expect(skipLink).toHaveAttribute('href', '#main');
 
-    // Full axe sweep — Round-5 a11y reviewer cross-check.
+    // Full axe sweep — a11y reviewer cross-check.
     const results = await makeAxeBuilder().analyze();
     expect(results.violations).toEqual([]);
   });

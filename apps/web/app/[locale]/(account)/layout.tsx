@@ -14,7 +14,7 @@ import type { Metadata } from 'next';
  * in proxy.ts alone (Next.js CVE-2025-29927).
  *
  * `<main id="main" tabIndex={-1}>` is the focus target for FocusOnNavigate
- * on route changes (Round-5 a11y).
+ * on route changes (a11y).
  */
 
 /**
@@ -28,7 +28,7 @@ import type { Metadata } from 'next';
  * Any other metadata field requires explicit re-statement of
  * `robots: { index: false, follow: false }`.
  *
- * Round-5 TypeScript reviewer flagged this fragility — enforcing at type-level
+ * TypeScript reviewer flagged this fragility — enforcing at type-level
  * would require a custom Next.js plugin; defensive documentation is the M1
  * solution.
  */

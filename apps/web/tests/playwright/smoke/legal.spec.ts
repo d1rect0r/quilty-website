@@ -14,7 +14,7 @@ for (const route of LEGAL_ROUTES) {
     expect(h1Count).toBe(1);
 
     // Parity with marketing + account smoke: structural assertions before
-    // axe sweep (Round-5 a11y reviewer cross-check).
+    // axe sweep (a11y reviewer cross-check).
     await expect(page.locator('main#main')).toBeAttached();
     await expect(page.locator('a.skip-link')).toBeAttached();
 

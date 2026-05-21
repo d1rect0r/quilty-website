@@ -1,13 +1,13 @@
 /*
  * Quilty Website — global styles (Tailwind v4 CSS-first).
  *
- * Per D17 (Round-5 revised): no `tailwind.config.ts`. Token namespace lives
+ * Per D17 (revised): no `tailwind.config.ts`. Token namespace lives
  * in the `@theme` block below, which exposes every token as BOTH a Tailwind
  * utility class (e.g., `bg-color-bg-surface`) AND a CSS custom property
  * (e.g., `var(--color-bg-surface)`).
  *
  * 3-layer token namespace (primitive → semantic → component):
- *   - Primitive: raw color values (OKLCH where possible per Round-5 a11y agent).
+ *   - Primitive: raw color values (OKLCH where possible per architecture lock a11y agent).
  *   - Semantic: design-system roles (foreground, background, accent, danger,
  *               success, etc.) — references primitives.
  *   - Component: optional per-component overrides (lands as components are
@@ -51,7 +51,7 @@
   --color-warning-500: oklch(70% 0.18 75);
 
   /* Status colors — darker variants for text use (contrast-vetted ≥ 4.5:1 on
-     light bg per WCAG 1.4.3). Round-5 a11y agent flagged the 500-line variants
+     light bg per WCAG 1.4.3). a11y agent flagged the 500-line variants
      as too light for normal-text use; semantic -fg tokens now reference these. */
   --color-danger-700: oklch(48% 0.21 27);
   --color-success-700: oklch(43% 0.16 145);
@@ -82,7 +82,7 @@
   /* ── Typography ────────────────────────────────────────────────────── */
   /* `next/font` lands in M3 identity discovery (D17/D21). Until then, the
      stack is OS-native fonts so there's no dangling CSS variable reference
-     (Round-5 typescript-reviewer flagged the old `var(--font-quilty-sans)`
+     (typescript-reviewer flagged the old `var(--font-quilty-sans)`
      placeholder as silently broken). When `next/font` ships, swap this to
      `var(--font-quilty-sans), system-ui, sans-serif`. */
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -99,7 +99,7 @@
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
 
-  /* ── Focus ring (overrides shadcn's 3:1-failing default per Round-5 a11y) ─ */
+  /* ── Focus ring (overrides shadcn's 3:1-failing default per architecture lock a11y) ─ */
   --color-ring: var(--color-brand-700);
   --spacing-ring-width: 2px;
   --spacing-ring-offset: 2px;
@@ -109,7 +109,7 @@
 
 /* Dark-mode overrides (D20). Every semantic token used as text or focus
    indicator gets a dark-surface variant that maintains WCAG 1.4.3 / 1.4.11
-   contrast ratios. Round-5 a11y agent flagged the original draft's
+   contrast ratios. a11y agent flagged the original draft's
    missing --color-ring + --color-fg-subtle overrides (2.55:1 + 4.23:1
    against neutral-950) — both now overridden below. */
 [data-theme='dark'] {
@@ -136,7 +136,7 @@
 
 /* Baseline reset — applied after Tailwind's preflight.
    Smooth scroll is opt-in via prefers-reduced-motion: no-preference per
-   Round-5 final-QA perf-bundle LOW (semantic correctness: opt-in for
+  (semantic correctness: opt-in for
    motion, not opt-out, mirrors the reduced-motion block below). */
 html {
   text-size-adjust: 100%;
@@ -169,7 +169,7 @@ body {
   border: 0;
 }
 
-/* Focus-visible ring (Round-5 a11y agent: shadcn defaults fail 3:1; override) */
+/* Focus-visible ring (a11y agent: shadcn defaults fail 3:1; override) */
 :focus-visible {
   outline: var(--spacing-ring-width) solid var(--color-ring);
   outline-offset: var(--spacing-ring-offset);

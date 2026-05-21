@@ -10,7 +10,7 @@ import { FocusOnNavigate } from '@/components/site/FocusOnNavigate';
  *
  * `<main id="main" tabIndex={-1}>` is the canonical Next.js 16 a11y target
  * for the FocusOnNavigate client component to re-focus on every route change
- * (Round-5 a11y agent).
+ * (a11y agent).
  */
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (

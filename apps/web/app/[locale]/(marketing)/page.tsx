@@ -7,14 +7,14 @@ import {
 import type { Metadata } from 'next';
 
 // Use the root layout's title template default (no `title` here so the page
-// renders as plain "Quilty" rather than "Home · Quilty" — Round-5 a11y
+// renders as plain "Quilty" rather than "Home · Quilty" — a11y
 // reviewer flagged "Home" as too vague for WCAG 2.4.2 Page Titled).
 // M3 identity discovery may replace this with a topical homepage title
 // ("Quilty — Mental health, made personal") once the voice lands.
 export const metadata: Metadata = {
   description: 'Quilty — a mental-health peer-set product.',
   // Per-page canonical + self-referencing hreflang. The root layout no
-  // longer ships a blanket canonical (Round-5 final-QA SEO C2 + M1); every
+  // longer ships a blanket canonical (SEO C2 + M1); every
   // marketing page MUST declare its own. `x-default` points at the English
   // route for now — when next-intl ships at M5+ the locale layout will
   // programmatically broaden this.

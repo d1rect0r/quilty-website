@@ -35,7 +35,7 @@ export function register() {
  * Sentry SDK's own `beforeSend` is the load-bearing defense (D67), but
  * this hook runs BEFORE that pipeline and the raw `request.headers`
  * Headers object would otherwise reach the SDK's serializer with PHI-
- * shaped auth headers intact (Round-5 final-QA HIPAA-CSP MEDIUM —
+ * shaped auth headers intact (HIPAA-CSP MEDIUM —
  * request must be strip + sanitize at the chokepoint).
  *
  * Headers stripped: cookie, set-cookie, authorization, x-auth-*, x-api-key,
@@ -54,7 +54,7 @@ export async function onRequestError(
 ): Promise<void> {
   // Sentry 10.x `captureRequestError` expects a plain header record, not
   // a Headers object. Build a string-record so PHI keys are skipped at
-  // the boundary (Round-5 final-QA HIPAA-CSP MEDIUM).
+  // the boundary .
   const safeHeaders: Record<string, string> = {};
   for (const [key, value] of request.headers.entries()) {
     if (isSensitiveKey(key)) continue;
