@@ -29,7 +29,7 @@
         "lib/**/*.{ts,tsx}",
         "tests/**/*.{ts,tsx}"
       ],
-      "ignore": ["components/blocks/**", "lib/flags/features.ts", "lib/utils.ts"],
+      "ignore": ["lib/flags/features.ts", "lib/utils.ts"],
       "ignoreDependencies": [
         "class-variance-authority",
         "clsx",
@@ -38,7 +38,8 @@
         "tailwind-merge",
         "web-vitals",
         "@testing-library/user-event",
-        "tailwindcss"
+        "tailwindcss",
+        "@quilty/content"
       ]
     }
   }

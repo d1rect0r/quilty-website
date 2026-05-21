@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { CTABannerBlock } from '@/lib/content/schemas';
+import type { CTABannerBlock } from '../schemas.js';
 
 export interface CTABannerProps {
   block: CTABannerBlock;

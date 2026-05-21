@@ -1,11 +1,11 @@
-import { describe, it, expect } from 'vitest';
-import { BlockSchema, type Block } from '@/lib/content/schemas';
+import { describe, expect, it } from 'vitest';
+import { BlockSchema, PageContentSchema, type Block } from '../schemas.js';
 
 /**
  * BlockRenderer tests focus on the SCHEMA contract — the React renderer
- * itself is exercised by Playwright smoke tests in Commit 8. Here we
- * verify every block type round-trips through Zod validation so MDX
- * frontmatter parses correctly at build time.
+ * itself is exercised by Playwright smoke tests at the marketing
+ * extraction commit. Here every block type round-trips through Zod
+ * validation so MDX frontmatter parses correctly at build time.
  */
 
 describe('BlockSchema discriminated union', () => {
@@ -51,7 +51,7 @@ describe('BlockSchema discriminated union', () => {
     ).toThrow();
   });
 
-  it('rejects FeatureGrid without heading (Round-5 final-QA a11y MEDIUM)', () => {
+  it('rejects FeatureGrid without heading (WCAG 1.3.1 heading hierarchy)', () => {
     expect(() =>
       BlockSchema.parse({
         type: 'FeatureGrid',
@@ -68,6 +68,19 @@ describe('BlockSchema discriminated union', () => {
         { question: 'Is it private?', answer: 'Yes, by design.' },
         { question: 'How much does it cost?', answer: 'See pricing page.' },
       ],
+    };
+    expect(() => BlockSchema.parse(input)).not.toThrow();
+  });
+
+  it('accepts an FAQ block without heading (aria-label section fallback path)', () => {
+    // Schema-level acceptance for the headingless FAQ shape. The FAQ
+    // component substitutes aria-label="Frequently asked questions" for
+    // the section's accessible name (WCAG 1.3.1) when no heading is
+    // present; this test guards against an accidental future
+    // .optional() removal that would break that AT-labeled path.
+    const input: Block = {
+      type: 'FAQ',
+      entries: [{ question: 'Q?', answer: 'A.' }],
     };
     expect(() => BlockSchema.parse(input)).not.toThrow();
   });
@@ -158,9 +171,8 @@ describe('BlockSchema discriminated union', () => {
   });
 });
 
-describe('PageContentSchema single-Hero invariant', () => {
-  it('rejects pages with more than one Hero block (D24 + Round-5 SEO)', async () => {
-    const { PageContentSchema } = await import('@/lib/content/schemas');
+describe('PageContentSchema single-Hero invariant (D24 + WCAG 2.4.6)', () => {
+  it('rejects pages with more than one Hero block', () => {
     const result = PageContentSchema.safeParse({
       title: 'Double Hero',
       description: 'Two heroes is a bug.',
@@ -172,10 +184,16 @@ describe('PageContentSchema single-Hero invariant', () => {
       ],
     });
     expect(result.success).toBe(false);
+    // Assert the refine's developer-facing error message — it's the
+    // single source of truth for the single-h1 invariant; a future
+    // refactor that silently dropped the message would still leave
+    // result.success === false but lose the documentation surface.
+    expect(result.success ? '' : result.error.issues[0]?.message).toContain(
+      'at most one Hero block',
+    );
   });
 
-  it('accepts pages with exactly one Hero block', async () => {
-    const { PageContentSchema } = await import('@/lib/content/schemas');
+  it('accepts pages with exactly one Hero block', () => {
     const result = PageContentSchema.safeParse({
       title: 'Single Hero',
       description: 'Just right.',

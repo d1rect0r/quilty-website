@@ -1,4 +1,4 @@
-import type { TestimonialQuoteBlock } from '@/lib/content/schemas';
+import type { TestimonialQuoteBlock } from '../schemas.js';
 
 export interface TestimonialQuoteProps {
   block: TestimonialQuoteBlock;
@@ -11,9 +11,9 @@ export interface TestimonialQuoteProps {
   instanceId: string;
 }
 
-// avatarUrl + role schema fields are deferred to M3+ design iteration;
-// schema accepts them so MDX authors don't see frontmatter rejections,
-// but rendering lands when the visual identity is locked.
+// avatarUrl + role schema fields are reserved for visual identity
+// iteration; the schema accepts them so MDX authors don't see frontmatter
+// rejections, but rendering lands when the visual identity is locked.
 export function TestimonialQuote({ block }: TestimonialQuoteProps) {
   return (
     <figure className="mx-auto max-w-2xl px-6 py-16">

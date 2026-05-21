@@ -1,4 +1,4 @@
-import type { ValuePropBlock } from '@/lib/content/schemas';
+import type { ValuePropBlock } from '../schemas.js';
 
 export interface ValuePropProps {
   block: ValuePropBlock;

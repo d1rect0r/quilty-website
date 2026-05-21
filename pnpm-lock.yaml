@@ -29,6 +29,9 @@ importers:
       '@lhci/cli':
         specifier: 0.15.1
         version: 0.15.1
+      '@quilty/content':
+        specifier: workspace:*
+        version: link:packages/content
       '@secretlint/secretlint-rule-preset-recommend':
         specifier: ^11.7.1
         version: 11.7.1
@@ -110,6 +113,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@quilty/content':
+        specifier: workspace:*
+        version: link:../../packages/content
       '@quilty/observability':
         specifier: workspace:*
         version: link:../../packages/observability
@@ -155,9 +161,6 @@ importers:
       web-vitals:
         specifier: 4.2.4
         version: 4.2.4
-      zod:
-        specifier: 3.25.76
-        version: 3.25.76
     devDependencies:
       '@axe-core/playwright':
         specifier: 4.10.2
@@ -210,6 +213,52 @@ importers:
       typescript:
         specifier: ^5.7.2
         version: 5.7.2
+      vitest:
+        specifier: 2.1.8
+        version: 2.1.8(@types/node@22.10.2)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.47.1)
+
+  packages/content:
+    dependencies:
+      '@quilty/seo':
+        specifier: workspace:*
+        version: link:../seo
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: 22.10.2
+        version: 22.10.2
+      '@types/react':
+        specifier: 19.0.2
+        version: 19.0.2
+      '@types/react-dom':
+        specifier: 19.0.2
+        version: 19.0.2(@types/react@19.0.2)
+      '@vitejs/plugin-react':
+        specifier: 4.3.4
+        version: 4.3.4(vite@5.4.21(@types/node@22.10.2)(lightningcss@1.32.0)(terser@5.47.1))
+      '@vitest/coverage-v8':
+        specifier: 2.1.8
+        version: 2.1.8(vitest@2.1.8(@types/node@22.10.2)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.47.1))
+      jsdom:
+        specifier: 25.0.1
+        version: 25.0.1
+      next:
+        specifier: 16.2.0
+        version: 16.2.0(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(@playwright/test@1.60.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      react:
+        specifier: 19.0.0
+        version: 19.0.0
+      react-dom:
+        specifier: 19.0.0
+        version: 19.0.0(react@19.0.0)
+      typescript:
+        specifier: 5.7.2
+        version: 5.7.2
+      velite:
+        specifier: 0.2.1
+        version: 0.2.1
       vitest:
         specifier: 2.1.8
         version: 2.1.8(@types/node@22.10.2)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.47.1)
@@ -7155,9 +7204,6 @@ packages:
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
 
-  zod@3.24.1:
-    resolution: {integrity: sha512-muH7gBL9sI1nciMZV67X5fTKKBLtwpZ5VBp1vsOQzj1MhrBZ4wlVCm3gedKZWLp0Oyel8sIGfeiz54Su+OVT+A==}
-
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
@@ -10391,13 +10437,13 @@ snapshots:
     dependencies:
       devtools-protocol: 0.0.1608973
       mitt: 3.0.1
-      zod: 3.24.1
+      zod: 3.25.76
 
   chromium-bidi@8.0.0(devtools-protocol@0.0.1495869):
     dependencies:
       devtools-protocol: 0.0.1495869
       mitt: 3.0.1
-      zod: 3.24.1
+      zod: 3.25.76
 
   cjs-module-lexer@2.2.0: {}
 
@@ -11092,8 +11138,8 @@ snapshots:
       '@babel/parser': 7.29.3
       eslint: 9.39.4(jiti@2.7.0)
       hermes-parser: 0.25.1
-      zod: 4.4.3
-      zod-validation-error: 4.0.2(zod@4.4.3)
+      zod: 3.25.76
+      zod-validation-error: 4.0.2(zod@3.25.76)
     transitivePeerDependencies:
       - supports-color
 
@@ -14874,11 +14920,9 @@ snapshots:
 
   yoctocolors-cjs@2.1.3: {}
 
-  zod-validation-error@4.0.2(zod@4.4.3):
+  zod-validation-error@4.0.2(zod@3.25.76):
     dependencies:
-      zod: 4.4.3
-
-  zod@3.24.1: {}
+      zod: 3.25.76
 
   zod@3.25.76: {}
 

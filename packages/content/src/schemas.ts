@@ -14,7 +14,7 @@ import { z } from 'zod';
  *   1. Add the Zod schema below
  *   2. Add to the BlockSchema discriminated union
  *   3. Add a switch case in <BlockRenderer>
- *   4. Add a React component in apps/web/components/blocks/
+ *   4. Add a React component in src/components/
  * TypeScript catches missing steps at compile time.
  */
 
@@ -51,10 +51,10 @@ export type ValuePropBlock = z.infer<typeof ValuePropBlockSchema>;
  *
  * `heading` is REQUIRED (not optional) — without it, the per-item `<h3>`
  * elements would render directly under the page's `<h1>` (from a Hero
- * block), skipping h2 and breaking the heading hierarchy (Round-5 final-QA
- * a11y MEDIUM). Authors who genuinely want a section with no visible
- * heading should use a different block (ValueProp, CTABanner) — the
- * FeatureGrid is inherently a "named group of features" pattern.
+ * block), skipping h2 and breaking the heading hierarchy (WCAG 1.3.1 +
+ * 2.4.6). Authors who want a section with no visible heading should
+ * use a different block (ValueProp, CTABanner) — the FeatureGrid is
+ * inherently a "named group of features" pattern.
  */
 export const FeatureGridBlockSchema = z.object({
   type: z.literal('FeatureGrid'),
@@ -129,20 +129,20 @@ export const PageContentSchema = z
     slug: z.string().min(1),
     locale: z.string().min(2).max(10),
     blocks: z.array(BlockSchema).min(0).max(50),
-    // Optional clinical-content fields (D27): lastReviewed + reviewedBy land
-    // on /science when the named clinical advisor is named (M3-M4). ISO 8601
+    // Optional clinical-content fields (D27): lastReviewed + reviewedBy
+    // land on /science when a named clinical advisor is named. ISO 8601
     // date format enforced — must match Velite's `s.isodate()` constraint
-    // on the legal collection (Round-5 SEO reviewer cross-check).
+    // on the legal collection.
     lastReviewed: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d{3})?(Z|[+-]\d{2}:\d{2})?)?$/)
       .optional(),
     reviewedBy: z.string().optional(),
   })
-  // Single-h1-per-page invariant (D24 + Round-5 SEO reviewer): only one
-  // Hero block per page emits <h1>; pages with multiple Hero blocks would
-  // violate WCAG 2.4.6 + page-titled semantics. Schema-level refine catches
-  // this at content compile time, not in production HTML.
+  // Upper-bound only: at most one Hero per page (D24 + WCAG 2.4.6). The
+  // schema does NOT enforce a minimum Hero — pages whose <h1> comes
+  // from the route layout (outside the block library) are valid; the
+  // route file holds the page-h1 contract in that composition pattern.
   .refine((page) => page.blocks.filter((b) => b.type === 'Hero').length <= 1, {
     message: 'A page may contain at most one Hero block (single <h1> per page).',
   });

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { HeroBlock } from '@/lib/content/schemas';
+import type { HeroBlock } from '../schemas.js';
 
 export interface HeroProps {
   block: HeroBlock;
@@ -22,7 +22,7 @@ export function Hero({ block, instanceId }: HeroProps) {
           {block.primaryCta ? (
             <Link
               href={block.primaryCta.href}
-              className="bg-accent-primary text-accent-fg hover:bg-accent-primary-hover flex min-h-11 items-center rounded-md px-5"
+              className="bg-accent-primary text-accent-fg hover:bg-accent-primary-hover inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-5"
             >
               {block.primaryCta.label}
             </Link>
@@ -30,7 +30,7 @@ export function Hero({ block, instanceId }: HeroProps) {
           {block.secondaryCta ? (
             <Link
               href={block.secondaryCta.href}
-              className="border-border-default text-fg-default hover:bg-bg-elevated flex min-h-11 items-center rounded-md border px-5"
+              className="border-border-default text-fg-default hover:bg-bg-elevated inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border px-5"
             >
               {block.secondaryCta.label}
             </Link>

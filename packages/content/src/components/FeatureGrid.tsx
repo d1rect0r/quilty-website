@@ -1,4 +1,4 @@
-import type { FeatureGridBlock } from '@/lib/content/schemas';
+import type { FeatureGridBlock } from '../schemas.js';
 
 export interface FeatureGridProps {
   block: FeatureGridBlock;
@@ -6,9 +6,8 @@ export interface FeatureGridProps {
 }
 
 export function FeatureGrid({ block, instanceId }: FeatureGridProps) {
-  // `heading` is required by the schema (Round-5 final-QA a11y MEDIUM —
-  // forces a proper h1→h2→h3 hierarchy when this block appears under a
-  // page-level Hero h1).
+  // `heading` is required by the schema so a FeatureGrid appearing under a
+  // page-level Hero h1 emits a proper h1 → h2 → h3 hierarchy (WCAG 1.3.1).
   const headingId = `${instanceId}-heading`;
   return (
     <section aria-labelledby={headingId} className="mx-auto max-w-6xl px-6 py-16">
@@ -16,9 +15,11 @@ export function FeatureGrid({ block, instanceId }: FeatureGridProps) {
         {block.heading}
       </h2>
       <ul className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-        {/* Keys use the (instanceId, position) tuple — stable across content
-            edits (Round-5 typescript-reviewer MEDIUM: content-based keys
-            re-mount components on heading rename). */}
+        {/* Keys use the (instanceId, position) tuple. The block schema
+            does not yet carry stable per-item IDs; the tuple is unique
+            on the page and stable across content edits to other fields.
+            When the schema gains a stable `id` field, switch to
+            `key={item.id}`. */}
         {block.items.map((item, idx) => (
           <li
             key={`${instanceId}-item-${idx}`}

@@ -94,7 +94,6 @@ module.exports = {
           'tests/playwright/',
           // Scaffolded for future activation — consumed at content-layer
           // activation when MDX content lands.
-          'apps/web/components/blocks/',
           'apps/web/lib/flags/',
           'apps/web/lib/utils\\.ts$',
           // Indirectly consumed via Next.js conventions or framework hooks
@@ -110,6 +109,12 @@ module.exports = {
           // their package's index barrel + tests. Re-evaluate when M5
           // flips tsPreCompilationDeps on.
           'packages/[^/]+/src/(ports|errors)\\.ts$',
+          // Velite CLI entrypoint — consumed at the package subpath
+          // export `@quilty/content/velite-config` by the root
+          // `velite.config.ts` re-export shim. depcruise resolves
+          // workspace packages via node_modules symlinks but does not
+          // follow re-export chains through `exports` map subpaths.
+          'packages/content/src/velite-config\\.ts$',
         ],
       },
       to: {},
