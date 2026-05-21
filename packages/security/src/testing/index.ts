@@ -16,8 +16,21 @@
 
 import { assertNoPHI } from '../domain/assert-no-phi';
 import { isSafeRedirect } from '../domain/redirect-validator';
-import { isSensitiveKey, sanitize, sanitizeAsync } from '../domain/sanitizer';
+import {
+  __resetPepperCacheForTesting,
+  isSensitiveKey,
+  sanitize,
+  sanitizeAsync,
+} from '../domain/sanitizer';
 import type { RedirectValidator, RedirectValidatorOptions, Sanitizer } from '../ports';
+
+/**
+ * Reset the pseudonymisation pepper cache. Tests that install a
+ * temporary `QUILTY_PSEUDONYM_PEPPER` value between cases (via
+ * `vi.stubEnv`) MUST call this in `afterEach` so the next case re-reads
+ * the env. Production code never calls this.
+ */
+export { __resetPepperCacheForTesting };
 
 export function makeSanitizerFake(): Sanitizer {
   return {

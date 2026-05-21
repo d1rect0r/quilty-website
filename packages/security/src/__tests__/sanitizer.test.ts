@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { isSensitiveKey, sanitize, sanitizeAsync } from '../domain/sanitizer';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  __resetPepperCacheForTesting,
+  isSensitiveKey,
+  sanitize,
+  sanitizeAsync,
+} from '../domain/sanitizer';
 
 describe('isSensitiveKey', () => {
   it('matches known PHI keys', () => {
@@ -185,14 +190,66 @@ describe('sanitize (sync)', () => {
 });
 
 describe('sanitizeAsync', () => {
-  it('async-hashes UUID-shaped strings with SHA-256 prefix', async () => {
+  it('async-hashes UUID-shaped strings to a 96-bit dev-namespace prefix when no pepper is set', async () => {
     const uuid = '550e8400-e29b-41d4-a716-446655440000';
     const out = await sanitizeAsync(uuid);
-    expect(out).toMatch(/^sha256:[0-9a-f]{16}$/);
+    // 96-bit (24 hex char) prefix — NIST SP 800-107r1 collision floor
+    // for log-scale volume. `dev:` namespace marks an unsalted hash.
+    expect(out).toMatch(/^dev:[0-9a-f]{24}$/);
   });
 
   it('redacts PHI keys at any depth (parity with sync)', async () => {
     const out = await sanitizeAsync({ email: 'x@y.z', route: '/safe' });
     expect(out).toMatchObject({ email: '[REDACTED]', route: '/safe' });
+  });
+});
+
+describe('sanitizeAsync HMAC pseudonymization', () => {
+  // Tests parameterise over the QUILTY_PSEUDONYM_PEPPER env var; reset
+  // the module-scope cache between cases so the next case re-reads.
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    __resetPepperCacheForTesting();
+  });
+
+  it('HMAC-namespaces the hash when QUILTY_PSEUDONYM_PEPPER is present', async () => {
+    vi.stubEnv('QUILTY_PSEUDONYM_PEPPER', 'test-pepper-do-not-use-in-prod');
+    __resetPepperCacheForTesting();
+    const uuid = '550e8400-e29b-41d4-a716-446655440000';
+    const out = await sanitizeAsync(uuid);
+    expect(out).toMatch(/^hmac\.v1:[0-9a-f]{24}$/);
+  });
+
+  it('two different peppers produce different hashes for the same input (defends against cross-environment correlation)', async () => {
+    const uuid = '550e8400-e29b-41d4-a716-446655440000';
+
+    vi.stubEnv('QUILTY_PSEUDONYM_PEPPER', 'pepper-prod');
+    __resetPepperCacheForTesting();
+    const prodHash = await sanitizeAsync(uuid);
+
+    vi.stubEnv('QUILTY_PSEUDONYM_PEPPER', 'pepper-dev');
+    __resetPepperCacheForTesting();
+    const devHash = await sanitizeAsync(uuid);
+
+    expect(prodHash).not.toBe(devHash);
+    expect(prodHash).toMatch(/^hmac\.v1:[0-9a-f]{24}$/);
+    expect(devHash).toMatch(/^hmac\.v1:[0-9a-f]{24}$/);
+  });
+
+  it('same pepper + same input produces the same hash (deterministic for log-correlation)', async () => {
+    vi.stubEnv('QUILTY_PSEUDONYM_PEPPER', 'pepper-fixed');
+    __resetPepperCacheForTesting();
+    const uuid = '550e8400-e29b-41d4-a716-446655440000';
+    const first = await sanitizeAsync(uuid);
+    const second = await sanitizeAsync(uuid);
+    expect(first).toBe(second);
+  });
+
+  it('empty pepper string falls back to dev namespace (treats empty as unset)', async () => {
+    vi.stubEnv('QUILTY_PSEUDONYM_PEPPER', '');
+    __resetPepperCacheForTesting();
+    const uuid = '550e8400-e29b-41d4-a716-446655440000';
+    const out = await sanitizeAsync(uuid);
+    expect(out).toMatch(/^dev:[0-9a-f]{24}$/);
   });
 });

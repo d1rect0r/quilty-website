@@ -51,6 +51,7 @@
 
 const DEPLOY_GATE_ENV = 'SST_DEPLOY_GATE_PASSED';
 const WAF_ACL_ARN_ENV = 'WAF_WEB_ACL_ARN';
+const PSEUDONYM_PEPPER_ENV = 'QUILTY_PSEUDONYM_PEPPER';
 
 function shouldProvisionResources(): boolean {
   return process.env[DEPLOY_GATE_ENV] === 'true';
@@ -164,6 +165,24 @@ function defineSiteResources(stage: string) {
     );
   }
 
+  // Pseudonymisation pepper hard gate. The @quilty/security sanitizer
+  // falls back to plain SHA-256 (dev: namespace) when the env var is
+  // unset, which is fine for dev/test but a production deploy must
+  // ship with the per-stage HMAC pepper vended from AWS Secrets
+  // Manager (D63 + log-retention.md). The pepper is server-only —
+  // intentionally NOT a NEXT_PUBLIC_* var. The deploy workflow reads
+  // the SSM-pointer secret + exports it as QUILTY_PSEUDONYM_PEPPER.
+  const pseudonymPepper = process.env[PSEUDONYM_PEPPER_ENV];
+  if (!pseudonymPepper) {
+    throw new Error(
+      `${PSEUDONYM_PEPPER_ENV} is required at SST deploy time — ` +
+        'log-side pseudonymisation falls back to unsalted SHA-256 ' +
+        'without it (HIPAA + GDPR Art 4(5) pseudonymisation gap). ' +
+        'Vended from AWS Secrets Manager by quilty-aws/website-baseline/. ' +
+        'See docs/runbook/log-retention.md prerequisites.',
+    );
+  }
+
   const site = new sst.aws.Nextjs('QuiltyWeb', {
     path: 'apps/web',
     domain:
@@ -183,6 +202,11 @@ function defineSiteResources(stage: string) {
       // reviewer M3 (no wildcard DNS record exists for that pattern).
       NEXT_PUBLIC_SITE_URL: stage === 'dev' ? 'https://my-quilty.com' : ($site?.url ?? ''),
       NEXT_PUBLIC_SENTRY_DSN: sentryDsn,
+      // Server-only — never expose to the client bundle. The Next.js
+      // build replaces unprefixed env vars with undefined in browser
+      // chunks, so the sanitizer's client-side path always lands on
+      // the `dev:` namespace as designed.
+      QUILTY_PSEUDONYM_PEPPER: pseudonymPepper,
     },
     server: {
       // arm64 ~20% cheaper than x86_64 at the same perf. OpenNext +

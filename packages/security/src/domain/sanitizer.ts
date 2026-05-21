@@ -199,20 +199,107 @@ function isPhiKey(key: string): boolean {
 }
 
 /**
- * SHA-256 prefix of a UUID-like identifier. Deterministic so two log lines
- * from the same user join on the hash; not reversible to the user identity.
- * Uses Web Crypto via `globalThis.crypto.subtle` (available on Edge + Node
- * 24 + browser runtimes).
+ * Pseudonymize a user-identifier-shaped value (UUID, opaque session ID).
+ *
+ * Uses HMAC-SHA-256 with a per-stage pepper when QUILTY_PSEUDONYM_PEPPER
+ * is set (production deploy gate vends the pepper from AWS Secrets
+ * Manager — never SSM Parameter Store, never config-bundled, per the
+ * EDPB 01/2025 pseudonymisation guidance: the key is the GDPR Art 4(5)
+ * "additional information kept separately"). Falls back to plain SHA-256
+ * with a `dev:` namespace when the env var is unset (dev / test paths).
+ *
+ * Output is 24 hex chars (96 bits) — NIST SP 800-107r1 §5.1 collision
+ * floor for log-scale volume; the prior 16-char (64-bit) prefix
+ * collapsed collision resistance to ~2^32, surfacing as duplicate
+ * pseudonyms above ~4B emissions.
+ *
+ * Versioned namespace prefix (`hmac.v1:` / `dev:`) lets the audit
+ * pipeline distinguish pre-rotation vs post-rotation pseudonyms without
+ * re-hashing historical data on every annual pepper rotation.
+ *
+ * Browser-runtime safety: NEXT_PUBLIC_* prefix is intentionally absent,
+ * so the pepper is replaced with `undefined` at the Next.js client
+ * bundle compile step — client-side hashing always lands on the `dev:`
+ * fallback (the browser already holds the source value in clear, so a
+ * client-side HMAC adds zero protection against client adversaries; the
+ * server-side HMAC is what defends against log-side adversaries).
  */
-async function hashId(value: string): Promise<string> {
-  const data = new TextEncoder().encode(value);
-  const buf = await globalThis.crypto.subtle.digest('SHA-256', data);
+const PSEUDONYM_PEPPER_ENV = 'QUILTY_PSEUDONYM_PEPPER';
+const PSEUDONYM_PEPPER_VERSION = 'v1';
+const PSEUDONYM_HASH_PREFIX_LENGTH = 24;
+
+// Local minimal type for the imported HMAC key. The full WebCrypto
+// `CryptoKey` lives in lib.dom.d.ts; some workspace packages compile
+// without DOM lib, so we declare a structural alias here to keep the
+// type-check portable across the workspace. At runtime, the value is
+// the WebCrypto CryptoKey; consumers never inspect its shape.
+interface PepperKey {
+  readonly type: string;
+  readonly extractable: boolean;
+  readonly algorithm: { readonly name: string };
+  readonly usages: readonly string[];
+}
+
+let cachedPepperKey: PepperKey | null = null;
+let cachedPepperLookupAttempted = false;
+
+async function getPepperKey(): Promise<PepperKey | null> {
+  if (cachedPepperLookupAttempted) return cachedPepperKey;
+  cachedPepperLookupAttempted = true;
+  // Guard `process.env` so the module loads cleanly in browser bundles
+  // where `process` is undefined; Next.js inlines the env access at
+  // build time + tree-shakes the fallback when the var is empty.
+  const pepper = typeof process !== 'undefined' ? process.env[PSEUDONYM_PEPPER_ENV] : undefined;
+  if (pepper === undefined || pepper.length === 0) return null;
+  const raw = new TextEncoder().encode(pepper);
+  cachedPepperKey = (await globalThis.crypto.subtle.importKey(
+    'raw',
+    raw,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )) as PepperKey;
+  return cachedPepperKey;
+}
+
+function bufferToHex(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf);
   let hex = '';
   for (const byte of bytes) {
     hex += byte.toString(16).padStart(2, '0');
   }
-  return `sha256:${hex.slice(0, 16)}`;
+  return hex;
+}
+
+async function hashId(value: string): Promise<string> {
+  const data = new TextEncoder().encode(value);
+  const key = await getPepperKey();
+  if (key !== null) {
+    // `key` is our local `PepperKey` alias to keep the type-check
+    // portable across workspace packages whose tsconfig omits
+    // lib: ["DOM"]. The runtime is the validator — Web Crypto throws
+    // if the value isn't actually a valid CryptoKey.
+    const sig = await globalThis.crypto.subtle.sign(
+      'HMAC',
+      key as unknown as Parameters<typeof globalThis.crypto.subtle.sign>[1],
+      data,
+    );
+    return `hmac.${PSEUDONYM_PEPPER_VERSION}:${bufferToHex(sig).slice(
+      0,
+      PSEUDONYM_HASH_PREFIX_LENGTH,
+    )}`;
+  }
+  const buf = await globalThis.crypto.subtle.digest('SHA-256', data);
+  return `dev:${bufferToHex(buf).slice(0, PSEUDONYM_HASH_PREFIX_LENGTH)}`;
+}
+
+/**
+ * Test-only: reset the pepper key cache so a test can install a
+ * different pepper between cases. Never call from production code.
+ */
+export function __resetPepperCacheForTesting(): void {
+  cachedPepperKey = null;
+  cachedPepperLookupAttempted = false;
 }
 
 function isLikelyJwt(value: string): boolean {
