@@ -57,22 +57,65 @@ function shouldProvisionResources(): boolean {
 }
 
 /**
- * Mandatory tag set per the `quilty-aws` topology convention. Every
- * SST-emitted resource must carry the five `quilty:*` tags below so
- * cost reports + IAM policy scoping (permission-boundary stack-name
- * matching) + Phase 1 migration filters all work correctly.
+ * Compile-time-enforced tag value space.
  *
- * Round-5 final-QA IaC reviewer H1: `quilty:owner`, `quilty:stack`, and
- * `quilty:repo` were missing from the earlier set. `quilty:stack` is
- * load-bearing — `quilty-aws` IAM permission boundaries scope by stack
- * namespace, so a deploy without it would fail policy conditions when
- * the post-Phase-1 boundary is tightened.
+ * The `quilty:env` + `quilty:cost-center` tags feed AWS Tag Policies +
+ * Cost Explorer aggregations + IAM permission-boundary conditions in
+ * the `quilty-aws` OU. Mis-tagged resources slip past the boundary +
+ * pollute the cost report. Modeling these as union types pushes the
+ * validation up to `tsc --noEmit` so a typo (`'production'` vs
+ * `'prod'`, `'mkt'` vs `'marketing'`) is caught at edit time, not at
+ * Pulumi diff.
+ *
+ * See `docs/runbook/log-retention.md` for the full tag schema +
+ * permitted values + rotation policy.
  */
-function siteTagsFor(stage: string): Record<string, string> {
+type QuiltyEnv = 'dev' | 'preview' | 'prod';
+type QuiltyCostCenter = 'marketing' | 'platform' | 'security';
+
+interface QuiltyTags {
+  readonly 'quilty:owner': string;
+  readonly 'quilty:service': string;
+  readonly 'quilty:env': QuiltyEnv;
+  readonly 'quilty:stack': string;
+  readonly 'quilty:repo': string;
+  readonly 'quilty:cost-center': QuiltyCostCenter;
+  // `workload` + `stage` are preserved for cost-allocation backward
+  // compatibility with the pre-tag-policy reports. New code should
+  // prefer the `quilty:*` keys. See log-retention.md tag schema for
+  // the deprecation window.
+  readonly workload: string;
+  readonly stage: string;
+}
+
+/**
+ * Mandatory tag set per the `quilty-aws` topology convention. Every
+ * SST-emitted resource carries the eight tags below so cost reports +
+ * IAM policy scoping (permission-boundary stack-name matching) + a
+ * future cross-account migration filter all work correctly.
+ *
+ * `quilty:stack` is load-bearing — `quilty-aws` IAM permission
+ * boundaries scope by stack namespace, so a deploy without it would
+ * fail policy conditions when the post-launch boundary is tightened.
+ */
+function siteTagsFor(stage: string): QuiltyTags {
+  // SST stage names follow the `dev` / `preview-pr-<n>` / `prod-*`
+  // convention. Map them to the closed QuiltyEnv enum so the AWS Tag
+  // Policy `quilty:env` value list (dev/preview/prod) is satisfied.
+  // `production` and `prod-*` both fold to `prod`; any other unknown
+  // stage falls back to `dev` (the safest closed-enum default).
+  const env: QuiltyEnv =
+    stage === 'dev'
+      ? 'dev'
+      : stage.startsWith('preview')
+        ? 'preview'
+        : stage === 'production' || stage.startsWith('prod')
+          ? 'prod'
+          : 'dev';
   return {
     'quilty:owner': 'platform',
     'quilty:service': 'quilty-website',
-    'quilty:env': stage,
+    'quilty:env': env,
     'quilty:stack': `quilty-web-${stage}`,
     'quilty:repo': 'quilty-website',
     'quilty:cost-center': 'marketing',
@@ -144,41 +187,84 @@ function defineSiteResources(stage: string) {
     server: {
       // arm64 ~20% cheaper than x86_64 at the same perf. OpenNext +
       // SST 4.14 ARM64 compatibility is documented; verify on first
-      // deploy (Round-5 IaC reviewer L4).
+      // deploy.
       architecture: 'arm64',
       memory: '1024 MB',
       timeout: '15 seconds',
-      // reservedConcurrency caps a traffic spike or DDoS-style scale
-      // event from exhausting the dev-account concurrency pool that the
-      // Rust auth backend Lambdas share (Round-5 final-QA IaC H2). 100
-      // is calibrated to M1 expected traffic (zero today, hundreds at
-      // launch); revisit when post-launch CWV telemetry shows real load.
-      // Cost-neutral — reserved concurrency does not increase per-
-      // invocation cost.
-      reservedConcurrency: 100,
     },
     transform: {
       cdn(args) {
         args.tags = { ...args.tags, ...siteTagsFor(stage) };
-        // Wire the WAF Web ACL — CLAUDE.md NEVER list compliance
-        // (Round-5 final-QA IaC C1). The ARN is a runtime gate (see
-        // above) so this is always populated when the cdn transform runs.
+        // CLAUDE.md NEVER list: no public hostname without WAF + rate
+        // limit. The ARN is a runtime gate (see above) so this is
+        // always populated when the cdn transform runs.
         args.webAclId = wafAclArn;
       },
       server(args) {
-        args.tags = { ...args.tags, ...siteTagsFor(stage) };
+        const tags = siteTagsFor(stage);
+        args.tags = { ...args.tags, ...tags };
+        // reservedConcurrency belongs on FunctionArgs.concurrency.reserved,
+        // not on SsrSiteArgs.server — the latter has no concurrency
+        // field so the prior placement was silently discarded. Caps the
+        // Lambda from exhausting the shared dev-account concurrency
+        // pool the Rust auth-backend Lambdas live in. 100 is calibrated
+        // for zero-today / hundreds-at-launch traffic.
+        args.concurrency = {
+          ...(typeof args.concurrency === 'object' ? args.concurrency : {}),
+          reserved: 100,
+        };
+        // 6yr retention satisfies 45 CFR §164.530(j)(2); the D67 PHI
+        // sanitizer chokepoint at wrapLogger/wrapErrorReporter is what
+        // makes long retention safe. `format: 'json'` produces OTel-
+        // shaped logs the Logs-Insights queries in
+        // docs/runbook/log-retention.md depend on.
+        args.logging = {
+          ...(typeof args.logging === 'object' ? args.logging : {}),
+          retention: '6 years',
+          format: 'json',
+        };
+        // CloudWatch LogGroup tag propagation + retain-on-delete. The
+        // Nextjs component does NOT route AWS:Logs:LogGroup through its
+        // app-level `removal: 'retain'` allowlist, so without this the
+        // log group is deleted on `sst remove --stage dev` regardless
+        // of the 6-year audit clock. The nested transform reaches the
+        // inner Function's LogGroup args directly.
+        args.transform = {
+          ...(typeof args.transform === 'object' ? args.transform : {}),
+          logGroup(lgArgs, opts) {
+            lgArgs.tags = { ...lgArgs.tags, ...tags };
+            // Audit-clock protection: any stage that could host real
+            // auth/consent/step-up events must retain the log group on
+            // teardown. Preview stages are ephemeral PR builds with no
+            // real user events, so they keep the default destroy-on-
+            // remove behavior. `dev` + every `prod*` stage retains.
+            const isAuditStage =
+              stage === 'dev' || stage.startsWith('prod') || stage === 'production';
+            if (isAuditStage) {
+              opts.retainOnDelete = true;
+            }
+          },
+        };
       },
       assets(args) {
-        // S3 origin bucket tags + retention. `forceDestroy: false` on
-        // the dev stage keeps `sst remove --stage dev` from silently
-        // deleting the asset bucket (Round-5 final-QA IaC M1 — the app-
-        // level `removal: retain` does not propagate to resource-level
-        // S3 bucket policy in SST 4.x). Preview stages keep the default
-        // (forceDestroy: true) so PR cleanup actually frees S3.
-        args.tags = { ...args.tags, ...siteTagsFor(stage) };
-        if (stage === 'dev') {
-          args.forceDestroy = false;
-        }
+        // SST's `BucketArgs` exposes a nested `transform.bucket` for
+        // the underlying Pulumi s3.Bucket — that's where tags + the
+        // dev-stage forceDestroy guard land. Setting `args.tags` or
+        // `args.forceDestroy` at this level is silently discarded
+        // because the SST abstraction has no such fields.
+        args.transform = {
+          ...(typeof args.transform === 'object' ? args.transform : {}),
+          bucket(bArgs) {
+            bArgs.tags = { ...bArgs.tags, ...siteTagsFor(stage) };
+            if (stage === 'dev') {
+              // Preserves the dev assets bucket across `sst remove
+              // --stage dev` invocations. The app-level `removal:
+              // retain` covers S3 buckets but `forceDestroy: false` is
+              // the belt-and-braces guard against an explicit destroy.
+              bArgs.forceDestroy = false;
+            }
+          },
+        };
       },
     },
   });
