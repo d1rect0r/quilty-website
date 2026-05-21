@@ -21,8 +21,9 @@
  * test enforces the runtime composition order.
  */
 
+import type { ConsentReader } from '@quilty/consent';
 import type { Sanitizer } from '@quilty/security';
-import type { Analytics, AnalyticsCallContext, AnalyticsEvent, ConsentReader } from '../ports.js';
+import type { Analytics, AnalyticsCallContext, AnalyticsEvent } from '../ports.js';
 
 export interface WrappedAnalyticsOptions {
   readonly adapter: Analytics;

@@ -21,8 +21,6 @@ export type {
   Analytics,
   AnalyticsCallContext,
   AnalyticsEvent,
-  ConsentReader,
-  ConsentSnapshot,
   ErrorReporter,
   ErrorReporterContext,
   FeatureFlagEvaluator,

@@ -3,7 +3,7 @@
  *
  * No `'use client'` directive — this module is not a React component and
  * is not imported by JSX. Client Components and client-side hooks call
- * `getContainer(makeClientContainer)` from their own bodies; those
+ * `getClientContainer(makeClientContainer)` from their own bodies; those
  * callers carry their own `'use client'` directive when the call site
  * lives inside a React module.
  *
@@ -33,10 +33,10 @@ import {
   wrapErrorReporter,
   wrapLogger,
 } from '@quilty/observability';
-import { makeCspBuilder, makeHeadersBuilder, makeSanitizer } from '@quilty/security';
-import type { Container } from './lib/get-container';
+import { makeSanitizer } from '@quilty/security';
+import type { ClientContainer } from './lib/get-container';
 
-export function makeClientContainer(): Container {
+export function makeClientContainer(): ClientContainer {
   const sanitizer = makeSanitizer();
 
   // Browser Logger (silent in production, console-only in development).
@@ -49,13 +49,8 @@ export function makeClientContainer(): Container {
   });
 
   return {
+    runtime: 'client',
     sanitizer,
-    // CspBuilder + HeadersBuilder are server-only by responsibility but
-    // exposed in the client Container for type-shape consistency.
-    // Client code MUST NOT call them (no body would render the right
-    // value at request time).
-    cspBuilder: makeCspBuilder(),
-    headersBuilder: makeHeadersBuilder(),
     logger: wrappedLogger,
     analytics: wrapAnalytics({
       adapter: makeAmplitudeAnalytics({ logger: wrappedLogger }),

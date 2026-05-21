@@ -3,7 +3,7 @@
  * `ConsentSnapshot` every call.
  */
 
-import type { ConsentReader, ConsentSnapshot } from '@quilty/observability';
+import type { ConsentReader, ConsentSnapshot } from '../ports.js';
 
 export interface InMemoryConsentReaderInput {
   readonly snapshot: ConsentSnapshot;

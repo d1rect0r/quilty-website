@@ -1,50 +1,36 @@
 /**
  * Public barrel for @quilty/security.
  *
- * Consumers import factories + types from this file. Deep imports into
- * `src/*` are forbidden by `.dependency-cruiser.cjs` rule
- * `cross-package-imports-must-use-barrel`.
+ * CSP + Security-Headers + Redirect-Validator helpers are exported as
+ * plain functions, not as factory-returned port objects. The factory
+ * shape was confirmed over-engineering by the Wave-1-close research:
+ * a port is a seam where the implementation can swap. CSP/header
+ * construction is pure string composition with no vendor to swap and
+ * no closed-over state worth abstracting. Direct function exports
+ * remove dead client-bundle code + ~30 lines of factory ceremony with
+ * no loss of testability.
+ *
+ * Deep imports into `src/*` are forbidden by `.dependency-cruiser.cjs`
+ * rule `cross-package-imports-must-use-barrel`.
  */
 
 import { assertNoPHI } from './domain/assert-no-phi.js';
-import {
-  buildMarketingCsp,
-  buildPortalCsp,
-  generateNonce,
-  isPortalRoute,
-} from './domain/csp-builder.js';
-import {
-  buildHstsValue,
-  buildSecurityHeaders,
-  currentHstsPhase,
-} from './domain/headers-builder.js';
 import { isSafeRedirect } from './domain/redirect-validator.js';
 import { isSensitiveKey, sanitize, sanitizeAsync } from './domain/sanitizer.js';
-import type {
-  CspBuilder,
-  CspOptions,
-  HeadersBuilder,
-  HstsPhase,
-  RedirectValidator,
-  RedirectValidatorOptions,
-  Sanitizer,
-  SecurityHeaderEntry,
-} from './ports.js';
+import type { RedirectValidator, RedirectValidatorOptions, Sanitizer } from './ports.js';
 
 // ---------------------------------------------------------------------------
 // Type re-exports
 // ---------------------------------------------------------------------------
 
 export type {
-  CspBuilder,
   CspOptions,
-  HeadersBuilder,
   HstsPhase,
   RedirectValidator,
   RedirectValidatorOptions,
   Sanitizer,
   SecurityHeaderEntry,
-};
+} from './ports.js';
 
 export type {
   CsrfError,
@@ -55,7 +41,7 @@ export type {
 } from './errors.js';
 
 // ---------------------------------------------------------------------------
-// Direct function re-exports (low-ceremony consumers — proxy.ts, tests)
+// Direct function exports — preferred consumer pattern
 // ---------------------------------------------------------------------------
 
 export { sanitize, sanitizeAsync, isSensitiveKey } from './domain/sanitizer.js';
@@ -85,17 +71,17 @@ export {
 } from './domain/time-trap.js';
 
 // ---------------------------------------------------------------------------
-// Port factories — what the composition root binds into the Container
+// Port factories — only ports with real state earn a factory shape
 // ---------------------------------------------------------------------------
 
 /**
  * Factory: returns a Sanitizer port instance.
  *
- * The factory exists so the composition root can hold an opaque
- * `Sanitizer` reference (typed by the port interface) while other
- * packages compose their own factory wrappers AROUND this Sanitizer
- * (e.g., `@quilty/observability` wraps every adapter; `@quilty/email`
- * wraps EmailSender). This is the chokepoint primitive per D67.
+ * The factory exists so other packages can compose their own wrapper
+ * factories AROUND the Sanitizer (e.g., `@quilty/observability` wraps
+ * every adapter; `@quilty/email` wraps EmailSender). The opaque port
+ * reference is the chokepoint primitive per D67 — consumers hold a
+ * `Sanitizer` interface, not the concrete `sanitize` function.
  */
 export function makeSanitizer(): Sanitizer {
   return {
@@ -108,36 +94,12 @@ export function makeSanitizer(): Sanitizer {
 
 /**
  * Factory: returns a RedirectValidator bound to the given allowlist.
+ * The factory earns its shape because the validator closes over the
+ * caller-provided allowlist — that's the per-call-site policy that
+ * makes the port-style abstraction non-trivial.
  */
 export function makeRedirectValidator(options: RedirectValidatorOptions): RedirectValidator {
   return {
     isSafe: (raw) => isSafeRedirect(raw, options),
-  };
-}
-
-/**
- * Factory: returns a CspBuilder. The opts argument is reserved for future
- * configuration knobs; today the builder is stateless and the factory just
- * wraps the module-level functions in the port shape.
- */
-export function makeCspBuilder(): CspBuilder {
-  return {
-    buildMarketing: buildMarketingCsp,
-    buildPortal: buildPortalCsp,
-    isPortalRoute,
-    generateNonce,
-  };
-}
-
-/**
- * Factory: returns a HeadersBuilder. Stateless wrapper over the module-
- * level functions; the factory shape is the seam where future per-app
- * customization (e.g., per-tenant Permissions-Policy) could plug in.
- */
-export function makeHeadersBuilder(): HeadersBuilder {
-  return {
-    buildSecurityHeaders,
-    buildHstsValue,
-    currentHstsPhase,
   };
 }

@@ -1,44 +1,18 @@
 /**
  * Observability package ports.
  *
- * Five role-shaped interfaces consumed by the composition root and other
- * workspace packages. Naming discipline (META-1): ports never carry vendor
- * names — vendor identifiers appear only inside `adapters/<vendor>.ts`.
+ * Five role-shaped interfaces — Analytics, ErrorReporter, Logger,
+ * Replay, FeatureFlagEvaluator — consumed by the composition root.
+ * Naming discipline (META-1): ports never carry vendor names — vendor
+ * identifiers appear only inside `adapters/<vendor>.ts`.
+ *
+ * The `ConsentReader` + `ConsentSnapshot` types consumed by
+ * `wrapAnalytics` are owned by `@quilty/consent` (port-owned-by-
+ * provider); this package depends on `@quilty/consent` for those
+ * contracts.
  */
 
 import type { AccountDeleteReason } from './domain/account-delete-reason.js';
-
-// ---------------------------------------------------------------------------
-// ConsentReader — minimal consent gate primitive
-// ---------------------------------------------------------------------------
-
-/**
- * Snapshot of the user's consent state at the moment an analytics call
- * fires. `@quilty/consent`'s `ConsentStore` (landing in a later extraction
- * commit) returns a superset of this shape; the composition root swaps
- * the in-memory default-deny stub for the real store without changing
- * the wrapper API.
- */
-export interface ConsentSnapshot {
-  readonly analytics: boolean;
-  readonly marketing: boolean;
-  readonly preferences: boolean;
-  readonly gpc_detected: boolean;
-}
-
-/**
- * Minimal consent gate primitive. The wrapper invokes `read()` at each
- * track call to honor the per-request consent semantics (cookies + GPC
- * header can change between requests).
- *
- * Fail-closed: a thrown read or a rejected Promise must result in the
- * wrapper denying the event. @quilty/consent's `makeDefaultDenyConsentReader()`
- * is the production baseline; observability ships an equivalent in
- * `__fakes__/` for tests.
- */
-export interface ConsentReader {
-  readonly read: () => ConsentSnapshot | Promise<ConsentSnapshot>;
-}
 
 // ---------------------------------------------------------------------------
 // Analytics port (D82)

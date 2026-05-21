@@ -23,6 +23,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@quilty/consent": "workspace:*",
     "@quilty/security": "workspace:*",
     "@sentry/nextjs": "10.53.1"
   },

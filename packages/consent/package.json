@@ -31,7 +31,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@quilty/observability": "workspace:*",
     "server-only": "0.0.1"
   },
   "peerDependencies": {

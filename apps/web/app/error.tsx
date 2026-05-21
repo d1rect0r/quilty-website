@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { makeClientContainer } from '@/composition.client';
-import { getContainer } from '@/lib/get-container';
+import { getClientContainer } from '@/lib/get-container';
 
 interface ErrorPageProps {
   error: Error & { digest?: string };
@@ -14,7 +14,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
     // The Container's errorReporter is the wrapped Sentry adapter:
     // PHI sanitizer runs over the context before the SDK sees it
     // (D67 architectural seal per ADR-0010).
-    const container = getContainer(makeClientContainer);
+    const container = getClientContainer(makeClientContainer);
     container.errorReporter.captureException(error, {
       boundary: 'app-error',
       ...(error.digest !== undefined && { digest: error.digest }),

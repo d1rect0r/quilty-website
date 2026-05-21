@@ -1,137 +1,152 @@
 /**
  * Composition-root accessor for the apps/web container.
  *
- * The Container interface enumerates the typed ports the workspace packages
- * expose. At this commit the interface is empty; each subsequent extraction
- * commit (security / observability / consent / email / captcha / rate-limit
- * for the hexagonal packages, plus seo / content for the utility packages)
- * widens the interface with its own port surface.
+ * The Container is a discriminated union of three runtime-specific
+ * shapes — `ServerContainer | ClientContainer | EdgeContainer` —
+ * tagged by the `runtime` literal. TypeScript narrows on the tag so
+ * server-only ports (emailSender, captchaVerifier, rateLimiter) are
+ * statically inaccessible from client code; an attempted access is
+ * a build error, not a runtime null check.
+ *
+ * The discriminated shape replaces the prior god-object Container
+ * with optional server-only fields. The earlier shape relied on a
+ * JSDoc convention ("client code MUST NOT call cspBuilder"); the
+ * discriminated shape upgrades that convention to a type-system
+ * guarantee.
  *
  * Why a globalThis anchor (see ADR-0010 for rationale):
  *
- *   Next.js 16's webpack chunk-splitting can load this module more than once
- *   under specific RSC + client-island layouts. Without an anchor, two chunks
- *   would each call `factory()` and produce two non-identical container
- *   instances — vendor SDKs would get initialized twice, ConsentStore would
- *   diverge, and replay-block-class constants would have surprising !==
- *   identity. The nullish-coalescing assignment makes the first caller win
- *   and subsequent calls return the same identity.
+ *   Next.js 16's webpack chunk-splitting can load this module more
+ *   than once under specific RSC + client-island layouts. Without an
+ *   anchor, two chunks would each call `factory()` and produce two
+ *   non-identical container instances — vendor SDKs would get
+ *   initialized twice, replay-block-class constants would have
+ *   surprising !== identity. The nullish-coalescing assignment makes
+ *   the first caller win and subsequent calls return the same
+ *   identity.
  *
- *   Single-threaded JavaScript makes the `??=` operator atomic at the spec
- *   level: the read-modify-write step cannot be interleaved with another
- *   `??=` on the same property. The TOCTOU race only matters across
- *   runtimes (server / client / edge), and Next.js gives each runtime its
- *   own globalThis — so the singleton is per-runtime by construction.
+ *   Per-runtime global slots (`__quiltyServerContainer`,
+ *   `__quiltyClientContainer`, `__quiltyEdgeContainer`) make the
+ *   slot-type-to-accessor alignment sound by construction —
+ *   `getServerContainer` reads the server slot and returns
+ *   `ServerContainer`; no cast required, no runtime tag check.
  */
 
 import type { CaptchaVerifier } from '@quilty/captcha';
 import type { EmailSender } from '@quilty/email';
 import type { Analytics, ErrorReporter, FeatureFlagEvaluator, Logger } from '@quilty/observability';
 import type { RateLimiter } from '@quilty/rate-limit';
-import type { CspBuilder, HeadersBuilder, Sanitizer } from '@quilty/security';
+import type { Sanitizer } from '@quilty/security';
 
 /**
- * Typed Container surface.
+ * Ports present in every runtime container. The Sanitizer is the PHI
+ * chokepoint per D67 + ADR-0010; the four observability ports are
+ * present in client + edge bundles too because RSC streaming and
+ * proxy.ts both need structured logging + error reporting.
  *
- * Widened at each extraction commit. Current ports come from:
- *   - @quilty/security        — Sanitizer, CspBuilder, HeadersBuilder
- *   - @quilty/observability   — Analytics, ErrorReporter, Logger, FeatureFlagEvaluator
- *
- * Subsequent extraction commits add:
- *   - @quilty/consent         — ConsentStore
- *   - @quilty/email           — EmailSender
- *   - @quilty/captcha         — CaptchaVerifier
- *   - @quilty/rate-limit      — RateLimiter
- *
- * RedirectValidator is exported from @quilty/security as a config-bound
- * factory consumers instantiate per call site (the allowlist differs per
- * caller — auth callback vs sign-out vs OAuth state extension), so it is
- * not on Container.
- *
- * The observability ports are bound to factory wrappers (wrapAnalytics,
- * wrapErrorReporter, wrapLogger) — never the raw adapters, per the
- * ADR-0010 architectural seal.
- *
- * `Replay` is intentionally NOT on the Container. Sentry Replay's
- * initialization lives in `apps/web/sentry.client.config.ts` (the
- * Next.js Sentry SDK convention file). That file composes through
- * `wrapReplay` so the D68 floor enforcement still applies, but there
- * is no programmatic `container.replay.initialize()` surface — a
- * dual-path Container property would create two init sites with
- * different enforcement coverage. The wrapper + adapter remain exported
- * from `@quilty/observability` for test composition and any future
- * non-Sentry Replay vendor.
+ * Analytics is present uniformly because the wrapper's default-deny
+ * consent gate makes it safe to wire in any runtime — pre-consent
+ * track calls no-op silently regardless of where they fire.
  */
-export interface Container {
+interface BaseContainer {
   readonly sanitizer: Sanitizer;
-  readonly cspBuilder: CspBuilder;
-  readonly headersBuilder: HeadersBuilder;
-  readonly analytics: Analytics;
-  readonly errorReporter: ErrorReporter;
   readonly logger: Logger;
+  readonly errorReporter: ErrorReporter;
+  readonly analytics: Analytics;
   readonly featureFlags: FeatureFlagEvaluator;
-  /**
-   * Server-only port — wired only on the server-runtime Container.
-   * Client + edge containers carry `undefined` so the optional shape
-   * compiles uniformly. At present the in-memory adapter is the
-   * production wiring; the SES adapter activates only after
-   * `dmarc-ramp.md` + `baa-inventory.md` both list SES as covered.
-   *
-   * Consumer discipline: server-only Route Handlers MUST narrow with
-   * an explicit `if (!container.emailSender) throw new Error(...)`
-   * rather than `container.emailSender?.send(...)`. The optional-chain
-   * form silently no-ops on a client/edge container, which is
-   * indistinguishable from a correctly-never-called path; the loud
-   * narrowing surfaces a wiring bug at the call site.
-   */
-  readonly emailSender?: EmailSender;
-  /**
-   * Server-only port — same consumer-discipline contract as
-   * `emailSender`. At present the in-memory verifier (default-pass) is
-   * the production wiring; Turnstile activates once the Cloudflare
-   * BAA + secret-key provisioning are both green.
-   */
-  readonly captchaVerifier?: CaptchaVerifier;
-  /**
-   * Server-only port. At present the in-memory sliding-window limiter
-   * is the production wiring — load-bearing for auth-adjacent paths
-   * (login attempts, password reset requests, signup, contact form,
-   * account-delete confirmation). The DynamoDB adapter activates
-   * once the table is provisioned + the Lambda IAM grant is in
-   * place.
-   */
-  readonly rateLimiter?: RateLimiter;
 }
+
+/**
+ * Server-runtime container. Wires the full server-only port surface
+ * — email + captcha + rate-limit. CSP + Security-Headers helpers are
+ * exported as plain functions from `@quilty/security` (not on the
+ * Container) because they're stateless and don't benefit from the
+ * port abstraction. All container fields are required: a Route
+ * Handler that calls `container.emailSender` gets the type without
+ * narrowing.
+ */
+export interface ServerContainer extends BaseContainer {
+  readonly runtime: 'server';
+  readonly emailSender: EmailSender;
+  readonly captchaVerifier: CaptchaVerifier;
+  readonly rateLimiter: RateLimiter;
+}
+
+/**
+ * Client-runtime container. Carries only the ports a Client Component
+ * legitimately needs. Server-only ports are absent from the type —
+ * accessing them is a build error, not a runtime null check.
+ *
+ * The Sentry browser Replay integration is initialized in
+ * `sentry.client.config.ts`, NOT through this Container. See ADR-0010
+ * for the dual-path-avoidance rationale.
+ */
+export interface ClientContainer extends BaseContainer {
+  readonly runtime: 'client';
+}
+
+/**
+ * Edge-runtime container. Consumed by `proxy.ts` + Edge Route Handlers.
+ * The CSP + security-header helpers are exported as plain functions
+ * from `@quilty/security` — proxy.ts imports them directly without
+ * routing through a port. Server-only adapters (SES, Turnstile,
+ * DynamoDB rate-limit) are absent because the Edge runtime cannot
+ * import them (Node-only APIs / SDK incompatibilities).
+ */
+export interface EdgeContainer extends BaseContainer {
+  readonly runtime: 'edge';
+}
+
+/**
+ * Discriminated union of every runtime-specific container shape.
+ * Consumers that hold a `Container` value (e.g., a helper accepting
+ * any runtime) narrow on the `runtime` tag to access runtime-specific
+ * ports.
+ */
+export type Container = ServerContainer | ClientContainer | EdgeContainer;
 
 declare global {
-  var __quiltyContainer: Container | undefined;
+  var __quiltyServerContainer: ServerContainer | undefined;
+  var __quiltyClientContainer: ClientContainer | undefined;
+  var __quiltyEdgeContainer: EdgeContainer | undefined;
 }
 
 /**
- * Returns the singleton Container for the current runtime.
- *
- * The factory is injected by the caller — each runtime (server / client /
- * edge) imports the composition factory from its respective composition
- * file (`composition.server.ts`, `composition.client.ts`, `composition.edge.ts`)
- * and passes it here. This keeps `get-container.ts` free of any runtime-
- * specific imports so it can be safely included in any chunk.
- *
- * Idempotent: calling more than once with the same factory returns the
- * same Container identity. The first caller wins.
+ * Returns the singleton ServerContainer for the server runtime.
+ * Idempotent: the first caller wins; subsequent calls return the
+ * same identity. Per-runtime slots make the type-to-slot alignment
+ * sound (no cast).
  */
-export function getContainer(factory: () => Container): Container {
-  globalThis.__quiltyContainer ??= factory();
-  // Bind to a local const so the narrowing survives any future code
-  // inserted between the ??= and the return. Without this, an inserted
-  // log line or early branch would revert the type to `Container | undefined`.
-  const container = globalThis.__quiltyContainer;
+export function getServerContainer(factory: () => ServerContainer): ServerContainer {
+  globalThis.__quiltyServerContainer ??= factory();
+  const container = globalThis.__quiltyServerContainer;
   return container;
 }
 
 /**
- * Test-only: reset the singleton. Used by unit tests that need a fresh
- * container per test case. Never call this in production code.
+ * Returns the singleton ClientContainer for the client runtime.
+ */
+export function getClientContainer(factory: () => ClientContainer): ClientContainer {
+  globalThis.__quiltyClientContainer ??= factory();
+  const container = globalThis.__quiltyClientContainer;
+  return container;
+}
+
+/**
+ * Returns the singleton EdgeContainer for the edge runtime.
+ */
+export function getEdgeContainer(factory: () => EdgeContainer): EdgeContainer {
+  globalThis.__quiltyEdgeContainer ??= factory();
+  const container = globalThis.__quiltyEdgeContainer;
+  return container;
+}
+
+/**
+ * Test-only: reset all runtime singletons. Used by unit tests that
+ * need a fresh container per case. Never call this in production code.
  */
 export function __resetContainerForTesting(): void {
-  globalThis.__quiltyContainer = undefined;
+  globalThis.__quiltyServerContainer = undefined;
+  globalThis.__quiltyClientContainer = undefined;
+  globalThis.__quiltyEdgeContainer = undefined;
 }

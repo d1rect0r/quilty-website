@@ -1,6 +1,9 @@
+import { makeInMemoryCaptchaVerifier } from '@quilty/captcha';
 import { makeDefaultDenyConsentReader } from '@quilty/consent';
+import { makeInMemoryEmailSender, wrapEmailSender } from '@quilty/email';
 import {
   makeAmplitudeAnalytics,
+  makeBrowserLogger,
   makeCloudWatchLogger,
   makeEnvFlagEvaluator,
   makeSentryErrorReporter,
@@ -8,21 +11,45 @@ import {
   wrapErrorReporter,
   wrapLogger,
 } from '@quilty/observability';
-import { makeCspBuilder, makeHeadersBuilder, makeSanitizer } from '@quilty/security';
+import { makeInMemoryRateLimiter } from '@quilty/rate-limit';
+import { makeSanitizer } from '@quilty/security';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { __resetContainerForTesting, getContainer, type Container } from '../get-container';
+import {
+  __resetContainerForTesting,
+  getClientContainer,
+  getEdgeContainer,
+  getServerContainer,
+  type ClientContainer,
+  type EdgeContainer,
+  type ServerContainer,
+} from '../get-container';
 
-function makeTestContainer(): Container {
-  // Real factories from the workspace packages so the Container has the
-  // shape it ships with. The identity-stability tests don't care about
-  // contents; what matters is that the *same* object identity is returned
-  // across calls.
+function makeTestServerContainer(): ServerContainer {
   const sanitizer = makeSanitizer();
   const logger = wrapLogger({ adapter: makeCloudWatchLogger(), sanitizer });
   return {
+    runtime: 'server',
     sanitizer,
-    cspBuilder: makeCspBuilder(),
-    headersBuilder: makeHeadersBuilder(),
+    logger,
+    analytics: wrapAnalytics({
+      adapter: makeAmplitudeAnalytics({ logger }),
+      consentReader: makeDefaultDenyConsentReader(),
+      sanitizer,
+    }),
+    errorReporter: wrapErrorReporter({ adapter: makeSentryErrorReporter(), sanitizer }),
+    featureFlags: makeEnvFlagEvaluator(),
+    emailSender: wrapEmailSender({ adapter: makeInMemoryEmailSender(), sanitizer }),
+    captchaVerifier: makeInMemoryCaptchaVerifier(),
+    rateLimiter: makeInMemoryRateLimiter(),
+  };
+}
+
+function makeTestClientContainer(): ClientContainer {
+  const sanitizer = makeSanitizer();
+  const logger = wrapLogger({ adapter: makeBrowserLogger(), sanitizer });
+  return {
+    runtime: 'client',
+    sanitizer,
     logger,
     analytics: wrapAnalytics({
       adapter: makeAmplitudeAnalytics({ logger }),
@@ -34,66 +61,124 @@ function makeTestContainer(): Container {
   };
 }
 
-describe('getContainer', () => {
+function makeTestEdgeContainer(): EdgeContainer {
+  const sanitizer = makeSanitizer();
+  const logger = wrapLogger({ adapter: makeCloudWatchLogger(), sanitizer });
+  return {
+    runtime: 'edge',
+    sanitizer,
+    logger,
+    analytics: wrapAnalytics({
+      adapter: makeAmplitudeAnalytics({ logger }),
+      consentReader: makeDefaultDenyConsentReader(),
+      sanitizer,
+    }),
+    errorReporter: wrapErrorReporter({ adapter: makeSentryErrorReporter(), sanitizer }),
+    featureFlags: makeEnvFlagEvaluator(),
+  };
+}
+
+describe('per-runtime container accessors', () => {
   afterEach(() => {
     __resetContainerForTesting();
   });
 
-  it('returns the factory result on first call', () => {
-    const expected = makeTestContainer();
-    const factory = vi.fn<() => Container>(() => expected);
+  describe('getServerContainer', () => {
+    it('returns the factory result on first call', () => {
+      const expected = makeTestServerContainer();
+      const factory = vi.fn<() => ServerContainer>(() => expected);
+      const result = getServerContainer(factory);
+      expect(result).toBe(expected);
+      expect(factory).toHaveBeenCalledTimes(1);
+    });
 
-    const result = getContainer(factory);
+    it('returns the same identity across successive calls (globalThis singleton)', () => {
+      const factory = vi.fn<() => ServerContainer>(makeTestServerContainer);
+      const first = getServerContainer(factory);
+      const second = getServerContainer(factory);
+      const third = getServerContainer(factory);
+      expect(first).toBe(second);
+      expect(second).toBe(third);
+      expect(factory).toHaveBeenCalledTimes(1);
+    });
 
-    expect(result).toBe(expected);
-    expect(factory).toHaveBeenCalledTimes(1);
+    it('first caller wins — a different factory passed later does not re-compose', () => {
+      const initial = makeTestServerContainer();
+      const initialFactory = vi.fn<() => ServerContainer>(() => initial);
+      const replacementFactory = vi.fn<() => ServerContainer>(makeTestServerContainer);
+      const first = getServerContainer(initialFactory);
+      const second = getServerContainer(replacementFactory);
+      expect(first).toBe(initial);
+      expect(second).toBe(initial);
+      expect(replacementFactory).not.toHaveBeenCalled();
+    });
+
+    it('returns a ServerContainer (discriminant present)', () => {
+      const container = getServerContainer(makeTestServerContainer);
+      expect(container.runtime).toBe('server');
+    });
   });
 
-  it('returns the same Container identity across successive calls', () => {
-    // Defense-in-depth assertion: validates the globalThis singleton anchor
-    // documented in ADR-0010 against the Next.js 16 webpack chunk-duplication
-    // scenario. If this test fails, vendor SDKs may be initialized twice
-    // and the PHI sanitizer chokepoint discipline is at risk.
-    const factory = vi.fn<() => Container>(makeTestContainer);
+  describe('getClientContainer', () => {
+    it('returns the same identity across calls', () => {
+      const factory = vi.fn<() => ClientContainer>(makeTestClientContainer);
+      const first = getClientContainer(factory);
+      const second = getClientContainer(factory);
+      expect(first).toBe(second);
+      expect(factory).toHaveBeenCalledTimes(1);
+    });
 
-    const first = getContainer(factory);
-    const second = getContainer(factory);
-    const third = getContainer(factory);
-
-    expect(first).toBe(second);
-    expect(second).toBe(third);
-    expect(factory).toHaveBeenCalledTimes(1);
+    it('returns a ClientContainer (discriminant present)', () => {
+      const container = getClientContainer(makeTestClientContainer);
+      expect(container.runtime).toBe('client');
+    });
   });
 
-  it('ignores a second factory once the singleton is anchored', () => {
-    // First caller wins. Subsequent callers that pass a different factory
-    // still get the originally-anchored instance — preventing accidental
-    // re-composition mid-process.
-    const initialContainer = makeTestContainer();
-    const initialFactory = vi.fn<() => Container>(() => initialContainer);
-    const replacementFactory = vi.fn<() => Container>(makeTestContainer);
+  describe('getEdgeContainer', () => {
+    it('returns the same identity across calls', () => {
+      const factory = vi.fn<() => EdgeContainer>(makeTestEdgeContainer);
+      const first = getEdgeContainer(factory);
+      const second = getEdgeContainer(factory);
+      expect(first).toBe(second);
+      expect(factory).toHaveBeenCalledTimes(1);
+    });
 
-    const first = getContainer(initialFactory);
-    const second = getContainer(replacementFactory);
-
-    expect(first).toBe(initialContainer);
-    expect(second).toBe(initialContainer);
-    expect(initialFactory).toHaveBeenCalledTimes(1);
-    expect(replacementFactory).not.toHaveBeenCalled();
+    it('returns an EdgeContainer (discriminant present)', () => {
+      const container = getEdgeContainer(makeTestEdgeContainer);
+      expect(container.runtime).toBe('edge');
+    });
   });
 
-  it('rebuilds after __resetContainerForTesting', () => {
-    const firstContainer = makeTestContainer();
-    const secondContainer = makeTestContainer();
-    const firstFactory = vi.fn<() => Container>(() => firstContainer);
-    const secondFactory = vi.fn<() => Container>(() => secondContainer);
+  describe('per-runtime slot isolation', () => {
+    it('server + client containers are independent (different identities)', () => {
+      const server = getServerContainer(makeTestServerContainer);
+      const client = getClientContainer(makeTestClientContainer);
+      expect(server).not.toBe(client);
+      expect(server.runtime).toBe('server');
+      expect(client.runtime).toBe('client');
+    });
 
-    const first = getContainer(firstFactory);
-    __resetContainerForTesting();
-    const second = getContainer(secondFactory);
+    it('client + edge containers are independent (different identities)', () => {
+      const client = getClientContainer(makeTestClientContainer);
+      const edge = getEdgeContainer(makeTestEdgeContainer);
+      expect(client).not.toBe(edge);
+      expect(client.runtime).toBe('client');
+      expect(edge.runtime).toBe('edge');
+    });
+  });
 
-    expect(first).toBe(firstContainer);
-    expect(second).toBe(secondContainer);
-    expect(first).not.toBe(second);
+  describe('__resetContainerForTesting', () => {
+    it('rebuilds all three runtime containers after reset', () => {
+      const s1 = getServerContainer(makeTestServerContainer);
+      const c1 = getClientContainer(makeTestClientContainer);
+      const e1 = getEdgeContainer(makeTestEdgeContainer);
+      __resetContainerForTesting();
+      const s2 = getServerContainer(makeTestServerContainer);
+      const c2 = getClientContainer(makeTestClientContainer);
+      const e2 = getEdgeContainer(makeTestEdgeContainer);
+      expect(s1).not.toBe(s2);
+      expect(c1).not.toBe(c2);
+      expect(e1).not.toBe(e2);
+    });
   });
 });

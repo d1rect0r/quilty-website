@@ -4,11 +4,11 @@
  * Exposed via the `@quilty/observability/testing` subpath export. The
  * fakes re-export the in-memory adapters under shorter names + add
  * ConsentReader factory helpers so tests can compose the chokepoint
- * without dragging in the production wrappers — or @quilty/consent,
- * which depends on this package (a re-export would create a cycle).
+ * without dragging in the production wrappers. The ConsentReader port
+ * type is owned by @quilty/consent (port-owned-by-provider).
  */
 
-import type { ConsentReader, ConsentSnapshot } from '../ports.js';
+import type { ConsentReader, ConsentSnapshot } from '@quilty/consent';
 
 export {
   makeInMemoryAnalytics,
@@ -39,10 +39,11 @@ const DENIAL_SNAPSHOT: ConsentSnapshot = {
 };
 
 /**
- * Default-deny ConsentReader for unit tests. Equivalent to the production
- * value in @quilty/consent but inlined here to keep observability's test
- * surface self-contained (consent depends on observability for its port
- * shape; re-importing here would create a cycle).
+ * Default-deny ConsentReader for unit tests. Equivalent to the
+ * production value exported from @quilty/consent
+ * (`makeDefaultDenyConsentReader`); kept inlined here so observability
+ * unit tests don't take a workspace dep on @quilty/consent for test
+ * scaffolding alone.
  */
 export function makeConsentReaderFake(): ConsentReader {
   return { read: () => DENIAL_SNAPSHOT };

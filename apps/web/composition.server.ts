@@ -10,8 +10,8 @@
  *
  * Discipline:
  *   - Adapter modules are imported here and ONLY here in apps/web. Other
- *     modules consume the typed ports through the Container returned by
- *     getContainer().
+ *     modules consume the typed ports through the ServerContainer
+ *     returned by getServerContainer().
  *   - All cross-cutting concerns compose HERE via the wrapper factories
  *     (wrapAnalytics, wrapErrorReporter, wrapLogger, wrapReplay) — never
  *     at call sites. The Cerebral-lesson chokepoint is the wrapper
@@ -33,10 +33,10 @@ import {
   wrapErrorReporter,
   wrapLogger,
 } from '@quilty/observability';
-import { makeCspBuilder, makeHeadersBuilder, makeSanitizer } from '@quilty/security';
-import type { Container } from './lib/get-container';
+import { makeSanitizer } from '@quilty/security';
+import type { ServerContainer } from './lib/get-container';
 
-export function makeServerContainer(): Container {
+export function makeServerContainer(): ServerContainer {
   const sanitizer = makeSanitizer();
 
   // Logger is consumed by the Amplitude analytics stub for its pre-launch
@@ -47,9 +47,8 @@ export function makeServerContainer(): Container {
   });
 
   return {
+    runtime: 'server',
     sanitizer,
-    cspBuilder: makeCspBuilder(),
-    headersBuilder: makeHeadersBuilder(),
     logger: wrappedLogger,
     // Default-deny ConsentReader baseline; the composition root swaps
     // this for the real cookie-aware @quilty/consent server reader at

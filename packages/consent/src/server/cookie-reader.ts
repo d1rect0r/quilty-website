@@ -16,7 +16,7 @@ import 'server-only';
 
 import { DEFAULT_DENY_STATE } from '../domain/cookie-taxonomy.js';
 import { detectGpcFromHeaders, type HeaderGetter } from '../domain/gpc-detector.js';
-import type { ConsentReader, ConsentSnapshot } from '@quilty/observability';
+import type { ConsentReader, ConsentSnapshot } from '../ports.js';
 
 export interface ServerConsentReaderInput {
   /**

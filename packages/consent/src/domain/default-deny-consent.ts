@@ -14,7 +14,7 @@
  * wrapper API.
  */
 
-import type { ConsentReader, ConsentSnapshot } from '@quilty/observability';
+import type { ConsentReader, ConsentSnapshot } from '../ports.js';
 
 const DENIAL: ConsentSnapshot = {
   analytics: false,

@@ -6,7 +6,7 @@
  * `FeatureFlagEvaluator` port; this file is the typed catalog
  * consumers narrow against at the call site:
  *
- *   const container = getContainer(makeServerContainer);
+ *   const container = getServerContainer(makeServerContainer);
  *   const enabled = getTypedFlag(container.featureFlags, 'new_homepage_hero');
  *
  * LaunchDarkly Oct 2025 outage lesson absorbed: every flag has a

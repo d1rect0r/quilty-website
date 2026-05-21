@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { makeClientContainer } from '@/composition.client';
-import { getContainer } from '@/lib/get-container';
+import { getClientContainer } from '@/lib/get-container';
 
 /**
  * Global error boundary — catches errors in the root layout itself.
@@ -10,13 +10,13 @@ import { getContainer } from '@/lib/get-container';
  * Per Next.js convention: must render its own `<html>` + `<body>` because
  * the root layout failed to render. Cannot use any layout JSX from above.
  *
- * Captures the failure via the Container's wrapped ErrorReporter so even
- * a layout-level crash flows to Sentry with the PHI sanitizer applied
- * (D67 chokepoint per ADR-0010). The `getContainer` call uses the
- * `globalThis.__quiltyContainer ??=` singleton anchor so it returns the
- * same Container the rest of the client tree composed; if the layout
- * crashed before the singleton was anchored, getContainer constructs
- * a fresh one here.
+ * Captures the failure via the ClientContainer's wrapped ErrorReporter
+ * so even a layout-level crash flows to Sentry with the PHI sanitizer
+ * applied (D67 chokepoint per ADR-0010). The `getClientContainer` call
+ * uses the `globalThis.__quiltyClientContainer ??=` singleton anchor so
+ * it returns the same ClientContainer the rest of the client tree
+ * composed; if the layout crashed before the singleton was anchored,
+ * getClientContainer constructs a fresh one here.
  */
 interface GlobalErrorProps {
   error: Error & { digest?: string };
@@ -25,7 +25,7 @@ interface GlobalErrorProps {
 
 export default function GlobalError({ error, reset }: GlobalErrorProps) {
   useEffect(() => {
-    const container = getContainer(makeClientContainer);
+    const container = getClientContainer(makeClientContainer);
     container.errorReporter.captureException(error, {
       boundary: 'global-error',
       ...(error.digest !== undefined && { digest: error.digest }),

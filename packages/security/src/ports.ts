@@ -1,10 +1,13 @@
 /**
  * Security package ports.
  *
- * Four typed interfaces consumed by the composition root and by other
- * workspace packages that need security primitives (observability factory
- * wrappers compose the Sanitizer; email factory wraps the Sanitizer over
- * EmailSender; the proxy handler composes CspBuilder + HeadersBuilder).
+ * Two stateful ports: `Sanitizer` + `RedirectValidator`. Each closes
+ * over real state (sanitization rules, allowlist) that justifies the
+ * port abstraction. CSP construction + security-header composition
+ * are pure functions exported directly from the package barrel — they
+ * have no closed-over state and no vendor to swap, so the factory
+ * shape would be over-engineering (confirmed by the Wave-1-close
+ * research synthesis).
  *
  * Naming discipline (META-1): ports are role-shaped, never vendor-shaped.
  */
@@ -60,7 +63,7 @@ export interface RedirectValidator {
 }
 
 // ---------------------------------------------------------------------------
-// CspBuilder port (D59, D93)
+// CSP option shape (D59, D93)
 // ---------------------------------------------------------------------------
 
 export interface CspOptions {
@@ -68,15 +71,8 @@ export interface CspOptions {
   readonly isDevelopment?: boolean;
 }
 
-export interface CspBuilder {
-  readonly buildMarketing: (opts?: CspOptions) => string;
-  readonly buildPortal: (nonce: string, opts?: CspOptions) => string;
-  readonly isPortalRoute: (pathname: string) => boolean;
-  readonly generateNonce: () => string;
-}
-
 // ---------------------------------------------------------------------------
-// HeadersBuilder port (D60, D94)
+// Security-header shape (D60, D94)
 // ---------------------------------------------------------------------------
 
 export type HstsPhase = 'm1' | 'm2-m6' | 'm7' | 'm8-prelaunch' | 'm8-launch';
@@ -84,10 +80,4 @@ export type HstsPhase = 'm1' | 'm2-m6' | 'm7' | 'm8-prelaunch' | 'm8-launch';
 export interface SecurityHeaderEntry {
   readonly key: string;
   readonly value: string;
-}
-
-export interface HeadersBuilder {
-  readonly buildSecurityHeaders: () => readonly SecurityHeaderEntry[];
-  readonly buildHstsValue: (phase: HstsPhase) => string;
-  readonly currentHstsPhase: () => HstsPhase;
 }

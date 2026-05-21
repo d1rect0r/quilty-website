@@ -26,10 +26,10 @@ import {
   wrapErrorReporter,
   wrapLogger,
 } from '@quilty/observability';
-import { makeCspBuilder, makeHeadersBuilder, makeSanitizer } from '@quilty/security';
-import type { Container } from './lib/get-container';
+import { makeSanitizer } from '@quilty/security';
+import type { EdgeContainer } from './lib/get-container';
 
-export function makeEdgeContainer(): Container {
+export function makeEdgeContainer(): EdgeContainer {
   const sanitizer = makeSanitizer();
 
   const wrappedLogger = wrapLogger({
@@ -38,9 +38,8 @@ export function makeEdgeContainer(): Container {
   });
 
   return {
+    runtime: 'edge',
     sanitizer,
-    cspBuilder: makeCspBuilder(),
-    headersBuilder: makeHeadersBuilder(),
     logger: wrappedLogger,
     analytics: wrapAnalytics({
       adapter: makeAmplitudeAnalytics({ logger: wrappedLogger }),

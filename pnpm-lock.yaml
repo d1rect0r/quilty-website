@@ -250,9 +250,6 @@ importers:
 
   packages/consent:
     dependencies:
-      '@quilty/observability':
-        specifier: workspace:*
-        version: link:../observability
       server-only:
         specifier: 0.0.1
         version: 0.0.1
@@ -361,6 +358,9 @@ importers:
 
   packages/observability:
     dependencies:
+      '@quilty/consent':
+        specifier: workspace:*
+        version: link:../consent
       '@quilty/security':
         specifier: workspace:*
         version: link:../security
