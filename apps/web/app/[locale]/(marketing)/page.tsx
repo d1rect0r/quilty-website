@@ -1,9 +1,9 @@
-import { JsonLd } from '@/components/seo/JsonLd';
 import {
   buildBreadcrumbsJsonLd,
-  buildWebSiteJsonLd,
   buildSoftwareApplicationJsonLd,
-} from '@/lib/seo/schemas';
+  buildWebSiteJsonLd,
+  JsonLd,
+} from '@quilty/seo';
 import type { Metadata } from 'next';
 
 // Use the root layout's title template default (no `title` here so the page

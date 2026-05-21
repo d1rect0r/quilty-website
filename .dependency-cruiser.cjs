@@ -98,9 +98,7 @@ module.exports = {
           'apps/web/lib/flags/',
           'apps/web/lib/utils\\.ts$',
           // Indirectly consumed via Next.js conventions or framework hooks
-          'apps/web/lib/seo/schemas\\.ts$',
           'apps/web/components/site/SkipLink\\.tsx$',
-          'apps/web/components/seo/JsonLd\\.tsx$',
           // Vitest setup files are loaded via vitest.config.ts setupFiles
           'apps/web/vitest\\.setup\\.ts$',
           // Empty workspace entrypoint — populated by OpenAPI codegen at M5

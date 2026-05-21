@@ -1,13 +1,14 @@
 /**
  * Schema.org JSON-LD builders.
  *
- * Per D27 (Round-5 revised) — Organization + SoftwareApplication + WebSite +
- * BreadcrumbList carry SERP weight. MedicalWebPage on /science +
- * FAQPage for AI-overview citations only (Google retired FAQPage rich-result
- * eligibility 2026-05-07; MedicalWebPage was never Google-rich-result-supported).
+ * Per D27 (revised) — Organization + SoftwareApplication + WebSite +
+ * BreadcrumbList carry SERP weight. MedicalWebPage on `/science` +
+ * FAQPage for AI-overview citations only (Google retired FAQPage
+ * rich-result eligibility 2026-05-07; MedicalWebPage was never
+ * Google-rich-result-supported).
  *
- * Output: serializable JSON-LD objects, rendered by <JsonLd> with a CSP nonce
- * (portal) or static-hash allowlist (marketing) per ADR-0005.
+ * Output: serializable JSON-LD objects, rendered by `<JsonLd>` with a
+ * CSP nonce (portal) or static-hash allowlist (marketing) per ADR-0005.
  */
 
 type JsonLd = Record<string, unknown>;
@@ -15,6 +16,14 @@ type JsonLd = Record<string, unknown>;
 const BRAND_NAME = 'Quilty';
 const BRAND_LEGAL_NAME = 'Quilty Inc.';
 
+/**
+ * Build the root Organization node. `sameAs` is omitted until real
+ * entity URLs exist (App Store, LinkedIn, X, etc.) — an empty array
+ * signals to AI citation graphs that no corroborating entity references
+ * exist, reducing grounding weight. Callers with real entity URLs can
+ * spread additional fields on top of the returned object before passing
+ * to `<JsonLd>`.
+ */
 export function buildOrganizationJsonLd(siteUrl: string): JsonLd {
   return {
     '@context': 'https://schema.org',
@@ -24,7 +33,6 @@ export function buildOrganizationJsonLd(siteUrl: string): JsonLd {
     legalName: BRAND_LEGAL_NAME,
     url: siteUrl,
     logo: `${siteUrl}/logo.png`,
-    sameAs: [],
   };
 }
 
@@ -80,24 +88,22 @@ export interface MedicalWebPageInput {
 }
 
 /**
- * MedicalWebPage. Per D27 Round-5: Google does not rich-result MedicalWebPage;
- * ship for AI-overview citation graphs (ChatGPT/Claude/Perplexity read JSON-LD
- * heavily in 2026) + semantic clarity. `lastReviewed` and `reviewedBy` are
- * null at M1 until /science has a named clinical advisor — fill in M3+.
+ * MedicalWebPage. Per D27: Google does not rich-result MedicalWebPage;
+ * ship for AI-overview citation graphs (ChatGPT/Claude/Perplexity read
+ * JSON-LD heavily in 2026) + semantic clarity. `lastReviewed` and
+ * `reviewedBy` are null until /science has a named clinical advisor.
  *
  * `publisher: { '@id': siteUrl#organization }` cross-references the
  * Organization node from the root layout so the JSON-LD graph stays
  * connected — AI crawlers reading an unaffiliated medical page without
- * organizational provenance discard it as low-trust (Round-5 final-QA SEO H1).
+ * organizational provenance discard it as low-trust.
  */
 export function buildMedicalWebPageJsonLd(input: MedicalWebPageInput): JsonLd {
-  // Spread-conditional pattern (safer under exactOptionalPropertyTypes than
-  // post-declaration mutation — Round-5 TS reviewer finding).
-  //
-  // `medicalAudience: Patient` per Round-5 SEO reviewer — schema.org spec
-  // recommends this for AI-overview grounding (ChatGPT/Claude/Perplexity
-  // weigh medicalAudience when deciding whether to cite). Quilty's clinical
-  // content is patient-facing, not clinician-facing.
+  // Spread-conditional pattern (safer under exactOptionalPropertyTypes
+  // than post-declaration mutation). `medicalAudience: Patient` per
+  // schema.org spec — AI-overview grounding weighs medicalAudience when
+  // deciding whether to cite. Quilty's clinical content is patient-
+  // facing, not clinician-facing.
   return {
     '@context': 'https://schema.org',
     '@type': 'MedicalWebPage',
@@ -108,7 +114,11 @@ export function buildMedicalWebPageJsonLd(input: MedicalWebPageInput): JsonLd {
     inLanguage: 'en-US',
     isPartOf: { '@id': `${input.siteUrl}#website` },
     publisher: { '@id': `${input.siteUrl}#organization` },
-    medicalAudience: { '@type': 'MedicalAudience', audienceType: 'Patient' },
+    // schema.org Patient subclass is the canonical form AI-overview
+    // citation graphs (ChatGPT/Claude/Perplexity) ground against. The
+    // freetext `audienceType: 'Patient'` on a MedicalAudience node is
+    // also valid spec but less recognizable to citation heuristics.
+    medicalAudience: { '@type': 'Patient' },
     ...(input.lastReviewed !== null && { lastReviewed: input.lastReviewed }),
     ...(input.reviewedBy !== null && {
       reviewedBy: { '@type': 'Person', name: input.reviewedBy },
@@ -127,9 +137,16 @@ export interface FAQPageInput {
 }
 
 /**
- * FAQPage. Includes `@id` + `isPartOf` so the node is graph-connected to
- * its containing page (Round-5 final-QA SEO M4 — orphan FAQPage nodes
- * are devalued by AI-overview citation graphs).
+ * FAQPage. Includes `@id` + `isPartOf` so the node is graph-connected
+ * to its containing page — orphan FAQPage nodes are devalued by
+ * AI-overview citation graphs.
+ *
+ * Implicit contract for callers: the page rendering this FAQ block
+ * MUST also render a WebPage-shaped node (e.g. `MedicalWebPage` on
+ * `/science`, or a future generic WebPage builder) whose `@id` is
+ * `${pageUrl}#webpage`. The FAQPage's `isPartOf` points there; if the
+ * containing-page node is missing, AI citation graphs treat the
+ * FAQPage as dangling and devalue it for grounding.
  */
 export function buildFAQPageJsonLd(input: FAQPageInput): JsonLd {
   return {

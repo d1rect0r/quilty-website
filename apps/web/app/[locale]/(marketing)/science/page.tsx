@@ -1,5 +1,4 @@
-import { JsonLd } from '@/components/seo/JsonLd';
-import { buildMedicalWebPageJsonLd } from '@/lib/seo/schemas';
+import { buildMedicalWebPageJsonLd, JsonLd } from '@quilty/seo';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {

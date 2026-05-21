@@ -1,5 +1,4 @@
-import { JsonLd } from '@/components/seo/JsonLd';
-import { buildFAQPageJsonLd } from '@/lib/seo/schemas';
+import { buildFAQPageJsonLd, JsonLd } from '@quilty/seo';
 import type { FAQBlock } from '@/lib/content/schemas';
 
 export interface FAQProps {
@@ -9,15 +8,16 @@ export interface FAQProps {
    * Absolute URL of the page this FAQ block renders on. Threaded through
    * BlockRenderer from each page's route file so the emitted FAQPage
    * JSON-LD can include `@id` + `isPartOf` cross-references back to the
-   * containing WebPage node (Round-5 final-QA SEO M4).
+   * containing WebPage node (see @quilty/seo `buildFAQPageJsonLd` for
+   * the cross-reference contract).
    */
   pageUrl: string;
 }
 
 export function FAQ({ block, instanceId, pageUrl }: FAQProps) {
   const headingId = block.heading ? `${instanceId}-heading` : undefined;
-  // Round-5 a11y reviewer fallback: unnamed <section> is skipped by some
-  // AT. Provide aria-label fallback when no heading.
+  // An unnamed <section> is skipped by some assistive technology; provide
+  // an aria-label fallback when no heading is rendered (WCAG 1.3.1).
   return (
     <section
       aria-labelledby={headingId}
@@ -31,10 +31,11 @@ export function FAQ({ block, instanceId, pageUrl }: FAQProps) {
         </h2>
       ) : null}
       <dl className="space-y-6">
-        {/* Keys use the (instanceId, position) tuple — stable across content
-            edits, unique on the page even if multiple FAQ blocks exist
-            (Round-5 typescript-reviewer MEDIUM: prior content-based keys
-            broke when an entry's question was edited). */}
+        {/* Keys use the (instanceId, position) tuple. The block schema
+            does not yet carry stable per-entry IDs; the tuple is unique
+            on the page even when multiple FAQ blocks exist, and stable
+            for the lifetime of a single content build. When the block
+            schema gains a stable `id` field, switch to `key={entry.id}`. */}
         {block.entries.map((entry, idx) => (
           <div key={`${instanceId}-entry-${idx}`}>
             <dt className="text-fg-default text-lg font-semibold">{entry.question}</dt>
