@@ -80,7 +80,8 @@
       "@opentelemetry/sdk-metrics": "^2.7.1",
       "@opentelemetry/sdk-trace-base": "^2.7.1",
       "@opentelemetry/resources": "^2.7.1",
-      "@opentelemetry/core": "^2.7.1"
+      "@opentelemetry/core": "^2.7.1",
+      "sharp": "0.34.5"
     }
   },
   "typeCoverage": {
