@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makeServerConsentReader } from '../server/cookie-reader.js';
+import { makeServerConsentReader } from '../server/cookie-reader';
 
 describe('makeServerConsentReader', () => {
   function makeInput(gpc: '1' | '0' | null, cookieValue: string | null) {

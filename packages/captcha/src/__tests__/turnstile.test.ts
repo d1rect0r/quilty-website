@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makeTurnstileCaptchaVerifier } from '../adapters/turnstile.js';
+import { makeTurnstileCaptchaVerifier } from '../adapters/turnstile';
 
 describe('makeTurnstileCaptchaVerifier (skeleton — rejects until BAA + secret provisioning)', () => {
   it('constructs without throwing (composition root wiring typechecks)', () => {

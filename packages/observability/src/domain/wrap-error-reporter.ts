@@ -12,7 +12,7 @@
  */
 
 import type { Sanitizer } from '@quilty/security';
-import type { ErrorReporter, ErrorReporterContext } from '../ports.js';
+import type { ErrorReporter, ErrorReporterContext } from '../ports';
 
 export interface WrappedErrorReporterOptions {
   readonly adapter: ErrorReporter;

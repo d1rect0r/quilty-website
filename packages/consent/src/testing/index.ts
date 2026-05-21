@@ -5,4 +5,4 @@
  * path only as a subpath barrel surface; deep imports are forbidden).
  */
 
-export { makeInMemoryConsentReader, type InMemoryConsentReaderInput } from './in-memory.js';
+export { makeInMemoryConsentReader, type InMemoryConsentReaderInput } from './in-memory';

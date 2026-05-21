@@ -25,7 +25,7 @@
  * deterministically.
  */
 
-import type { RateLimitDecision, RateLimitPolicy, RateLimiter } from '../ports.js';
+import type { RateLimitDecision, RateLimitPolicy, RateLimiter } from '../ports';
 
 export interface InMemoryRateLimiterOptions {
   /** Clock source. Defaults to `() => Date.now()`. */

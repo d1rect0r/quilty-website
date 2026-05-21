@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeBrowserLogger } from '../adapters/browser-logger.js';
+import { makeBrowserLogger } from '../adapters/browser-logger';
 
 describe('makeBrowserLogger', () => {
   let consoleSpy: ReturnType<typeof vi.spyOn>;

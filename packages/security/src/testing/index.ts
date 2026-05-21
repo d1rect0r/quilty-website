@@ -14,10 +14,10 @@
  * adapters, and contract tests will parameterize over both).
  */
 
-import { assertNoPHI } from '../domain/assert-no-phi.js';
-import { isSafeRedirect } from '../domain/redirect-validator.js';
-import { isSensitiveKey, sanitize, sanitizeAsync } from '../domain/sanitizer.js';
-import type { RedirectValidator, RedirectValidatorOptions, Sanitizer } from '../ports.js';
+import { assertNoPHI } from '../domain/assert-no-phi';
+import { isSafeRedirect } from '../domain/redirect-validator';
+import { isSensitiveKey, sanitize, sanitizeAsync } from '../domain/sanitizer';
+import type { RedirectValidator, RedirectValidatorOptions, Sanitizer } from '../ports';
 
 export function makeSanitizerFake(): Sanitizer {
   return {

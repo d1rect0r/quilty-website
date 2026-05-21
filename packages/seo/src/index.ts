@@ -5,7 +5,7 @@
  * `.dependency-cruiser.cjs` rule `cross-package-imports-must-use-barrel`.
  */
 
-export { JsonLd, type JsonLdProps } from './JsonLd.js';
+export { JsonLd, type JsonLdProps } from './JsonLd';
 
 export {
   buildBreadcrumbsJsonLd,
@@ -18,11 +18,11 @@ export {
   type FAQPageInput,
   type FaqEntry,
   type MedicalWebPageInput,
-} from './schemas.js';
+} from './schemas';
 
 export {
   buildIconMetadata,
   buildOpenGraphMetadata,
   type IconMetadataInput,
   type OpenGraphMetadataInput,
-} from './metadata.js';
+} from './metadata';

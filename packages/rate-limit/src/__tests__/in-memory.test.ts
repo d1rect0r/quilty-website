@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeInMemoryRateLimiter } from '../adapters/in-memory.js';
+import { makeInMemoryRateLimiter } from '../adapters/in-memory';
 
 /**
  * Fake clock: caller-controlled `now()` function that the limiter

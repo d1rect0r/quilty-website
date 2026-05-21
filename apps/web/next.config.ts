@@ -41,6 +41,24 @@ const config: NextConfig = {
   // typedRoutes graduated from experimental in Next.js 16; the
   // experimental.typedRoutes path is deprecated.
   typedRoutes: true,
+  // Workspace packages ship JIT TS source via `package.json#exports →
+  // ./src/index.ts`. transpilePackages tells Next.js (and the
+  // Turbopack dev server) to compile these TS sources rather than
+  // expect pre-built JS — without it, dev-mode resolution fails on
+  // the package barrels even though tsc + vitest resolve fine.
+  // Matches the Cal.com / Vercel-monorepo convention for JIT
+  // internal packages with `moduleResolution: "bundler"`.
+  transpilePackages: [
+    '@quilty/captcha',
+    '@quilty/consent',
+    '@quilty/content',
+    '@quilty/email',
+    '@quilty/observability',
+    '@quilty/rate-limit',
+    '@quilty/security',
+    '@quilty/seo',
+    '@quilty/shared-types',
+  ],
   // optimizePackageImports rewrites `import { x } from '@quilty/foo'` to
   // `import { x } from '@quilty/foo/<x>'` at build time, enabling
   // per-symbol tree-shaking even where the barrel hasn't fully migrated

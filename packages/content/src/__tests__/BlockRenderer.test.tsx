@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BlockSchema, PageContentSchema, type Block } from '../schemas.js';
+import { BlockSchema, PageContentSchema, type Block } from '../schemas';
 
 /**
  * BlockRenderer tests focus on the SCHEMA contract — the React renderer

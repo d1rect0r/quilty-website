@@ -6,8 +6,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { makeReplayFake } from '../testing/index.js';
-import { wrapReplay } from '../domain/wrap-replay.js';
+import { makeReplayFake } from '../testing/index';
+import { wrapReplay } from '../domain/wrap-replay';
 
 describe('wrapReplay — D68 floor enforcement', () => {
   it('initializes once when given no config', async () => {

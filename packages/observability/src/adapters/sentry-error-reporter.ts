@@ -13,7 +13,7 @@
  */
 
 import { captureException } from '@sentry/nextjs';
-import type { ErrorReporter, ErrorReporterContext } from '../ports.js';
+import type { ErrorReporter, ErrorReporterContext } from '../ports';
 
 function normalizeError(value: unknown): Error {
   if (value instanceof Error) return value;

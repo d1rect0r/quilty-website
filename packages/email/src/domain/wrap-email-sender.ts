@@ -15,7 +15,7 @@
  */
 
 import type { Sanitizer } from '@quilty/security';
-import type { EmailEnvelope, EmailSender, EmailSendResult } from '../ports.js';
+import type { EmailEnvelope, EmailSender, EmailSendResult } from '../ports';
 
 export interface WrappedEmailSenderOptions {
   readonly adapter: EmailSender;

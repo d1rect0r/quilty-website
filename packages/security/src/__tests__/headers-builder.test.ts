@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  buildHstsValue,
-  buildSecurityHeaders,
-  currentHstsPhase,
-} from '../domain/headers-builder.js';
+import { buildHstsValue, buildSecurityHeaders, currentHstsPhase } from '../domain/headers-builder';
 
 describe('buildHstsValue', () => {
   it('starts at max-age=300 in the initial phase', () => {

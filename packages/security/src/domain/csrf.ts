@@ -13,7 +13,7 @@
  * implementation lands.
  */
 
-import type { CsrfError, Result } from '../errors.js';
+import type { CsrfError, Result } from '../errors';
 
 const NOT_IMPLEMENTED = new Error(
   'Not implemented — see D113 in the architecture strategy document.',

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { assertNoPHI } from '../domain/assert-no-phi.js';
+import { assertNoPHI } from '../domain/assert-no-phi';
 
 describe('assertNoPHI', () => {
   beforeEach(() => {

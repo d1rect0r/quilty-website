@@ -7,5 +7,5 @@ import 'server-only';
  * if a consumer ever deep-imports past this barrel.
  */
 
-export { makeServerConsentReader, type ServerConsentReaderInput } from './cookie-reader.js';
-export { GpcHonoredIndicator } from '../components/GpcHonoredIndicator.js';
+export { makeServerConsentReader, type ServerConsentReaderInput } from './cookie-reader';
+export { GpcHonoredIndicator } from '../components/GpcHonoredIndicator';

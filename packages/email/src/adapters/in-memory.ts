@@ -17,7 +17,7 @@
  * a pre-production stage runs with `NODE_ENV=production` for parity.
  */
 
-import type { EmailEnvelope, EmailSender, EmailSendResult } from '../ports.js';
+import type { EmailEnvelope, EmailSender, EmailSendResult } from '../ports';
 
 const INMEMORY_PROD_OVERRIDE_ENV = 'QUILTY_ALLOW_INMEMORY_EMAIL_IN_PROD';
 

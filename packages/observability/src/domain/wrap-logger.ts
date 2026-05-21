@@ -17,7 +17,7 @@
  */
 
 import type { Sanitizer } from '@quilty/security';
-import type { LogFields, Logger } from '../ports.js';
+import type { LogFields, Logger } from '../ports';
 
 export interface WrappedLoggerOptions {
   readonly adapter: Logger;

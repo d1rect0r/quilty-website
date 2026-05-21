@@ -12,7 +12,7 @@
  * Naming discipline (META-1): ports are role-shaped, never vendor-shaped.
  */
 
-import type { RedirectValidatorError, Result } from './errors.js';
+import type { RedirectValidatorError, Result } from './errors';
 
 // ---------------------------------------------------------------------------
 // Sanitizer port (D67, D91)

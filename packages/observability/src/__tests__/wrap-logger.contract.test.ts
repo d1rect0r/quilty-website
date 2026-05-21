@@ -6,8 +6,8 @@
 
 import { makeSanitizer } from '@quilty/security';
 import { describe, expect, it } from 'vitest';
-import { makeLoggerFake } from '../testing/index.js';
-import { wrapLogger } from '../domain/wrap-logger.js';
+import { makeLoggerFake } from '../testing/index';
+import { wrapLogger } from '../domain/wrap-logger';
 
 describe('wrapLogger — PHI sanitizer chokepoint', () => {
   it('scrubs PHI keys in log fields before they reach the adapter', () => {

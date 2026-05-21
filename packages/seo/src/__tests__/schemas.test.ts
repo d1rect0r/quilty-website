@@ -6,7 +6,7 @@ import {
   buildOrganizationJsonLd,
   buildSoftwareApplicationJsonLd,
   buildWebSiteJsonLd,
-} from '../schemas.js';
+} from '../schemas';
 
 const SITE = 'https://my-quilty.com';
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { makeInMemoryEmailSender } from '../adapters/in-memory.js';
+import { makeInMemoryEmailSender } from '../adapters/in-memory';
 
 describe('makeInMemoryEmailSender', () => {
   afterEach(() => {

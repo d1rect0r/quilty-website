@@ -12,7 +12,7 @@
  * contracts.
  */
 
-import type { AccountDeleteReason } from './domain/account-delete-reason.js';
+import type { AccountDeleteReason } from './domain/account-delete-reason';
 
 // ---------------------------------------------------------------------------
 // Analytics port (D82)

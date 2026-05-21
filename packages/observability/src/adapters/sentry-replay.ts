@@ -13,7 +13,7 @@
  */
 
 import * as Sentry from '@sentry/nextjs';
-import type { Replay, ReplayConfig } from '../ports.js';
+import type { Replay, ReplayConfig } from '../ports';
 
 export function makeSentryReplay(): Replay {
   return {

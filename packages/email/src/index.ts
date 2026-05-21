@@ -13,14 +13,14 @@ import 'server-only';
  * load-bearing per D67 + ADR-0010.
  */
 
-export type { EmailEnvelope, EmailKind, EmailSender, EmailSendResult } from './ports.js';
+export type { EmailEnvelope, EmailKind, EmailSender, EmailSendResult } from './ports';
 
-export { wrapEmailSender, type WrappedEmailSenderOptions } from './domain/wrap-email-sender.js';
+export { wrapEmailSender, type WrappedEmailSenderOptions } from './domain/wrap-email-sender';
 
 export {
   makeInMemoryEmailSender,
   type InMemoryEmailSender,
   type InMemoryEmailSendRecord,
-} from './adapters/in-memory.js';
+} from './adapters/in-memory';
 
-export { makeSesEmailSender, type SesAdapterOptions } from './adapters/ses.js';
+export { makeSesEmailSender, type SesAdapterOptions } from './adapters/ses';

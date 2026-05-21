@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeSanitizer } from '@quilty/security';
-import { makeInMemoryEmailSender } from '../adapters/in-memory.js';
-import { wrapEmailSender } from '../domain/wrap-email-sender.js';
+import { makeInMemoryEmailSender } from '../adapters/in-memory';
+import { wrapEmailSender } from '../domain/wrap-email-sender';
 
 describe('wrapEmailSender (PHI sanitizer chokepoint)', () => {
   it('passes templateData through the sanitizer before reaching the adapter', async () => {

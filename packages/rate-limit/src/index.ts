@@ -10,12 +10,12 @@ import 'server-only';
  * rule `cross-package-imports-must-use-barrel`.
  */
 
-export type { RateLimitDecision, RateLimitPolicy, RateLimiter } from './ports.js';
+export type { RateLimitDecision, RateLimitPolicy, RateLimiter } from './ports';
 
 export {
   makeInMemoryRateLimiter,
   type InMemoryRateLimiter,
   type InMemoryRateLimiterOptions,
-} from './adapters/in-memory.js';
+} from './adapters/in-memory';
 
-export { makeDynamoDbRateLimiter, type DynamoDbAdapterOptions } from './adapters/dynamodb.js';
+export { makeDynamoDbRateLimiter, type DynamoDbAdapterOptions } from './adapters/dynamodb';

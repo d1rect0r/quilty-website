@@ -21,7 +21,7 @@ export {
   PageContentSchema,
   TestimonialQuoteBlockSchema,
   ValuePropBlockSchema,
-} from './schemas.js';
+} from './schemas';
 
 export type {
   Block,
@@ -32,25 +32,25 @@ export type {
   PageContent,
   TestimonialQuoteBlock,
   ValuePropBlock,
-} from './schemas.js';
+} from './schemas';
 
-export { BlockRenderer, BlocksRenderer } from './components/BlockRenderer.js';
-export type { BlockRendererProps, BlocksRendererProps } from './components/BlockRenderer.js';
+export { BlockRenderer, BlocksRenderer } from './components/BlockRenderer';
+export type { BlockRendererProps, BlocksRendererProps } from './components/BlockRenderer';
 
-export { CTABanner } from './components/CTABanner.js';
-export type { CTABannerProps } from './components/CTABanner.js';
+export { CTABanner } from './components/CTABanner';
+export type { CTABannerProps } from './components/CTABanner';
 
-export { FAQ } from './components/FAQ.js';
-export type { FAQProps } from './components/FAQ.js';
+export { FAQ } from './components/FAQ';
+export type { FAQProps } from './components/FAQ';
 
-export { FeatureGrid } from './components/FeatureGrid.js';
-export type { FeatureGridProps } from './components/FeatureGrid.js';
+export { FeatureGrid } from './components/FeatureGrid';
+export type { FeatureGridProps } from './components/FeatureGrid';
 
-export { Hero } from './components/Hero.js';
-export type { HeroProps } from './components/Hero.js';
+export { Hero } from './components/Hero';
+export type { HeroProps } from './components/Hero';
 
-export { TestimonialQuote } from './components/TestimonialQuote.js';
-export type { TestimonialQuoteProps } from './components/TestimonialQuote.js';
+export { TestimonialQuote } from './components/TestimonialQuote';
+export type { TestimonialQuoteProps } from './components/TestimonialQuote';
 
-export { ValueProp } from './components/ValueProp.js';
-export type { ValuePropProps } from './components/ValueProp.js';
+export { ValueProp } from './components/ValueProp';
+export type { ValuePropProps } from './components/ValueProp';

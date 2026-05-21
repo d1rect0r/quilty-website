@@ -20,7 +20,7 @@
  * vendor-agnostic.
  */
 
-import type { CaptchaVerifier, VerificationContext, VerificationResult } from '../ports.js';
+import type { CaptchaVerifier, VerificationContext, VerificationResult } from '../ports';
 
 export interface TurnstileAdapterOptions {
   /**

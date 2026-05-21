@@ -21,7 +21,7 @@ import type {
   LogFields,
   Logger,
   Replay,
-} from '../ports.js';
+} from '../ports';
 
 // ---------------------------------------------------------------------------
 // In-memory Analytics — captures emitted events for inspection

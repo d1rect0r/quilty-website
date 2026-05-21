@@ -29,7 +29,7 @@ export {
   type InMemoryLogRecord,
   type InMemoryLogger,
   type InMemoryReplay,
-} from '../adapters/in-memory.js';
+} from '../adapters/in-memory';
 
 const DENIAL_SNAPSHOT: ConsentSnapshot = {
   analytics: false,

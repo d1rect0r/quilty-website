@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makeSesEmailSender } from '../adapters/ses.js';
+import { makeSesEmailSender } from '../adapters/ses';
 
 describe('makeSesEmailSender (skeleton — throws until sandbox-lift + BAA)', () => {
   it('constructs without throwing (allows composition root wiring to typecheck)', () => {

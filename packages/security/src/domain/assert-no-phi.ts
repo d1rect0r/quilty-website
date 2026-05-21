@@ -1,4 +1,4 @@
-import { isSensitiveKey } from './sanitizer.js';
+import { isSensitiveKey } from './sanitizer';
 
 /**
  * Runtime PHI-shape assertion. Throws in development + test on any payload

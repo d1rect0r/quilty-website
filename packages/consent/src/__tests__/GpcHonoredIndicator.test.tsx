@@ -11,7 +11,7 @@ vi.mock('next/headers', () => ({
 // production server-only guard fires at the Next.js bundler layer, not
 // the test runtime).
 
-const { GpcHonoredIndicator } = await import('../components/GpcHonoredIndicator.js');
+const { GpcHonoredIndicator } = await import('../components/GpcHonoredIndicator');
 
 describe('GpcHonoredIndicator', () => {
   afterEach(() => {

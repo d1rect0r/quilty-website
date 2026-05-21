@@ -17,7 +17,7 @@
  * depend on this package for the port type rather than re-exporting it.
  */
 
-export type { ConsentReader, ConsentSnapshot } from './ports.js';
+export type { ConsentReader, ConsentSnapshot } from './ports';
 
 export {
   type CookieCategory,
@@ -25,10 +25,10 @@ export {
   type ConsentCategoryState,
   COOKIE_REGISTRY,
   DEFAULT_DENY_STATE,
-} from './domain/cookie-taxonomy.js';
+} from './domain/cookie-taxonomy';
 
-export { detectGpcFromHeaders, type HeaderGetter } from './domain/gpc-detector.js';
+export { detectGpcFromHeaders, type HeaderGetter } from './domain/gpc-detector';
 
-export { makeDefaultDenyConsentReader } from './domain/default-deny-consent.js';
+export { makeDefaultDenyConsentReader } from './domain/default-deny-consent';
 
-export { ConsentBanner } from './components/ConsentBanner.js';
+export { ConsentBanner } from './components/ConsentBanner';

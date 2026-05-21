@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSafeRedirect } from '../domain/redirect-validator.js';
+import { isSafeRedirect } from '../domain/redirect-validator';
 
 const ALLOWLIST = ['https://my-quilty.com', 'https://auth.my-quilty.com'] as const;
 

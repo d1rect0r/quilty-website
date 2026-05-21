@@ -23,7 +23,7 @@
 
 import type { ConsentReader } from '@quilty/consent';
 import type { Sanitizer } from '@quilty/security';
-import type { Analytics, AnalyticsCallContext, AnalyticsEvent } from '../ports.js';
+import type { Analytics, AnalyticsCallContext, AnalyticsEvent } from '../ports';
 
 export interface WrappedAnalyticsOptions {
   readonly adapter: Analytics;

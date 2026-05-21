@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { HeroBlock } from '../schemas.js';
+import type { HeroBlock } from '../schemas';
 
 export interface HeroProps {
   block: HeroBlock;

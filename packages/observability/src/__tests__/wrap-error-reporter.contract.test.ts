@@ -5,8 +5,8 @@
 
 import { makeSanitizer } from '@quilty/security';
 import { describe, expect, it } from 'vitest';
-import { makeErrorReporterFake } from '../testing/index.js';
-import { wrapErrorReporter } from '../domain/wrap-error-reporter.js';
+import { makeErrorReporterFake } from '../testing/index';
+import { wrapErrorReporter } from '../domain/wrap-error-reporter';
 
 describe('wrapErrorReporter — PHI sanitizer chokepoint', () => {
   it('scrubs PHI keys in context before reaching the adapter', () => {

@@ -14,7 +14,7 @@
  * touches the Amplitude Replay API.
  */
 
-import type { Analytics, AnalyticsCallContext, AnalyticsEvent, Logger } from '../ports.js';
+import type { Analytics, AnalyticsCallContext, AnalyticsEvent, Logger } from '../ports';
 
 export interface AmplitudeAnalyticsOptions {
   readonly logger: Logger;

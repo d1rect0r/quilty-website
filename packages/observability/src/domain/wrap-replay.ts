@@ -15,7 +15,7 @@
  * floor against the Sentry adapter.
  */
 
-import type { Replay, ReplayConfig } from '../ports.js';
+import type { Replay, ReplayConfig } from '../ports';
 
 export interface WrappedReplayOptions {
   readonly adapter: Replay;

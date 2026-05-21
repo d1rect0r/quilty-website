@@ -14,9 +14,9 @@
 
 import 'server-only';
 
-import { DEFAULT_DENY_STATE } from '../domain/cookie-taxonomy.js';
-import { detectGpcFromHeaders, type HeaderGetter } from '../domain/gpc-detector.js';
-import type { ConsentReader, ConsentSnapshot } from '../ports.js';
+import { DEFAULT_DENY_STATE } from '../domain/cookie-taxonomy';
+import { detectGpcFromHeaders, type HeaderGetter } from '../domain/gpc-detector';
+import type { ConsentReader, ConsentSnapshot } from '../ports';
 
 export interface ServerConsentReaderInput {
   /**

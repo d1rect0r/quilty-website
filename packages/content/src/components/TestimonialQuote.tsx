@@ -1,4 +1,4 @@
-import type { TestimonialQuoteBlock } from '../schemas.js';
+import type { TestimonialQuoteBlock } from '../schemas';
 
 export interface TestimonialQuoteProps {
   block: TestimonialQuoteBlock;

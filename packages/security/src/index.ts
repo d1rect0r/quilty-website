@@ -14,10 +14,10 @@
  * rule `cross-package-imports-must-use-barrel`.
  */
 
-import { assertNoPHI } from './domain/assert-no-phi.js';
-import { isSafeRedirect } from './domain/redirect-validator.js';
-import { isSensitiveKey, sanitize, sanitizeAsync } from './domain/sanitizer.js';
-import type { RedirectValidator, RedirectValidatorOptions, Sanitizer } from './ports.js';
+import { assertNoPHI } from './domain/assert-no-phi';
+import { isSafeRedirect } from './domain/redirect-validator';
+import { isSensitiveKey, sanitize, sanitizeAsync } from './domain/sanitizer';
+import type { RedirectValidator, RedirectValidatorOptions, Sanitizer } from './ports';
 
 // ---------------------------------------------------------------------------
 // Type re-exports
@@ -30,7 +30,7 @@ export type {
   RedirectValidatorOptions,
   Sanitizer,
   SecurityHeaderEntry,
-} from './ports.js';
+} from './ports';
 
 export type {
   CsrfError,
@@ -38,37 +38,29 @@ export type {
   RedirectValidatorError,
   Result,
   TimeTrapError,
-} from './errors.js';
+} from './errors';
 
 // ---------------------------------------------------------------------------
 // Direct function exports — preferred consumer pattern
 // ---------------------------------------------------------------------------
 
-export { sanitize, sanitizeAsync, isSensitiveKey } from './domain/sanitizer.js';
-export { assertNoPHI } from './domain/assert-no-phi.js';
+export { sanitize, sanitizeAsync, isSensitiveKey } from './domain/sanitizer';
+export { assertNoPHI } from './domain/assert-no-phi';
 export {
   buildMarketingCsp,
   buildPortalCsp,
   generateNonce,
   isPortalRoute,
-} from './domain/csp-builder.js';
-export {
-  buildHstsValue,
-  buildSecurityHeaders,
-  currentHstsPhase,
-} from './domain/headers-builder.js';
-export { isSafeRedirect } from './domain/redirect-validator.js';
+} from './domain/csp-builder';
+export { buildHstsValue, buildSecurityHeaders, currentHstsPhase } from './domain/headers-builder';
+export { isSafeRedirect } from './domain/redirect-validator';
 
 // Forms-canonical domain stubs — exported so the contract test surface is
 // locked at the extraction commit. Bodies fill in at the forms-canonical
 // commit per D113.
-export { generateCsrfToken, verifyCsrf, type CsrfVerifyInput } from './domain/csrf.js';
-export { makeHoneypotField, verifyHoneypot, type HoneypotField } from './domain/honeypot.js';
-export {
-  makeRenderTimestamp,
-  verifyTimeTrap,
-  type TimeTrapVerifyInput,
-} from './domain/time-trap.js';
+export { generateCsrfToken, verifyCsrf, type CsrfVerifyInput } from './domain/csrf';
+export { makeHoneypotField, verifyHoneypot, type HoneypotField } from './domain/honeypot';
+export { makeRenderTimestamp, verifyTimeTrap, type TimeTrapVerifyInput } from './domain/time-trap';
 
 // ---------------------------------------------------------------------------
 // Port factories — only ports with real state earn a factory shape

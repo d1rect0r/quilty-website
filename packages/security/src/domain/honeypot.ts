@@ -9,7 +9,7 @@
  * in the bodies + wires verification into the contact form Server Action.
  */
 
-import type { HoneypotError, Result } from '../errors.js';
+import type { HoneypotError, Result } from '../errors';
 
 const NOT_IMPLEMENTED = new Error(
   'Not implemented — see D113 in the architecture strategy document.',

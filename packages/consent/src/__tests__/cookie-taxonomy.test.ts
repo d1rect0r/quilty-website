@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COOKIE_REGISTRY, DEFAULT_DENY_STATE } from '../domain/cookie-taxonomy.js';
+import { COOKIE_REGISTRY, DEFAULT_DENY_STATE } from '../domain/cookie-taxonomy';
 
 describe('cookie taxonomy', () => {
   describe('DEFAULT_DENY_STATE', () => {

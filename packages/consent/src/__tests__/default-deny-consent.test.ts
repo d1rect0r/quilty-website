@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makeDefaultDenyConsentReader } from '../domain/default-deny-consent.js';
+import { makeDefaultDenyConsentReader } from '../domain/default-deny-consent';
 
 describe('makeDefaultDenyConsentReader', () => {
   it('returns a snapshot denying every gated category', async () => {

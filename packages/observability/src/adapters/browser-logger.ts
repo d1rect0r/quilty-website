@@ -16,7 +16,7 @@
  * affordance; the sanitizer is still composed by the wrapper layer.
  */
 
-import type { LogFields, LogLevel, Logger } from '../ports.js';
+import type { LogFields, LogLevel, Logger } from '../ports';
 
 function emitDev(level: LogLevel, msg: string, fields: LogFields): void {
   // eslint-disable-next-line no-console

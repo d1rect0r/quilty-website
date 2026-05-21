@@ -12,7 +12,7 @@
  */
 import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
-import { buildMarketingCsp, buildPortalCsp } from '../domain/csp-builder.js';
+import { buildMarketingCsp, buildPortalCsp } from '../domain/csp-builder';
 // csp_evaluator ships CommonJS only; createRequire is the documented bridge.
 const nodeRequire = createRequire(import.meta.url);
 const { CspParser } = nodeRequire('csp_evaluator/dist/parser.js');

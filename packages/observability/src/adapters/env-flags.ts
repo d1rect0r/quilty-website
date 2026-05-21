@@ -15,7 +15,7 @@
  * it returns the supplied default rather than `false`-everything.
  */
 
-import type { FeatureFlagEvaluator } from '../ports.js';
+import type { FeatureFlagEvaluator } from '../ports';
 
 function envName(flagName: string): string {
   // Mirror the legacy convention `FEATURE_FLAG_<UPPER>`.

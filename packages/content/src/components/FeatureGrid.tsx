@@ -1,4 +1,4 @@
-import type { FeatureGridBlock } from '../schemas.js';
+import type { FeatureGridBlock } from '../schemas';
 
 export interface FeatureGridProps {
   block: FeatureGridBlock;

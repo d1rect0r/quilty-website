@@ -20,7 +20,7 @@
  * adapter-internal identifiers. The port + factory are vendor-agnostic.
  */
 
-import type { EmailEnvelope, EmailSender, EmailSendResult } from '../ports.js';
+import type { EmailEnvelope, EmailSender, EmailSendResult } from '../ports';
 
 export interface SesAdapterOptions {
   readonly region: string;

@@ -14,7 +14,7 @@
  * wrapper API.
  */
 
-import type { ConsentReader, ConsentSnapshot } from '../ports.js';
+import type { ConsentReader, ConsentSnapshot } from '../ports';
 
 const DENIAL: ConsentSnapshot = {
   analytics: false,

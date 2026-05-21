@@ -8,7 +8,7 @@
  * in the bodies and ships the canonical 2-second floor.
  */
 
-import type { Result, TimeTrapError } from '../errors.js';
+import type { Result, TimeTrapError } from '../errors';
 
 const NOT_IMPLEMENTED = new Error(
   'Not implemented — see D113 in the architecture strategy document.',

@@ -3,7 +3,7 @@
  * `ConsentSnapshot` every call.
  */
 
-import type { ConsentReader, ConsentSnapshot } from '../ports.js';
+import type { ConsentReader, ConsentSnapshot } from '../ports';
 
 export interface InMemoryConsentReaderInput {
   readonly snapshot: ConsentSnapshot;

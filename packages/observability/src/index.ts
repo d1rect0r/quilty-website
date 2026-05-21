@@ -29,7 +29,7 @@ export type {
   Logger,
   Replay,
   ReplayConfig,
-} from './ports.js';
+} from './ports';
 
 export type {
   AdapterUnavailableError,
@@ -39,46 +39,43 @@ export type {
   ReplayConfigError,
   ReplayError,
   Result,
-} from './errors.js';
+} from './errors';
 
 // ---------------------------------------------------------------------------
 // Domain constants + enum
 // ---------------------------------------------------------------------------
 
-export type { AccountDeleteReason } from './domain/account-delete-reason.js';
-export { ACCOUNT_DELETE_REASONS } from './domain/account-delete-reason.js';
+export type { AccountDeleteReason } from './domain/account-delete-reason';
+export { ACCOUNT_DELETE_REASONS } from './domain/account-delete-reason';
 export {
   CLINICAL_PROTECTED_CLASSES,
   REPLAY_BLOCK_CLASS,
   REPLAY_IGNORE_CLASS,
   REPLAY_MASK_CLASS,
-} from './domain/replay-classes.js';
+} from './domain/replay-classes';
 
 // ---------------------------------------------------------------------------
 // Factory wrappers (Cerebral-lesson chokepoint composition)
 // ---------------------------------------------------------------------------
 
-export { wrapAnalytics, type WrappedAnalyticsOptions } from './domain/wrap-analytics.js';
-export {
-  wrapErrorReporter,
-  type WrappedErrorReporterOptions,
-} from './domain/wrap-error-reporter.js';
-export { wrapLogger, type WrappedLoggerOptions } from './domain/wrap-logger.js';
-export { wrapReplay, type WrappedReplayOptions } from './domain/wrap-replay.js';
+export { wrapAnalytics, type WrappedAnalyticsOptions } from './domain/wrap-analytics';
+export { wrapErrorReporter, type WrappedErrorReporterOptions } from './domain/wrap-error-reporter';
+export { wrapLogger, type WrappedLoggerOptions } from './domain/wrap-logger';
+export { wrapReplay, type WrappedReplayOptions } from './domain/wrap-replay';
 
 // ---------------------------------------------------------------------------
 // Adapters
 // ---------------------------------------------------------------------------
 
-export { makeAmplitudeAnalytics, type AmplitudeAnalyticsOptions } from './adapters/amplitude.js';
-export { makeBrowserLogger } from './adapters/browser-logger.js';
-export { makeCloudWatchLogger } from './adapters/cloudwatch-logger.js';
-export { makeEnvFlagEvaluator } from './adapters/env-flags.js';
-export { makeSentryErrorReporter } from './adapters/sentry-error-reporter.js';
-export { makeSentryReplay } from './adapters/sentry-replay.js';
+export { makeAmplitudeAnalytics, type AmplitudeAnalyticsOptions } from './adapters/amplitude';
+export { makeBrowserLogger } from './adapters/browser-logger';
+export { makeCloudWatchLogger } from './adapters/cloudwatch-logger';
+export { makeEnvFlagEvaluator } from './adapters/env-flags';
+export { makeSentryErrorReporter } from './adapters/sentry-error-reporter';
+export { makeSentryReplay } from './adapters/sentry-replay';
 
 // ---------------------------------------------------------------------------
 // Components
 // ---------------------------------------------------------------------------
 
-export { WebVitalsReporter } from './components/WebVitalsReporter.js';
+export { WebVitalsReporter } from './components/WebVitalsReporter';

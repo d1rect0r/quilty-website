@@ -9,16 +9,13 @@ import 'server-only';
  * `.dependency-cruiser.cjs` rule `cross-package-imports-must-use-barrel`.
  */
 
-export type { CaptchaVerifier, VerificationContext, VerificationResult } from './ports.js';
+export type { CaptchaVerifier, VerificationContext, VerificationResult } from './ports';
 
 export {
   makeInMemoryCaptchaVerifier,
   type InMemoryCaptchaVerifier,
   type InMemoryCaptchaVerifierOptions,
   type InMemoryVerificationRecord,
-} from './adapters/in-memory.js';
+} from './adapters/in-memory';
 
-export {
-  makeTurnstileCaptchaVerifier,
-  type TurnstileAdapterOptions,
-} from './adapters/turnstile.js';
+export { makeTurnstileCaptchaVerifier, type TurnstileAdapterOptions } from './adapters/turnstile';

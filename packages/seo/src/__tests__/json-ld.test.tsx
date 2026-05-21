@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToString } from 'react-dom/server';
-import { JsonLd } from '../JsonLd.js';
+import { JsonLd } from '../JsonLd';
 
 describe('JsonLd component', () => {
   it('renders a JSON-LD script tag with the correct type attribute', () => {

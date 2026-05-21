@@ -1,5 +1,5 @@
 import { buildFAQPageJsonLd, JsonLd } from '@quilty/seo';
-import type { FAQBlock } from '../schemas.js';
+import type { FAQBlock } from '../schemas';
 
 export interface FAQProps {
   block: FAQBlock;

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeCloudWatchLogger } from '../adapters/cloudwatch-logger.js';
+import { makeCloudWatchLogger } from '../adapters/cloudwatch-logger';
 
 describe('CloudWatch Logger adapter', () => {
   let logSpy: ReturnType<typeof vi.spyOn>;

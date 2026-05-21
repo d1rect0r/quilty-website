@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeEnvFlagEvaluator } from '../adapters/env-flags.js';
+import { makeEnvFlagEvaluator } from '../adapters/env-flags';
 
 describe('env-flag FeatureFlagEvaluator', () => {
   beforeEach(() => {

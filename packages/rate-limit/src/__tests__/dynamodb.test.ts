@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makeDynamoDbRateLimiter } from '../adapters/dynamodb.js';
+import { makeDynamoDbRateLimiter } from '../adapters/dynamodb';
 
 describe('makeDynamoDbRateLimiter (skeleton — rejects until table provisioning + IAM grant)', () => {
   it('constructs without throwing (composition root wiring typechecks)', () => {

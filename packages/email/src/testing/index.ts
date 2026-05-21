@@ -8,4 +8,4 @@ export {
   makeInMemoryEmailSender,
   type InMemoryEmailSender,
   type InMemoryEmailSendRecord,
-} from '../adapters/in-memory.js';
+} from '../adapters/in-memory';

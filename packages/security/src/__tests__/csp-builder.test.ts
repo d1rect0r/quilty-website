@@ -4,7 +4,7 @@ import {
   buildPortalCsp,
   generateNonce,
   isPortalRoute,
-} from '../domain/csp-builder.js';
+} from '../domain/csp-builder';
 
 describe('buildMarketingCsp', () => {
   it('does not include a nonce', () => {
@@ -113,7 +113,7 @@ describe('Sentry CSP report-uri env var handling', () => {
 
   it('omits report-uri when SENTRY_CSP_REPORT_URI is unset (default)', async () => {
     vi.stubEnv('SENTRY_CSP_REPORT_URI', '');
-    const mod = await import('../domain/csp-builder.js');
+    const mod = await import('../domain/csp-builder');
     const csp = mod.buildMarketingCsp();
     expect(csp).not.toContain('report-uri');
   });
@@ -123,7 +123,7 @@ describe('Sentry CSP report-uri env var handling', () => {
     // be filtered out by sanitizeCspValue — the resulting CSP must not
     // contain the injected payload.
     vi.stubEnv('SENTRY_CSP_REPORT_URI', 'https://evil.example.com/r; script-src *');
-    const mod = await import('../domain/csp-builder.js');
+    const mod = await import('../domain/csp-builder');
     const csp = mod.buildMarketingCsp();
     expect(csp).not.toContain('script-src *');
     expect(csp).not.toContain('evil.example.com');
@@ -135,7 +135,7 @@ describe('Sentry CSP report-uri env var handling', () => {
     // sanitizeCspValue guard must reject it and the connect-src
     // fallback (wildcard) must apply.
     vi.stubEnv('SENTRY_INGEST_HOST', 'https://hostile.example.com; default-src *');
-    const mod = await import('../domain/csp-builder.js');
+    const mod = await import('../domain/csp-builder');
     const csp = mod.buildMarketingCsp();
     expect(csp).not.toContain('hostile.example.com');
     expect(csp).not.toContain('default-src *');

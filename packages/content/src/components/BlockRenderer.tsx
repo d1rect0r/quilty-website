@@ -1,11 +1,11 @@
-import { CTABanner } from './CTABanner.js';
-import { FAQ } from './FAQ.js';
-import { FeatureGrid } from './FeatureGrid.js';
-import { Hero } from './Hero.js';
-import { TestimonialQuote } from './TestimonialQuote.js';
-import { ValueProp } from './ValueProp.js';
+import { CTABanner } from './CTABanner';
+import { FAQ } from './FAQ';
+import { FeatureGrid } from './FeatureGrid';
+import { Hero } from './Hero';
+import { TestimonialQuote } from './TestimonialQuote';
+import { ValueProp } from './ValueProp';
 import type React from 'react';
-import type { Block } from '../schemas.js';
+import type { Block } from '../schemas';
 
 /**
  * Single dispatch point for every typed block. Exhaustive switch on the

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildIconMetadata, buildOpenGraphMetadata } from '../metadata.js';
+import { buildIconMetadata, buildOpenGraphMetadata } from '../metadata';
 
 const BASE_OG_INPUT = {
   ogImage: 'https://my-quilty.com/og.png',

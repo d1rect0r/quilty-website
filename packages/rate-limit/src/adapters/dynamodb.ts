@@ -25,7 +25,7 @@
  * vendor-agnostic.
  */
 
-import type { RateLimitDecision, RateLimitPolicy, RateLimiter } from '../ports.js';
+import type { RateLimitDecision, RateLimitPolicy, RateLimiter } from '../ports';
 
 export interface DynamoDbAdapterOptions {
   /** AWS region. */

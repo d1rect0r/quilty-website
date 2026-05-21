@@ -19,8 +19,8 @@ import {
   makeAnalyticsFake,
   makeConsentReaderFake,
   makeGrantingConsentReaderFake,
-} from '../testing/index.js';
-import { wrapAnalytics } from '../domain/wrap-analytics.js';
+} from '../testing/index';
+import { wrapAnalytics } from '../domain/wrap-analytics';
 
 describe('wrapAnalytics — Cerebral-lesson chokepoint', () => {
   beforeEach(() => {

@@ -9,7 +9,7 @@
  * `no-console` rule with this file as the single exception.
  */
 
-import type { LogFields, LogLevel, Logger } from '../ports.js';
+import type { LogFields, LogLevel, Logger } from '../ports';
 
 interface LogRecord {
   readonly timestamp: string;

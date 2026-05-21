@@ -22,7 +22,7 @@
  * Records every verify call for inspection.
  */
 
-import type { CaptchaVerifier, VerificationContext, VerificationResult } from '../ports.js';
+import type { CaptchaVerifier, VerificationContext, VerificationResult } from '../ports';
 
 const INMEMORY_PROD_OVERRIDE_ENV = 'QUILTY_ALLOW_INMEMORY_CAPTCHA_IN_PROD';
 

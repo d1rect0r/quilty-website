@@ -9,4 +9,4 @@ export {
   type InMemoryCaptchaVerifier,
   type InMemoryCaptchaVerifierOptions,
   type InMemoryVerificationRecord,
-} from '../adapters/in-memory.js';
+} from '../adapters/in-memory';

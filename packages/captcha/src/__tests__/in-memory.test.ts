@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { makeInMemoryCaptchaVerifier } from '../adapters/in-memory.js';
+import { makeInMemoryCaptchaVerifier } from '../adapters/in-memory';
 
 describe('makeInMemoryCaptchaVerifier', () => {
   afterEach(() => {

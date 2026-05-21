@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSensitiveKey, sanitize, sanitizeAsync } from '../domain/sanitizer.js';
+import { isSensitiveKey, sanitize, sanitizeAsync } from '../domain/sanitizer';
 
 describe('isSensitiveKey', () => {
   it('matches known PHI keys', () => {

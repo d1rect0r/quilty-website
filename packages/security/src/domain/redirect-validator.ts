@@ -18,8 +18,8 @@
  * exception handling.
  */
 
-import type { RedirectValidatorError, Result } from '../errors.js';
-import type { RedirectValidatorOptions } from '../ports.js';
+import type { RedirectValidatorError, Result } from '../errors';
+import type { RedirectValidatorOptions } from '../ports';
 
 const DEFAULT_ALLOWED_SCHEMES: readonly string[] = ['https:'];
 

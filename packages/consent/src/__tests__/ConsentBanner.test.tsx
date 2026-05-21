@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { ConsentBanner } from '../components/ConsentBanner.js';
+import { ConsentBanner } from '../components/ConsentBanner';
 
 describe('ConsentBanner (renderless stub)', () => {
   it('renders nothing — DOM stays empty until the banner activation wires real UI', () => {

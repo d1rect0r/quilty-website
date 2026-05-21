@@ -8,4 +8,4 @@ export {
   makeInMemoryRateLimiter,
   type InMemoryRateLimiter,
   type InMemoryRateLimiterOptions,
-} from '../adapters/in-memory.js';
+} from '../adapters/in-memory';

@@ -17,7 +17,7 @@
  * report-only at scaffold time. Hit MDN Baseline Feb 2026.
  */
 
-import type { CspOptions } from '../ports.js';
+import type { CspOptions } from '../ports';
 
 /**
  * Server-only env reads (no NEXT_PUBLIC_ prefix — proxy.ts is Edge/Node

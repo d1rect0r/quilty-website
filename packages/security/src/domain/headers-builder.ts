@@ -9,7 +9,7 @@
  *   2yr+includeSubDomains+preload.
  */
 
-import type { HstsPhase, SecurityHeaderEntry } from '../ports.js';
+import type { HstsPhase, SecurityHeaderEntry } from '../ports';
 
 const HSTS_PHASES: ReadonlySet<HstsPhase> = new Set([
   'm1',

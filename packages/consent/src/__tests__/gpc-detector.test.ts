@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectGpcFromHeaders } from '../domain/gpc-detector.js';
+import { detectGpcFromHeaders } from '../domain/gpc-detector';
 
 describe('detectGpcFromHeaders', () => {
   function makeHeaders(value: string | null) {

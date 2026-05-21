@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { headers } from 'next/headers';
-import { detectGpcFromHeaders } from '../domain/gpc-detector.js';
+import { detectGpcFromHeaders } from '../domain/gpc-detector';
 
 /**
  * Visible GPC-honored indicator per CCPA §7025(c)(6) (effective
