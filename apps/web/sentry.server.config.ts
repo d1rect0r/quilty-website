@@ -17,6 +17,19 @@ Sentry.init({
     if (event.extra) event.extra = sanitize(event.extra) as Record<string, unknown>;
     if (event.contexts) event.contexts = sanitize(event.contexts) as typeof event.contexts;
     if (event.tags) event.tags = sanitize(event.tags) as typeof event.tags;
+    // The exception message + top-level message strings are the path
+    // through which a Zod validation error or template-literal throw
+    // can carry user-typed free text — wrapErrorReporter sanitizes
+    // the context object but forwards the raw Error to the adapter,
+    // so the SDK serializes `error.message` straight into
+    // `exception.values[i].value`. Sanitize at the SDK boundary too
+    // (D67 belt-and-suspenders alongside the planned ESLint rule).
+    if (event.exception?.values) {
+      for (const ex of event.exception.values) {
+        if (typeof ex.value === 'string') ex.value = sanitize(ex.value);
+      }
+    }
+    if (typeof event.message === 'string') event.message = sanitize(event.message);
     if (event.request) {
       // Strip query string from request.url — D31 forbids PHI in URLs,
       // but defence-in-depth catches a future URL that drifts.

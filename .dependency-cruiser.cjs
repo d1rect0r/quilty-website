@@ -93,6 +93,12 @@ module.exports = {
           // until then they are intentionally orphan.
           'apps/web/composition\\.(server|client|edge)\\.ts$',
           'apps/web/lib/get-container\\.ts$',
+          // Constants module consumed via the `@/lib/...` path alias
+          // by error.tsx + global-error.tsx; depcruise runs AST-only
+          // without tsConfig, so the alias resolution edge is not
+          // followed. Exclude here so the file does not surface as
+          // orphan. Re-evaluate when tsConfig-aware mode is enabled.
+          'apps/web/lib/site-contacts\\.ts$',
           'apps/web/next-env\\.d\\.ts$',
           '__tests__|\\.test\\.|\\.spec\\.',
           'tests/playwright/',

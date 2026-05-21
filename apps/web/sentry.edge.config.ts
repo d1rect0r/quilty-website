@@ -17,6 +17,17 @@ Sentry.init({
     if (event.extra) event.extra = sanitize(event.extra) as Record<string, unknown>;
     if (event.contexts) event.contexts = sanitize(event.contexts) as typeof event.contexts;
     if (event.tags) event.tags = sanitize(event.tags) as typeof event.tags;
+    // Exception message + top-level message strings — D67 chokepoint
+    // alongside the wrapErrorReporter port boundary. The Sentry SDK
+    // serializes `error.message` into `exception.values[i].value`,
+    // which would otherwise carry a Zod or template-literal free
+    // text payload unsanitized.
+    if (event.exception?.values) {
+      for (const ex of event.exception.values) {
+        if (typeof ex.value === 'string') ex.value = sanitize(ex.value);
+      }
+    }
+    if (typeof event.message === 'string') event.message = sanitize(event.message);
     if (event.request) {
       if (event.request.url) {
         const qIdx = event.request.url.indexOf('?');

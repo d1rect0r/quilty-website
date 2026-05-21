@@ -39,7 +39,6 @@
         "next-intl",
         "tailwind-merge",
         "web-vitals",
-        "@testing-library/user-event",
         "tailwindcss",
         "@quilty/content"
       ]
