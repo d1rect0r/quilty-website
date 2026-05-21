@@ -1,8 +1,8 @@
 # ADR-0010: Composition root with globalThis singleton anchor
 
-- **Status:** Proposed (stub; full body lands at the M1.5 closing-wave ADR batch)
+- **Status:** Accepted
 - **Date:** 2026-05-20
-- **Last reviewed:** 2026-05-20
+- **Last reviewed:** 2026-05-21
 - **Deciders:** Volodymyr Petrychenko
 - **Originating discussion:** `docs/research/round_6_foundation_audit/_raw/17-composition-and-test-patterns.md` § Composition root pattern
 - **Related decisions:** D77 (composition root pattern), D78 (vendor SDK chokepoint), D79 (cross-package barrel rule)
