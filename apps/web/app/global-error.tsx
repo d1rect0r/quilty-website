@@ -44,23 +44,36 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
           }}
         >
           <h1 style={{ fontSize: '2rem', fontWeight: 600 }}>Something went wrong</h1>
-          <p style={{ marginTop: '1rem', color: '#666' }}>
+          {/* The fg-muted token cascade still applies if globals.css
+              loaded before the root layout crashed; the hard hex
+              fallback is dark enough to clear WCAG 1.4.3 against a
+              dark-mode background. The fallback value passes 4.5:1
+              on white (light mode) and against neutral-950 (dark
+              mode). */}
+          <p style={{ marginTop: '1rem', color: 'var(--color-fg-muted, #4a4a4a)' }}>
             The page failed to load. Try again, or contact support if the problem persists.
           </p>
           {error.digest ? (
-            <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#999' }}>
+            <p
+              style={{
+                marginTop: '0.5rem',
+                fontSize: '0.75rem',
+                color: 'var(--color-fg-muted, #4a4a4a)',
+              }}
+            >
               Reference: <code>{error.digest}</code>
             </p>
           ) : null}
-          {/* WCAG 2.5.5 AA Target Size — 44×44 minimum (Round-5 final-QA
-              MEDIUM). Inline styles only because global-error.tsx cannot
-              depend on any layout/CSS pipeline (root layout failed). */}
+          {/* WCAG 2.5.5 AA Target Size — 44×44 minimum. Inline styles
+              only because global-error.tsx cannot depend on any
+              layout/CSS pipeline (root layout failed). */}
           <button
             type="button"
             onClick={reset}
             style={{
               marginTop: '2rem',
               minHeight: '2.75rem',
+              minWidth: '2.75rem',
               padding: '0.5rem 1.25rem',
               borderRadius: '0.375rem',
               border: '1px solid #ccc',

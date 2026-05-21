@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "CAPTCHA verifier — Verifier port + always-pass in-memory adapter (test fake + pre-activation production) + Turnstile adapter skeleton (typed-throwing until BAA + secret provisioning).",
   "private": true,
+  "sideEffects": [
+    "./src/index.ts"
+  ],
   "type": "module",
   "exports": {
     ".": {
@@ -20,6 +23,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "server-only": "0.0.1"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

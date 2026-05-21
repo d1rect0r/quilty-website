@@ -17,7 +17,7 @@ This document tracks which vendors currently hold BAAs vs. which are in negotiat
 - **NOT-PURSUED** — architectural decision to avoid the vendor entirely (no BAA required because the vendor never sees Quilty traffic)
 - **OUT-OF-SCOPE** — vendor is consumed by the mobile/backend tier only; website tier has no surface
 
-## Inventory (M1.5 snapshot)
+## Inventory (snapshot)
 
 ### Infrastructure + identity
 
@@ -37,7 +37,7 @@ The AWS BAA does not cover every AWS service — it covers only the services on 
 
 ### Observability + analytics
 
-The web analytics vendor for the website tier is locked at D42b (revised Round 5) to PostHog Cloud Boost. Amplitude remains the mobile-tier vendor under a separate contract; the website's `makeAmplitudeAnalytics` factory is a transitional name retained for the M1.5 compose-root scaffolding and will be renamed at the PostHog activation milestone. (See ADR-0010 + the @quilty/observability port for the role-shaped vendor-agnostic API.)
+The web analytics vendor for the website tier is locked at D42b (revised Round 5) to PostHog Cloud Boost. Amplitude remains the mobile-tier vendor under a separate contract; the website's `makeAmplitudeAnalytics` factory is a transitional name retained for the transitional compose-root scaffolding and will be renamed at the PostHog activation milestone. (See ADR-0010 + the @quilty/observability port for the role-shaped vendor-agnostic API.)
 
 | Vendor                 | Purpose                                        | Status              | Notes                                                                                                                                                                  |
 | ---------------------- | ---------------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -4,9 +4,9 @@
  * Returns `analytics: false`, `marketing: false`, `preferences: false`,
  * `gpc_detected: false` for every call so the analytics + marketing
  * wrappers no-op silently — no events fire pre-banner, no vendor SDK
- * initializes pre-consent. This is the production wiring at M1.5 until
- * the consent banner activation ships a real `ConsentStore` that reads
- * the `quilty_consent` cookie.
+ * initializes pre-consent. This is the production wiring until the
+ * consent banner activation ships a real `ConsentStore` that reads
+ * the `__Host-quilty_consent` cookie.
  *
  * The returned object structurally satisfies @quilty/observability's
  * `ConsentReader` port; the composition root swaps this stub for the

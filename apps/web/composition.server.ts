@@ -64,7 +64,7 @@ export function makeServerContainer(): Container {
       sanitizer,
     }),
     featureFlags: makeEnvFlagEvaluator(),
-    // In-memory adapter is the production wiring at M1.5; the SES
+    // In-memory adapter is the production wiring today; the SES
     // adapter activates once the DMARC ramp + BAA inventory both list
     // SES as covered (see docs/runbook/*.md). The wrapper composes the
     // PHI sanitizer chokepoint around the adapter per D67.
@@ -72,12 +72,12 @@ export function makeServerContainer(): Container {
       adapter: makeInMemoryEmailSender(),
       sanitizer,
     }),
-    // Default-pass in-memory verifier at M1.5 (no widget rendered yet).
+    // Default-pass in-memory verifier today (no widget rendered yet).
     // Turnstile activates once the Cloudflare BAA + secret-key
     // provisioning are both green (see docs/runbook/baa-inventory.md).
     captchaVerifier: makeInMemoryCaptchaVerifier(),
     // In-memory sliding-window limiter is the production wiring at
-    // M1.5 — load-bearing for auth-adjacent paths. The DynamoDB
+    // today — load-bearing for auth-adjacent paths. The DynamoDB
     // adapter activates once the table + Lambda IAM grant ship.
     rateLimiter: makeInMemoryRateLimiter(),
   };

@@ -47,7 +47,7 @@ Deep imports into `src/` are forbidden by `.dependency-cruiser.cjs` rule `cross-
 
 ## Default-deny baseline
 
-`makeDefaultDenyConsentReader()` is the safe production baseline at M1.5. It returns `{ analytics: false, marketing: false, preferences: false, gpc_detected: false }` for every `.read()` call. The composition root swaps it for `makeServerConsentReader()` (which respects the `Sec-GPC: 1` opt-out signal) at the server-side activation, and again for a real cookie-aware store at the consent-banner activation.
+`makeDefaultDenyConsentReader()` is the safe production baseline today. It returns `{ analytics: false, marketing: false, preferences: false, gpc_detected: false }` for every `.read()` call. The composition root swaps it for `makeServerConsentReader()` (which respects the `Sec-GPC: 1` opt-out signal) at the server-side activation, and again for a real cookie-aware store at the consent-banner activation.
 
 ## GPC enforcement (D62)
 

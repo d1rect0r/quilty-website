@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "Consent surface — cookie taxonomy + GPC detection + GpcHonoredIndicator + default-deny ConsentReader. Banner ships at consent-banner activation.",
   "private": true,
+  "sideEffects": [
+    "./src/server/index.ts",
+    "./src/server/cookie-reader.ts",
+    "./src/components/GpcHonoredIndicator.tsx"
+  ],
   "type": "module",
   "exports": {
     ".": {

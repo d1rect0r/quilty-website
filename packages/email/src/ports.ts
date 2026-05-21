@@ -39,7 +39,7 @@ export type EmailKind =
 /**
  * Per-recipient send envelope. The adapter renders the subject + body
  * from the `kind` + `templateData` payload (templates live in a future
- * `templates/` subdirectory; M1.5 ships the port without templates).
+ * `templates/` subdirectory; this package ships the port without templates).
  *
  * `templateData` is structurally typed as `Readonly<Record<string,
  * string | number>>` (no nested objects, no arrays, no PHI-shaped
@@ -64,7 +64,7 @@ export type EmailSendResult =
 
 /**
  * EmailSender port — single send call. Composition root wires the
- * production adapter (in-memory at M1.5; SES once sandbox-lift +
+ * production adapter (in-memory today; SES once sandbox-lift +
  * BAA-execute). Consumer code MUST NOT call vendor SDKs directly per
  * D67 (the dep-cruiser rule + ESLint chokepoint enforce this).
  */

@@ -1,5 +1,5 @@
 /**
- * DynamoDB RateLimiter adapter — typed-throwing skeleton at M1.5.
+ * DynamoDB RateLimiter adapter — typed-throwing skeleton today.
  *
  * The `consume()` method rejects until two gates are green:
  *
@@ -35,7 +35,7 @@ export interface DynamoDbAdapterOptions {
 }
 
 export function makeDynamoDbRateLimiter(options: DynamoDbAdapterOptions): RateLimiter {
-  const skeletonNote = `DynamoDB rate-limit adapter is a skeleton at M1.5 (region ${options.region}, table ${options.tableName}); table provisioning + Lambda IAM grant required before activation.`;
+  const skeletonNote = `DynamoDB rate-limit adapter is a skeleton today (region ${options.region}, table ${options.tableName}); table provisioning + Lambda IAM grant required before activation.`;
 
   return {
     consume: (_key: string, _policy: RateLimitPolicy): Promise<RateLimitDecision> =>

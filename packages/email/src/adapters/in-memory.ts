@@ -1,5 +1,5 @@
 /**
- * In-memory EmailSender — pre-production wiring at M1.5 + the test fake at
+ * In-memory EmailSender — pre-production wiring today + the test fake at
  * every milestone after.
  *
  * Records every send for inspection (tests assert on the records;

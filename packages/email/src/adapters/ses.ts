@@ -1,5 +1,5 @@
 /**
- * AWS SES EmailSender adapter — typed-throwing skeleton at M1.5.
+ * AWS SES EmailSender adapter — typed-throwing skeleton today.
  *
  * The `send()` method intentionally throws until BOTH of these are
  * green:
@@ -38,7 +38,7 @@ export function makeSesEmailSender(options: SesAdapterOptions): EmailSender {
   // (typed-throwing skeletons that drop their arguments are a footgun
   // when the activation milestone arrives + the developer assumes the
   // wiring was already exercised).
-  const reason = `SES adapter is a skeleton at M1.5; production-access sandbox lift + BAA execution required before activation. Configured region: ${options.region}, fromAddress: ${options.fromAddress}.`;
+  const reason = `SES adapter is a skeleton today; production-access sandbox lift + BAA execution required before activation. Configured region: ${options.region}, fromAddress: ${options.fromAddress}.`;
 
   return {
     // Promise.reject (not a sync throw) so callers using `.catch()` or

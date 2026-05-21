@@ -1,11 +1,11 @@
 /**
  * Sentry Replay adapter (D42a / D85).
  *
- * Per D68 + Round-5 perf-bundle reviewer H2: the Replay integration is
- * lazy-loaded via `Sentry.lazyLoadIntegration('replayIntegration')` so
- * the DOM serializer chunk (~36 KB gzipped) is fetched only when an
- * error fires — `replaysSessionSampleRate` is 0 (no always-on replay)
- * and `replaysOnErrorSampleRate` is 1.0 (full replay on every error).
+ * Per D68: the Replay integration is lazy-loaded via
+ * `Sentry.lazyLoadIntegration('replayIntegration')` so the DOM
+ * serializer chunk (~36 KB gzipped) is fetched only when an error
+ * fires — `replaysSessionSampleRate` is 0 (no always-on replay) and
+ * `replaysOnErrorSampleRate` is 1.0 (full replay on every error).
  *
  * If the lazy load fails (offline / CSP block / network error), the
  * adapter resolves silently. Losing replay on errors is acceptable;

@@ -28,12 +28,14 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 
   // Renders inside app/layout.tsx's <body> — does NOT route through any
   // group layout, so it must provide its own <main> landmark + skip-link
-  // target per WCAG 2.4.1 (Round-5 a11y reviewer).
+  // target per WCAG 2.4.1.
   return (
     <main id="main" tabIndex={-1}>
-      <section className="mx-auto max-w-2xl px-6 py-24 text-center">
+      <section aria-labelledby="error-heading" className="mx-auto max-w-2xl px-6 py-24 text-center">
         <p className="text-danger-fg text-sm font-medium">Something went wrong</p>
-        <h1 className="text-fg-default mt-2 text-4xl font-semibold">Unexpected error</h1>
+        <h1 id="error-heading" className="text-fg-default mt-2 text-4xl font-semibold">
+          Unexpected error
+        </h1>
         <p className="text-fg-muted mt-4">
           We&apos;ve been notified. Try again, or head back home.
         </p>
@@ -45,7 +47,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
         <button
           type="button"
           onClick={reset}
-          className="bg-accent-primary text-accent-fg hover:bg-accent-primary-hover mt-8 rounded-md px-4 py-2.5"
+          className="bg-accent-primary text-accent-fg hover:bg-accent-primary-hover mt-8 inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-4"
         >
           Try again
         </button>

@@ -29,16 +29,13 @@ export function makeAmplitudeAnalytics(options: AmplitudeAnalyticsOptions): Anal
   return {
     track: async <E extends AnalyticsEvent>(
       event: E,
-      ctx?: AnalyticsCallContext,
+      _ctx?: AnalyticsCallContext,
     ): Promise<void> => {
-      // Pre-BAA stub. At vendor activation this calls
-      // `amplitude.track(event.name, event.props, { user_id_hash, session_id })`.
-      logger.info('analytics:event', {
-        event_name: event.name,
-        ...(event.props as Record<string, unknown>),
-        ...(ctx?.user_id_hash !== undefined && { user_id_hash: ctx.user_id_hash }),
-        ...(ctx?.session_id !== undefined && { session_id: ctx.session_id }),
-      });
+      // Pre-BAA stub: emit at `debug` level (production-suppressed)
+      // with event_name only — never props or ctx. CloudWatch costs
+      // + identifying-field retention are both reasons; activation
+      // moves the per-event payload to the vendor's protected channel.
+      logger.debug('analytics:event', { event_name: event.name });
     },
   };
 }

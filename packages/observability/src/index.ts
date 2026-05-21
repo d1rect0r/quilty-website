@@ -73,6 +73,7 @@ export { wrapReplay, type WrappedReplayOptions } from './domain/wrap-replay.js';
 // ---------------------------------------------------------------------------
 
 export { makeAmplitudeAnalytics, type AmplitudeAnalyticsOptions } from './adapters/amplitude.js';
+export { makeBrowserLogger } from './adapters/browser-logger.js';
 export { makeCloudWatchLogger } from './adapters/cloudwatch-logger.js';
 export { makeEnvFlagEvaluator } from './adapters/env-flags.js';
 export { makeSentryErrorReporter } from './adapters/sentry-error-reporter.js';

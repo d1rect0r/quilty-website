@@ -1,5 +1,5 @@
 /**
- * In-memory RateLimiter — production wiring at M1.5 + the test fake at
+ * In-memory RateLimiter — production wiring today + the test fake at
  * every milestone after.
  *
  * Sliding-window log implementation: per-key arrays of timestamps,

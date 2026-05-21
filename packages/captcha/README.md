@@ -1,6 +1,6 @@
 # @quilty/captcha
 
-CAPTCHA verifier — `CaptchaVerifier` port + in-memory adapter (production wiring at M1.5, default-pass) + Cloudflare Turnstile skeleton (typed-throwing until BAA + secret provisioning).
+CAPTCHA verifier — `CaptchaVerifier` port + in-memory adapter (production wiring today, default-pass) + Cloudflare Turnstile skeleton (typed-throwing until BAA + secret provisioning).
 
 ## Architecture
 
@@ -28,9 +28,9 @@ import {
 
 Deep imports into `src/` are forbidden by the cross-package barrel rule.
 
-## In-memory adapter (M1.5 production wiring)
+## In-memory adapter (Current production wiring)
 
-`makeInMemoryCaptchaVerifier()` defaults to PASS — by design at M1.5 because no captcha widget is rendered yet. Tests can construct a fail-by-default fake via `{ defaultResult: 'fail' }`. Every verify call is recorded for inspection.
+`makeInMemoryCaptchaVerifier()` defaults to PASS — by design today because no captcha widget is rendered yet. Tests can construct a fail-by-default fake via `{ defaultResult: 'fail' }`. Every verify call is recorded for inspection.
 
 ## Turnstile adapter (skeleton)
 

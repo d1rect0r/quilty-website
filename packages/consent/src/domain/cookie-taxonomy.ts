@@ -90,7 +90,16 @@ export const COOKIE_REGISTRY: readonly CookieDeclaration[] = [
     attributes: { httpOnly: false, secure: true, sameSite: 'Lax' },
   },
   {
-    name: 'quilty_consent',
+    // `__Host-` prefix per D7: the prefix is mutually exclusive with
+    // parent-domain sharing (no `Domain` attribute allowed, Path=/,
+    // Secure required). Without the prefix, a MITM on any subdomain
+    // (e.g. auth.my-quilty.com) could pre-set `quilty_consent` and
+    // spoof user consent state before the banner renders — a positive-
+    // consent regulatory failure under CCPA §7025(c)(2) + GDPR Recital
+    // 32. The cookie is intentionally not httpOnly (the future
+    // useConsent() client hook reads it), but the host-prefix locks
+    // out cross-subdomain writes.
+    name: '__Host-quilty_consent',
     category: 'necessary',
     // CCPA/CPRA implementing regulations require renewed consent at
     // least annually for sensitive personal information; 180 days is

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "SEO + structured-data builders (Organization / WebSite / SoftwareApplication / Breadcrumb / MedicalWebPage / FAQPage) + JsonLd component + Next.js metadata helpers.",
   "private": true,
+  "sideEffects": false,
   "type": "module",
   "exports": {
     ".": {

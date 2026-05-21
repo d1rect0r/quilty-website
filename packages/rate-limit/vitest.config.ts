@@ -14,7 +14,7 @@ export default defineConfig({
       reporter: ['text', 'html', 'json-summary'],
       thresholds: {
         // META-3 target: in-memory adapter is load-bearing for
-        // auth-adjacent paths at M1.5; lift the floor above the
+        // auth-adjacent paths today; lift the floor above the
         // utility-package default.
         lines: 95,
         statements: 95,

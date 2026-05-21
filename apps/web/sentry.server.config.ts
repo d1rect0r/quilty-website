@@ -18,8 +18,8 @@ Sentry.init({
     if (event.contexts) event.contexts = sanitize(event.contexts) as typeof event.contexts;
     if (event.tags) event.tags = sanitize(event.tags) as typeof event.tags;
     if (event.request) {
-      // Strip query string from request.url — even though D31 forbids PHI
-      // in URLs, defense in depth (Round-5 final-QA HIPAA-CSP MEDIUM).
+      // Strip query string from request.url — D31 forbids PHI in URLs,
+      // but defence-in-depth catches a future URL that drifts.
       if (event.request.url) {
         const qIdx = event.request.url.indexOf('?');
         if (qIdx !== -1) event.request.url = event.request.url.slice(0, qIdx);
@@ -30,8 +30,7 @@ Sentry.init({
   },
 
   // Strip PHI-shaped fields from breadcrumb data — parity with the
-  // client config (Round-5 final-QA HIPAA-CSP MEDIUM: breadcrumbs were
-  // a server-side gap).
+  // client config (Sentry's server SDK collects breadcrumbs too).
   beforeBreadcrumb(breadcrumb) {
     if (breadcrumb.data) {
       breadcrumb.data = sanitize(breadcrumb.data) as Record<string, unknown>;

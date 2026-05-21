@@ -230,6 +230,10 @@ importers:
         version: 2.1.8(@types/node@22.10.2)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.47.1)
 
   packages/captcha:
+    dependencies:
+      server-only:
+        specifier: 0.0.1
+        version: 0.0.1
     devDependencies:
       '@types/node':
         specifier: 22.10.2
@@ -338,6 +342,9 @@ importers:
       '@quilty/security':
         specifier: workspace:*
         version: link:../security
+      server-only:
+        specifier: 0.0.1
+        version: 0.0.1
     devDependencies:
       '@types/node':
         specifier: 22.10.2
@@ -393,6 +400,10 @@ importers:
         version: 2.1.8(@types/node@22.10.2)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.47.1)
 
   packages/rate-limit:
+    dependencies:
+      server-only:
+        specifier: 0.0.1
+        version: 0.0.1
     devDependencies:
       '@types/node':
         specifier: 22.10.2
@@ -464,7 +475,7 @@ importers:
   packages/shared-types:
     devDependencies:
       typescript:
-        specifier: ^5.7.2
+        specifier: 5.7.2
         version: 5.7.2
 
 packages:

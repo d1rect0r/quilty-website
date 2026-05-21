@@ -1,6 +1,6 @@
 /**
  * Cloudflare Turnstile CaptchaVerifier adapter — typed-throwing
- * skeleton at M1.5.
+ * skeleton today.
  *
  * The `verify()` method rejects until both gates are green:
  *
@@ -25,7 +25,7 @@ import type { CaptchaVerifier, VerificationContext, VerificationResult } from '.
 export interface TurnstileAdapterOptions {
   /**
    * Cloudflare Turnstile secret key. The skeleton does not actually
-   * use this value at M1.5 (every call rejects), but the parameter is
+   * use this value today (every call rejects), but the parameter is
    * declared so the composition-root wiring + tests typecheck against
    * the same shape that will be active at the BAA-execute milestone.
    */
@@ -51,7 +51,7 @@ const VERIFY_ENDPOINT = 'https://challenges.cloudflare.com/turnstile/v0/siteveri
  */
 export function makeTurnstileCaptchaVerifier(options: TurnstileAdapterOptions): CaptchaVerifier {
   const hasKey = options.secretKey.length > 0;
-  const skeletonNote = `Turnstile adapter is a skeleton at M1.5 (verify endpoint ${VERIFY_ENDPOINT}, secret key ${hasKey ? '[REDACTED]' : '[MISSING]'}); Cloudflare BAA + secret provisioning required before activation.`;
+  const skeletonNote = `Turnstile adapter is a skeleton today (verify endpoint ${VERIFY_ENDPOINT}, secret key ${hasKey ? '[REDACTED]' : '[MISSING]'}); Cloudflare BAA + secret provisioning required before activation.`;
   // options reference ends here. The closure below does NOT capture
   // the raw key. At activation, the implementation will accept the
   // key as a closure-local `const` re-derived from `options` and

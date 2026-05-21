@@ -5,10 +5,10 @@
  * sanitizer first.
  *
  * The Sentry SDK's own `beforeSend` hook is a belt-and-suspenders
- * defense; this wrapper is the LOAD-BEARING defense. Round-5 final-QA
- * HIPAA-CSP MEDIUM noted that the SDK's beforeSend runs AFTER the
- * breadcrumb pipeline, so PHI-shaped fields would otherwise reach
- * breadcrumb storage before being scrubbed.
+ * defense; this wrapper is the LOAD-BEARING defense. The SDK's
+ * `beforeSend` runs AFTER the breadcrumb pipeline, so without this
+ * wrapper PHI-shaped fields would reach breadcrumb storage before
+ * being scrubbed.
  */
 
 import type { Sanitizer } from '@quilty/security';

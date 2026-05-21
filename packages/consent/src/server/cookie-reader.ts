@@ -1,11 +1,11 @@
 /**
  * Server-side consent cookie reader.
  *
- * Stub at M1.5: returns the default-deny baseline until the consent
- * banner activation ships the cookie write-path. Once the banner writes
- * `quilty_consent`, this reader will parse the cookie value (Base64
- * JSON-encoded `ConsentCategoryState`) and merge it with the GPC signal
- * from `Sec-GPC: 1` detection.
+ * Stub until the consent banner activation ships the cookie write
+ * path. Returns the default-deny baseline merged with the GPC
+ * detection signal. Once the banner writes `__Host-quilty_consent`,
+ * this reader will parse the cookie value (Base64 JSON-encoded
+ * `ConsentCategoryState`) and merge it with the `Sec-GPC: 1` signal.
  *
  * Server-only by intent. The path lives under `src/server/` so the
  * package subpath export (`@quilty/consent/server`) can gate it behind
@@ -28,7 +28,7 @@ export interface ServerConsentReaderInput {
   /**
    * Async accessor for the request's cookie reader. In Next.js 16 this
    * is `() => cookies()`; consumers can pass a custom impl in tests.
-   * Returns `null` for the consent cookie at M1.5 until the banner
+   * Returns `null` for the consent cookie until the banner activation
    * writes it; the type-shape is reserved for the real reader.
    */
   readonly readConsentCookie: () => Promise<string | null>;
@@ -37,9 +37,9 @@ export interface ServerConsentReaderInput {
 /**
  * Build a server-side `ConsentReader` from per-request accessors. The
  * returned reader satisfies the @quilty/observability `ConsentReader`
- * port. At M1.5 the cookie path is a stub (the consent banner has not
- * yet shipped to write `quilty_consent`), so the reader returns the
- * default-deny baseline merged with the GPC-detection signal.
+ * port. The cookie path is a stub until the consent banner activation
+ * ships the cookie write — the reader returns the default-deny
+ * baseline merged with the GPC-detection signal.
  *
  * When the banner activation ships the cookie parse, the
  * `cookieGranted` block below switches to `parseConsentCookie(raw)`
@@ -53,11 +53,10 @@ export function makeServerConsentReader(input: ServerConsentReaderInput): Consen
       const h = await input.headers();
       const gpc = detectGpcFromHeaders(h);
       const cookieRaw = await input.readConsentCookie();
-      // M1.5 stub: cookie is always null until the banner activation
-      // wires the write path. Preserve the read for future-proofing.
-      // The presence of `cookieRaw` is intentionally referenced so this
-      // accessor is not silently dead in callers that pass real Next.js
-      // `cookies()` accessors today.
+      // Stub branch: cookie is always null until the banner activation
+      // wires the write path. The accessor is intentionally consumed
+      // here so callers passing real Next.js `cookies()` accessors
+      // today see the read happen — preserves the future-proof shape.
       const cookieGranted = cookieRaw !== null;
       return {
         // GPC opt-out is authoritative across analytics + marketing

@@ -1,10 +1,10 @@
 # @quilty/email
 
-Transactional email surface — `EmailSender` port + in-memory adapter (production wiring at M1.5) + AWS SES skeleton (typed-throwing until sandbox-lift + BAA-execute).
+Transactional email surface — `EmailSender` port + in-memory adapter (production wiring today) + AWS SES skeleton (typed-throwing until sandbox-lift + BAA-execute).
 
 ## Architecture
 
-Single hexagonal port: `EmailSender.send(envelope) → Promise<EmailSendResult>`. The composition root wires the in-memory adapter at M1.5 and swaps in `makeSesEmailSender(...)` only after the runbook gates flip — `docs/runbook/dmarc-ramp.md` (D117) + `docs/runbook/baa-inventory.md` (D169). The port stays vendor-agnostic; "SES" appears only in `src/adapters/ses.ts`.
+Single hexagonal port: `EmailSender.send(envelope) → Promise<EmailSendResult>`. The composition root wires the in-memory adapter today and swaps in `makeSesEmailSender(...)` only after the runbook gates flip — `docs/runbook/dmarc-ramp.md` (D117) + `docs/runbook/baa-inventory.md` (D169). The port stays vendor-agnostic; "SES" appears only in `src/adapters/ses.ts`.
 
 ## D31 invariant — zero PHI
 
@@ -29,7 +29,7 @@ import {
 
 Deep imports into `src/` are forbidden by the cross-package barrel rule.
 
-## In-memory adapter (M1.5 production wiring)
+## In-memory adapter (Current production wiring)
 
 `makeInMemoryEmailSender()` records every send to an in-memory buffer. NEVER ships to a real inbox — explicit by design so the SES sandbox-lift gate is meaningful: no email leaves the perimeter until the BAA + DMARC ramp are both green. Pre-SES the in-memory records are inspected via the structured logger in CloudWatch.
 

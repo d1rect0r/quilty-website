@@ -1,6 +1,6 @@
 # @quilty/rate-limit
 
-Rate limiter — sliding-window `RateLimiter` port + in-memory adapter (production wiring at M1.5; load-bearing for auth-adjacent paths) + DynamoDB adapter skeleton (typed-throwing until table provisioning + Lambda IAM grant).
+Rate limiter — sliding-window `RateLimiter` port + in-memory adapter (production wiring today; load-bearing for auth-adjacent paths) + DynamoDB adapter skeleton (typed-throwing until table provisioning + Lambda IAM grant).
 
 ## Architecture
 
@@ -26,9 +26,9 @@ import {
 } from '@quilty/rate-limit';
 ```
 
-## In-memory adapter (M1.5 production wiring)
+## In-memory adapter (Current production wiring)
 
-`makeInMemoryRateLimiter({ now? })` is the production wiring at M1.5 — load-bearing for the auth-adjacent paths that will land in Wave 2. The per-key sliding-window log lives in module-scope state; cold-starts reset the counters (this is a safety property for auth flows, not a bug). The DynamoDB adapter at activation lifts the per-Lambda boundary to per-account.
+`makeInMemoryRateLimiter({ now? })` is the production wiring today — load-bearing for the auth-adjacent paths that will land in Wave 2. The per-key sliding-window log lives in module-scope state; cold-starts reset the counters (this is a safety property for auth flows, not a bug). The DynamoDB adapter at activation lifts the per-Lambda boundary to per-account.
 
 Tests inject a fake clock via the `now` option to advance the window deterministically.
 

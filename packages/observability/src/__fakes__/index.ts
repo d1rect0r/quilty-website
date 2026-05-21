@@ -25,6 +25,7 @@ export {
   type InMemoryAnalyticsRecord,
   type InMemoryErrorRecord,
   type InMemoryErrorReporter,
+  type InMemoryFeatureFlagOptions,
   type InMemoryLogRecord,
   type InMemoryLogger,
   type InMemoryReplay,

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Observability spine — Analytics (Amplitude) + ErrorReporter (Sentry) + Logger (CloudWatch) + Replay (Sentry) + FeatureFlagEvaluator (env-vars). Default-deny consent gate + PHI sanitizer chokepoint at the factory layer.",
   "private": true,
+  "sideEffects": false,
   "type": "module",
   "exports": {
     ".": {

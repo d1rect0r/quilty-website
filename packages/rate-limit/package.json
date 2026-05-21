@@ -1,8 +1,11 @@
 {
   "name": "@quilty/rate-limit",
   "version": "0.1.0",
-  "description": "Rate limiter — sliding-window port + in-memory adapter (production at M1.5; auth-adjacent paths) + DynamoDB adapter skeleton (typed-throwing until table provisioning).",
+  "description": "Rate limiter — sliding-window port + in-memory adapter (production today; auth-adjacent paths) + DynamoDB adapter skeleton (typed-throwing until table provisioning).",
   "private": true,
+  "sideEffects": [
+    "./src/index.ts"
+  ],
   "type": "module",
   "exports": {
     ".": {
@@ -20,6 +23,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "server-only": "0.0.1"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

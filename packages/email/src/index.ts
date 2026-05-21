@@ -1,8 +1,10 @@
+import 'server-only';
+
 /**
  * Public barrel for @quilty/email.
  *
  * Consumers import the EmailSender port + the `wrapEmailSender` factory
- * + the adapters (in-memory production-grade at M1.5, SES skeleton).
+ * + the adapters (in-memory production-grade today, SES skeleton).
  * Deep imports into `src/*` are forbidden by `.dependency-cruiser.cjs`
  * rule `cross-package-imports-must-use-barrel`.
  *

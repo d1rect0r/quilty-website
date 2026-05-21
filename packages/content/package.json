@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Typed block-library content layer + BlockRenderer + Velite config. Zod-validated block schemas + the discriminated-union React block library.",
   "private": true,
+  "sideEffects": false,
   "type": "module",
   "exports": {
     ".": {

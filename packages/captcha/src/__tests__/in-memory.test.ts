@@ -1,8 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { makeInMemoryCaptchaVerifier } from '../adapters/in-memory.js';
 
 describe('makeInMemoryCaptchaVerifier', () => {
-  it('defaults to pass (M1.5 production wiring — no widget rendered yet)', async () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('defaults to pass (current production wiring — no widget rendered yet)', async () => {
     const verifier = makeInMemoryCaptchaVerifier();
     const result = await verifier.verify('any-token', {
       action: 'signup',
@@ -53,5 +57,22 @@ describe('makeInMemoryCaptchaVerifier', () => {
     const verifier = makeInMemoryCaptchaVerifier({ hostname: 'my-quilty.com' });
     const result = await verifier.verify('t', { action: 'signup', remoteIp: '203.0.113.1' });
     expect(result.ok && result.hostname).toBe('my-quilty.com');
+  });
+
+  it('refuses to verify under NODE_ENV=production without the explicit override', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('QUILTY_ALLOW_INMEMORY_CAPTCHA_IN_PROD', '');
+    const verifier = makeInMemoryCaptchaVerifier();
+    await expect(
+      verifier.verify('t', { action: 'signup', remoteIp: '203.0.113.1' }),
+    ).rejects.toThrow(/NODE_ENV=production/);
+  });
+
+  it('allows verification under NODE_ENV=production when the override is set to "1"', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('QUILTY_ALLOW_INMEMORY_CAPTCHA_IN_PROD', '1');
+    const verifier = makeInMemoryCaptchaVerifier();
+    const result = await verifier.verify('t', { action: 'signup', remoteIp: '203.0.113.1' });
+    expect(result.ok).toBe(true);
   });
 });

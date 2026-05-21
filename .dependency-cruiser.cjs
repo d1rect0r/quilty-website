@@ -47,12 +47,16 @@ module.exports = {
       from: {
         pathNot: [
           '^packages/[^/]+/src/adapters/',
+          // Velite content-layer CLI consumes its own config module
+          // — the only legitimate import site for the `velite` SDK
+          // outside an adapter path.
+          '^packages/content/src/velite-config\\.ts$',
           '^apps/web/sentry\\.(client|server|edge)\\.config\\.ts$',
           '^apps/web/instrumentation\\.ts$',
         ],
       },
       to: {
-        path: '^node_modules/(@sentry|@amplitude)',
+        path: '^node_modules/(@sentry|@amplitude|@aws-sdk|velite)',
       },
     },
     {

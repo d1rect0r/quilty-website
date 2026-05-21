@@ -73,7 +73,7 @@ export interface Container {
   /**
    * Server-only port — wired only on the server-runtime Container.
    * Client + edge containers carry `undefined` so the optional shape
-   * compiles uniformly. At M1.5 the in-memory adapter is the
+   * compiles uniformly. At present the in-memory adapter is the
    * production wiring; the SES adapter activates only after
    * `dmarc-ramp.md` + `baa-inventory.md` both list SES as covered.
    *
@@ -87,13 +87,13 @@ export interface Container {
   readonly emailSender?: EmailSender;
   /**
    * Server-only port — same consumer-discipline contract as
-   * `emailSender`. At M1.5 the in-memory verifier (default-pass) is
+   * `emailSender`. At present the in-memory verifier (default-pass) is
    * the production wiring; Turnstile activates once the Cloudflare
    * BAA + secret-key provisioning are both green.
    */
   readonly captchaVerifier?: CaptchaVerifier;
   /**
-   * Server-only port. At M1.5 the in-memory sliding-window limiter
+   * Server-only port. At present the in-memory sliding-window limiter
    * is the production wiring — load-bearing for auth-adjacent paths
    * (login attempts, password reset requests, signup, contact form,
    * account-delete confirmation). The DynamoDB adapter activates

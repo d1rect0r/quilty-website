@@ -1,7 +1,7 @@
 /**
  * Testing barrel for @quilty/captcha. Consumed via
  * `@quilty/captcha/testing`. The in-memory verifier is the canonical
- * test fake (also the production wiring at M1.5).
+ * test fake (also the production wiring today).
  */
 
 export {

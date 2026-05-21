@@ -1,21 +1,9 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { makeInMemoryEmailSender } from '../adapters/in-memory.js';
 
 describe('makeInMemoryEmailSender', () => {
-  const originalNodeEnv = process.env['NODE_ENV'];
-  const originalOverride = process.env['QUILTY_ALLOW_INMEMORY_EMAIL_IN_PROD'];
-
   afterEach(() => {
-    if (originalNodeEnv === undefined) {
-      delete process.env['NODE_ENV'];
-    } else {
-      process.env['NODE_ENV'] = originalNodeEnv;
-    }
-    if (originalOverride === undefined) {
-      delete process.env['QUILTY_ALLOW_INMEMORY_EMAIL_IN_PROD'];
-    } else {
-      process.env['QUILTY_ALLOW_INMEMORY_EMAIL_IN_PROD'] = originalOverride;
-    }
+    vi.unstubAllEnvs();
   });
 
   it('returns ok with a provider id on every send', async () => {
@@ -92,8 +80,8 @@ describe('makeInMemoryEmailSender', () => {
   });
 
   it('refuses to send under NODE_ENV=production without the explicit override', async () => {
-    process.env['NODE_ENV'] = 'production';
-    delete process.env['QUILTY_ALLOW_INMEMORY_EMAIL_IN_PROD'];
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('QUILTY_ALLOW_INMEMORY_EMAIL_IN_PROD', '');
     const sender = makeInMemoryEmailSender();
     await expect(
       sender.send({
@@ -105,8 +93,8 @@ describe('makeInMemoryEmailSender', () => {
   });
 
   it('allows sends under NODE_ENV=production when the override is set to "1"', async () => {
-    process.env['NODE_ENV'] = 'production';
-    process.env['QUILTY_ALLOW_INMEMORY_EMAIL_IN_PROD'] = '1';
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('QUILTY_ALLOW_INMEMORY_EMAIL_IN_PROD', '1');
     const sender = makeInMemoryEmailSender();
     const result = await sender.send({
       kind: 'email_verification',

@@ -41,7 +41,7 @@ export type VerificationResult =
 
 /**
  * CaptchaVerifier port — single verify call. Composition root wires
- * the production adapter (in-memory at M1.5 with default-pass behaviour;
+ * the production adapter (in-memory today with default-pass behaviour;
  * Turnstile once BAA + secret provisioning are green). Consumer code
  * MUST NOT call vendor SDKs directly per D67.
  */

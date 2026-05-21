@@ -1,8 +1,10 @@
+import 'server-only';
+
 /**
  * Public barrel for @quilty/captcha.
  *
  * Consumers import the `CaptchaVerifier` port + the in-memory adapter
- * (production wiring at M1.5) + the Turnstile adapter (typed-throwing
+ * (production wiring today) + the Turnstile adapter (typed-throwing
  * skeleton). Deep imports into `src/*` are forbidden by
  * `.dependency-cruiser.cjs` rule `cross-package-imports-must-use-barrel`.
  */

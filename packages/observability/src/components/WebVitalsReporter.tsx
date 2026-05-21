@@ -1,5 +1,6 @@
 'use client';
 
+import { makeSanitizer } from '@quilty/security';
 import { useReportWebVitals } from 'next/web-vitals';
 
 /**
@@ -17,13 +18,17 @@ import { useReportWebVitals } from 'next/web-vitals';
  * regressions hide — a sitewide p75 that's green can mask a single
  * pricing-page route that's red.
  *
- * The metric payload is route + device-class + numeric vitals — no PHI
- * shape possible — so the component writes directly via `console.log`
- * (the CloudWatch Logger adapter's chokepoint) without composing the
- * Logger port. ESLint's `no-console` rule has this file as an
- * exception alongside the CloudWatch adapter; the package's eslint
- * override matches both.
+ * Defence-in-depth: the route field reads `window.location.pathname`,
+ * which by D31 + URL discipline must never carry PHI. The component
+ * nonetheless passes the record through the PHI sanitizer before
+ * emission — the sanitizer is the architectural chokepoint per D67,
+ * and a future route that accidentally embeds a user identifier in
+ * a path segment must not bypass it. The component does not compose
+ * the Logger port directly (the Container's Logger isn't serializable
+ * across the RSC boundary), but it composes the same sanitizer.
  */
+
+const sanitizer = makeSanitizer();
 
 function deviceClass(): 'mobile' | 'tablet' | 'desktop' {
   if (typeof navigator === 'undefined') return 'desktop';
@@ -33,23 +38,33 @@ function deviceClass(): 'mobile' | 'tablet' | 'desktop' {
   return 'desktop';
 }
 
+function safeRoute(): string {
+  if (typeof window === 'undefined') return 'unknown';
+  // Strip query strings (Next.js's pathname API excludes them today
+  // but defensive — a future Next.js change or a client-side history
+  // push that includes a `?` could surface them) + truncate to a
+  // length the sanitizer would not flag, then scrub.
+  const raw = window.location.pathname.split('?')[0] ?? '';
+  return sanitizer.scrub(raw.slice(0, 200));
+}
+
 /**
  * Client Component that wires `useReportWebVitals` for the lifetime of
  * the page. Render once near the root layout.
  */
 export function WebVitalsReporter(): null {
   useReportWebVitals((metric) => {
-    const record = {
+    const record = sanitizer.scrub({
       timestamp: new Date().toISOString(),
       level: 'info' as const,
       msg: 'web_vitals',
       vital: metric.name,
       value: metric.value,
       rating: metric.rating,
-      route: typeof window !== 'undefined' ? window.location.pathname : 'unknown',
+      route: safeRoute(),
       device_class: deviceClass(),
       navigation_type: metric.navigationType,
-    };
+    });
 
     console.log(JSON.stringify(record));
   });

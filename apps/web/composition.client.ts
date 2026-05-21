@@ -26,7 +26,7 @@
 import { makeDefaultDenyConsentReader } from '@quilty/consent';
 import {
   makeAmplitudeAnalytics,
-  makeCloudWatchLogger,
+  makeBrowserLogger,
   makeEnvFlagEvaluator,
   makeSentryErrorReporter,
   wrapAnalytics,
@@ -39,8 +39,12 @@ import type { Container } from './lib/get-container';
 export function makeClientContainer(): Container {
   const sanitizer = makeSanitizer();
 
+  // Browser Logger (silent in production, console-only in development).
+  // The CloudWatch adapter is Lambda-runtime-only — its console.log
+  // would write to the user's DevTools console in the browser, a
+  // direct D31/D42d leak surface even after sanitizer composition.
   const wrappedLogger = wrapLogger({
-    adapter: makeCloudWatchLogger(),
+    adapter: makeBrowserLogger(),
     sanitizer,
   });
 

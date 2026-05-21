@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "PHI sanitizer + CSP + security headers + redirect validator + forms primitives (CSRF, honeypot, time-trap stubs).",
   "private": true,
+  "sideEffects": false,
   "type": "module",
   "exports": {
     ".": {
