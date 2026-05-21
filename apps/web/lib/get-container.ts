@@ -27,6 +27,7 @@
 import type { CaptchaVerifier } from '@quilty/captcha';
 import type { EmailSender } from '@quilty/email';
 import type { Analytics, ErrorReporter, FeatureFlagEvaluator, Logger } from '@quilty/observability';
+import type { RateLimiter } from '@quilty/rate-limit';
 import type { CspBuilder, HeadersBuilder, Sanitizer } from '@quilty/security';
 
 /**
@@ -91,6 +92,15 @@ export interface Container {
    * BAA + secret-key provisioning are both green.
    */
   readonly captchaVerifier?: CaptchaVerifier;
+  /**
+   * Server-only port. At M1.5 the in-memory sliding-window limiter
+   * is the production wiring — load-bearing for auth-adjacent paths
+   * (login attempts, password reset requests, signup, contact form,
+   * account-delete confirmation). The DynamoDB adapter activates
+   * once the table is provisioned + the Lambda IAM grant is in
+   * place.
+   */
+  readonly rateLimiter?: RateLimiter;
 }
 
 declare global {

@@ -24,6 +24,7 @@
     "@quilty/content": "workspace:*",
     "@quilty/email": "workspace:*",
     "@quilty/observability": "workspace:*",
+    "@quilty/rate-limit": "workspace:*",
     "@quilty/security": "workspace:*",
     "@quilty/seo": "workspace:*",
     "@sentry/nextjs": "10.53.1",

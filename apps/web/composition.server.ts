@@ -23,6 +23,7 @@ import 'server-only';
 import { makeInMemoryCaptchaVerifier } from '@quilty/captcha';
 import { makeDefaultDenyConsentReader } from '@quilty/consent';
 import { makeInMemoryEmailSender, wrapEmailSender } from '@quilty/email';
+import { makeInMemoryRateLimiter } from '@quilty/rate-limit';
 import {
   makeAmplitudeAnalytics,
   makeCloudWatchLogger,
@@ -75,5 +76,9 @@ export function makeServerContainer(): Container {
     // Turnstile activates once the Cloudflare BAA + secret-key
     // provisioning are both green (see docs/runbook/baa-inventory.md).
     captchaVerifier: makeInMemoryCaptchaVerifier(),
+    // In-memory sliding-window limiter is the production wiring at
+    // M1.5 — load-bearing for auth-adjacent paths. The DynamoDB
+    // adapter activates once the table + Lambda IAM grant ship.
+    rateLimiter: makeInMemoryRateLimiter(),
   };
 }
