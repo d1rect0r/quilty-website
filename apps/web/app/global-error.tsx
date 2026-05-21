@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { makeClientContainer } from '@/composition.client';
 import { getClientContainer } from '@/lib/get-container';
@@ -154,13 +155,15 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
                 Try again
               </button>
             )}
-            {/* Plain <a>, not next/link: the root layout crashed,
-                so the client-side router context the Link component
-                depends on may not be intact. A full-page navigation
-                via plain anchor is the safe path here. */}
-            { }
-            <a
+            {/* next/link with prefetch={false}: the router-context
+                handlers may not be intact (root layout failed) but
+                Link still falls back to a regular <a> navigation via
+                the href attribute. prefetch={false} skips the
+                speculative fetch which the broken router would
+                short-circuit anyway. */}
+            <Link
               href="/"
+              prefetch={false}
               className="global-error-cta"
               style={{
                 minHeight: '2.75rem',
@@ -177,7 +180,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               }}
             >
               Go home
-            </a>
+            </Link>
             <a
               href={supportHref}
               className="global-error-cta"
