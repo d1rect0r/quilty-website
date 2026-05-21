@@ -1,0 +1,49 @@
+{
+  "name": "@quilty/consent",
+  "version": "0.1.0",
+  "description": "Consent surface — cookie taxonomy + GPC detection + GpcHonoredIndicator + default-deny ConsentReader. Banner ships at consent-banner activation.",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./server": {
+      "types": "./src/server/index.ts",
+      "default": "./src/server/index.ts"
+    },
+    "./testing": {
+      "types": "./src/__fakes__/index.ts",
+      "default": "./src/__fakes__/index.ts"
+    }
+  },
+  "scripts": {
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@quilty/observability": "workspace:*",
+    "server-only": "0.0.1"
+  },
+  "peerDependencies": {
+    "next": "^16.0.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "16.1.0",
+    "@types/node": "22.10.2",
+    "@types/react": "19.0.2",
+    "@vitejs/plugin-react": "4.3.4",
+    "@vitest/coverage-v8": "2.1.8",
+    "jsdom": "25.0.1",
+    "next": "16.2.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}

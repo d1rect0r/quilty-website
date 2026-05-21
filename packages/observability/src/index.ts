@@ -69,13 +69,6 @@ export { wrapLogger, type WrappedLoggerOptions } from './domain/wrap-logger.js';
 export { wrapReplay, type WrappedReplayOptions } from './domain/wrap-replay.js';
 
 // ---------------------------------------------------------------------------
-// Default-deny ConsentReader stub (replaced by @quilty/consent at a later
-// extraction commit)
-// ---------------------------------------------------------------------------
-
-export { makeDefaultDenyConsentReader } from './domain/default-deny-consent.js';
-
-// ---------------------------------------------------------------------------
 // Adapters
 // ---------------------------------------------------------------------------
 

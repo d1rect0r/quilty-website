@@ -58,11 +58,11 @@ module.exports = {
     {
       name: 'cross-package-imports-must-use-barrel',
       comment:
-        'Workspace packages expose their public API through index.ts (or src/__fakes__/index.ts for consumer tests). Deep imports into a package internal path bypass the public-API contract and re-create the chokepoint risk D67/D78 close. ESLint enforces this at the import statement layer; depcruise enforces it across the transitive graph.',
+        'Workspace packages expose their public API through barrel files. The package root barrel is `src/index.ts`; subpath barrels (matching the `exports` map in package.json) live one directory deep at `src/<subpath>/index.ts` — e.g. `src/server/index.ts`, `src/__fakes__/index.ts`. Deep imports past these barrels bypass the public-API contract and re-create the chokepoint risk D67/D78 close. ESLint enforces this at the import statement layer; depcruise enforces it across the transitive graph.',
       severity: 'error',
       from: { path: '^apps/web/' },
       to: {
-        path: '^packages/[^/]+/src/(?!index\\.ts$|__fakes__/index\\.ts$)',
+        path: '^packages/[^/]+/src/(?!index\\.ts$|[^/]+/index\\.ts$)',
       },
     },
     {
@@ -100,6 +100,7 @@ module.exports = {
           'apps/web/components/site/SkipLink\\.tsx$',
           // Vitest setup files are loaded via vitest.config.ts setupFiles
           'apps/web/vitest\\.setup\\.ts$',
+          'packages/[^/]+/vitest\\.setup\\.ts$',
           // Empty workspace entrypoint — populated by OpenAPI codegen at M5
           'packages/shared-types/src/index\\.ts$',
           // Type-only modules in workspace packages. depcruise with

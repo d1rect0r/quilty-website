@@ -1,6 +1,6 @@
+import { GpcHonoredIndicator } from '@quilty/consent/server';
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { GpcHonoredIndicator } from '@/components/legal/GpcHonoredIndicator';
 
 /**
  * Marketing-tier site footer. Includes the CCPA §7025(c)(6) GPC honored
@@ -64,8 +64,7 @@ export function Footer() {
             Wrapped in Suspense so the surrounding marketing layout stays
             statically renderable. GpcHonoredIndicator awaits headers() — a
             dynamic API — and without this boundary it would force every
-            marketing page off CloudFront cache (Round-5 typescript-reviewer
-            finding).
+            marketing page off CloudFront cache.
           */}
           <Suspense fallback={null}>
             <GpcHonoredIndicator />
@@ -92,9 +91,9 @@ function FooterColumn({ title, links }: FooterColumnProps) {
       <h2 className="text-fg-default mb-3 text-xs font-semibold uppercase tracking-wider">
         {title}
       </h2>
-      {/* WCAG 2.5.5 AA Target Size: every footer link gets min-h-11 (44px)
-          per Round-5 final-QA HIGH finding. The visual padding on the row
-          aligns with marketing chrome touch-target discipline. */}
+      {/* WCAG 2.5.5 AA Target Size: every footer link gets min-h-11 (44px).
+          The visual padding on the row aligns with marketing chrome
+          touch-target discipline. */}
       <ul className="space-y-1">
         {links.map((link) => (
           <li key={link.href}>

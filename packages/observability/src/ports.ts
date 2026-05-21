@@ -32,9 +32,9 @@ export interface ConsentSnapshot {
  * header can change between requests).
  *
  * Fail-closed: a thrown read or a rejected Promise must result in the
- * wrapper denying the event. The default-deny stub returned by
- * `makeDefaultDenyConsentReader()` is the only safe baseline before
- * `@quilty/consent` lands.
+ * wrapper denying the event. @quilty/consent's `makeDefaultDenyConsentReader()`
+ * is the production baseline; observability ships an equivalent in
+ * `__fakes__/` for tests.
  */
 export interface ConsentReader {
   readonly read: () => ConsentSnapshot | Promise<ConsentSnapshot>;

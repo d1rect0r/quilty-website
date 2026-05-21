@@ -1,11 +1,9 @@
 # Workspace declarations for Turborepo + pnpm.
 #
-# Per ADR-0001 + D69: M1 ships exactly two workspaces.
-# - apps/web (workspace name "web") — the Next.js 16 product surface
-# - packages/shared-types (workspace name "@quilty/shared-types") — OpenAPI codegen consumer (populated post-M5)
-#
-# packages/ui is intentionally NOT scaffolded at M1; create when the first real
-# extraction trigger fires (per D69 / ADR-0001).
+# Workspaces resolved by the `packages:` globs below. See each package's
+# README for its public-API contract; ADR-0001 + ADR-0010 cover the
+# hexagonal modular-monolith architecture; D69 covers the per-package
+# extraction triggers.
 
 packages:
   - 'apps/*'

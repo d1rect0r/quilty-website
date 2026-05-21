@@ -16,10 +16,10 @@
  * Replay integration is browser-only by design.
  */
 
+import { makeDefaultDenyConsentReader } from '@quilty/consent';
 import {
   makeAmplitudeAnalytics,
   makeCloudWatchLogger,
-  makeDefaultDenyConsentReader,
   makeEnvFlagEvaluator,
   makeSentryErrorReporter,
   wrapAnalytics,

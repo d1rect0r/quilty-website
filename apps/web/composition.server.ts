@@ -20,10 +20,10 @@
 
 import 'server-only';
 
+import { makeDefaultDenyConsentReader } from '@quilty/consent';
 import {
   makeAmplitudeAnalytics,
   makeCloudWatchLogger,
-  makeDefaultDenyConsentReader,
   makeEnvFlagEvaluator,
   makeSentryErrorReporter,
   wrapAnalytics,
@@ -48,10 +48,9 @@ export function makeServerContainer(): Container {
     cspBuilder: makeCspBuilder(),
     headersBuilder: makeHeadersBuilder(),
     logger: wrappedLogger,
-    // Default-deny ConsentReader pending @quilty/consent extraction;
-    // structurally compatible with the real ConsentStore that lands
-    // in a later commit (composition root swaps stub → real store
-    // without changing the wrapper API).
+    // Default-deny ConsentReader baseline; the composition root swaps
+    // this for the real cookie-aware @quilty/consent server reader at
+    // the banner activation without changing the wrapper API.
     analytics: wrapAnalytics({
       adapter: makeAmplitudeAnalytics({ logger: wrappedLogger }),
       consentReader: makeDefaultDenyConsentReader(),

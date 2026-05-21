@@ -19,6 +19,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@quilty/consent": "workspace:*",
     "@quilty/content": "workspace:*",
     "@quilty/observability": "workspace:*",
     "@quilty/security": "workspace:*",
