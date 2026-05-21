@@ -41,6 +41,23 @@ const config: NextConfig = {
   // typedRoutes graduated from experimental in Next.js 16; the
   // experimental.typedRoutes path is deprecated.
   typedRoutes: true,
+  // optimizePackageImports rewrites `import { x } from '@quilty/foo'` to
+  // `import { x } from '@quilty/foo/<x>'` at build time, enabling
+  // per-symbol tree-shaking even where the barrel hasn't fully migrated
+  // to named subpath exports. Belt-and-suspenders against the
+  // barrel-bundle-bloat pattern documented at Vercel #27401 + Hagemeister.
+  experimental: {
+    optimizePackageImports: [
+      '@quilty/captcha',
+      '@quilty/consent',
+      '@quilty/content',
+      '@quilty/email',
+      '@quilty/observability',
+      '@quilty/rate-limit',
+      '@quilty/security',
+      '@quilty/seo',
+    ],
+  },
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [],

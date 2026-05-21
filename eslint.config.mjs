@@ -103,6 +103,21 @@ export default tseslint.config(
       'no-console': 'error',
       'no-restricted-imports': ['error', { paths: VENDOR_SDK_IMPORTS }],
 
+      // Ban `export *` and `export * as ns` — barrel re-exports force the
+      // bundler to evaluate every sibling module at the import site, which
+      // defeats tree-shaking and inflates client-bundle weight (Hagemeister
+      // benchmarks: 60-80% test speedup from removal; Vercel #27401: bundle
+      // halved after the switch). Named re-exports (`export { foo } from`)
+      // are tree-shakeable; star re-exports are not.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ExportAllDeclaration',
+          message:
+            'Use named re-exports (`export { foo } from`) instead of `export *` — star re-exports defeat tree-shaking. See Hagemeister + Vercel #27401.',
+        },
+      ],
+
       // jsx-a11y strict-tier additions (D22 + Round-5 reviewer):
       // eslint-config-next ships jsx-a11y at "recommended" only; these
       // strict-tier rules catch the most common consumer-health
