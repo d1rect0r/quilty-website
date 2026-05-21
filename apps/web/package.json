@@ -8,6 +8,7 @@
     "build": "next build",
     "clean": "rm -rf .next .turbo .velite *.tsbuildinfo",
     "dev": "next dev",
+    "icons:build": "node scripts/build-icons.mjs",
     "lint": "eslint app components lib instrumentation.ts proxy.ts sentry.client.config.ts sentry.server.config.ts sentry.edge.config.ts next.config.ts --max-warnings 0",
     "prebuild": "velite build --config ../../velite.config.ts",
     "start": "next start",
@@ -55,7 +56,9 @@
     "@vitest/coverage-v8": "2.1.8",
     "csp_evaluator": "^1.1.5",
     "jsdom": "25.0.1",
+    "png-to-ico": "2.1.8",
     "postcss": "8.5.0",
+    "sharp": "0.34.5",
     "tailwindcss": "4.3.0",
     "typescript": "^5.7.2",
     "vitest": "2.1.8"

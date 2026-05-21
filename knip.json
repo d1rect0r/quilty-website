@@ -20,6 +20,7 @@
         "app/{robots,sitemap,manifest,opengraph-image,twitter-image,icon,apple-icon}.{ts,tsx}",
         "sentry.{client,server,edge}.config.ts",
         "composition.{server,client,edge}.ts",
+        "scripts/**/*.mjs",
         "tests/playwright/global-{setup,teardown}.ts",
         "tests/playwright/**/*.spec.ts"
       ],
@@ -27,6 +28,7 @@
         "app/**/*.{ts,tsx}",
         "components/**/*.{ts,tsx}",
         "lib/**/*.{ts,tsx}",
+        "scripts/**/*.mjs",
         "tests/**/*.{ts,tsx}"
       ],
       "ignore": ["lib/flags/features.ts", "lib/utils.ts"],

@@ -19,6 +19,14 @@ describe('Organization JSON-LD', () => {
     expect(ld['legalName']).toBe('Quilty Inc.');
     expect(ld['url']).toBe(SITE);
   });
+
+  it('points the logo at the canonical raster asset emitted by the icon pipeline', () => {
+    // Regression guard: the Organization logo URL must resolve to a real
+    // asset under `apps/web/public/`. A 404 here suppresses Google's
+    // knowledge-panel logo + drops AI-citation trust on the entity.
+    const ld = buildOrganizationJsonLd(SITE);
+    expect(ld['logo']).toBe(`${SITE}/icon-512.png`);
+  });
 });
 
 describe('WebSite JSON-LD', () => {

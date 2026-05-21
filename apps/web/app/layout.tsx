@@ -1,5 +1,10 @@
 import { WebVitalsReporter } from '@quilty/observability';
-import { buildOrganizationJsonLd, JsonLd } from '@quilty/seo';
+import {
+  buildIconMetadata,
+  buildOpenGraphMetadata,
+  buildOrganizationJsonLd,
+  JsonLd,
+} from '@quilty/seo';
 import { Spotlight } from '@/components/dev/Spotlight';
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
@@ -18,23 +23,43 @@ import './globals.css';
  */
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+const SITE_DESCRIPTION = 'Quilty — a mental-health peer-set product.';
+const SITE_TITLE = 'Quilty';
+const OG_IMAGE_ALT = 'Quilty — geometric Q wordmark on a neutral background.';
+
+const ogMetadata = buildOpenGraphMetadata({
+  ogImage: new URL('/og-default.jpg', siteUrl).toString(),
+  ogImageAlt: OG_IMAGE_ALT,
+  ogImageType: 'image/jpeg',
+  url: siteUrl,
+  siteName: SITE_TITLE,
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+});
+
+// Favicon stack (D109 lean canonical): ICO first (legacy fallback) +
+// SVG last (preferred by modern browsers — the last viable match wins)
+// + 180×180 apple-touch for iOS Springboard. Maskable variants are
+// wired through `manifest.ts` (`purpose: "maskable"`), NOT the <link>
+// chain — Android adaptive icons consume the manifest.
+const iconMetadata = buildIconMetadata({
+  icons: [
+    { url: '/favicon.ico', type: 'image/x-icon', sizes: '16x16 32x32 48x48' },
+    { url: '/icon.svg', type: 'image/svg+xml', sizes: 'any' },
+  ],
+  appleTouchIcon: '/apple-touch-icon.png',
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'Quilty',
+    default: SITE_TITLE,
     template: '%s · Quilty',
   },
-  description: 'Quilty — a mental-health peer-set product.',
-  applicationName: 'Quilty',
-  openGraph: {
-    type: 'website',
-    siteName: 'Quilty',
-    locale: 'en_US',
-  },
-  twitter: {
-    card: 'summary_large_image',
-  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_TITLE,
+  ...ogMetadata,
+  ...iconMetadata,
   // No `alternates.canonical` at the root layout — relative canonicals
   // resolve against `metadataBase` and would point every page back at the
   // homepage, causing Google to fold every stub into the apex URL

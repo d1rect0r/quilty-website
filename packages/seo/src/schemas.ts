@@ -25,6 +25,11 @@ const BRAND_LEGAL_NAME = 'Quilty Inc.';
  * to `<JsonLd>`.
  */
 export function buildOrganizationJsonLd(siteUrl: string): JsonLd {
+  // The Organization `logo` field points at the canonical raster asset
+  // emitted by `apps/web/scripts/build-icons.mjs` (D109 — single SVG
+  // source + sharp raster pipeline). Google's structured-data validator
+  // 404-warns on this URL if it's missing, which suppresses the
+  // knowledge-panel logo + drops AI-citation trust on the entity.
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
@@ -32,7 +37,7 @@ export function buildOrganizationJsonLd(siteUrl: string): JsonLd {
     name: BRAND_NAME,
     legalName: BRAND_LEGAL_NAME,
     url: siteUrl,
-    logo: `${siteUrl}/logo.png`,
+    logo: `${siteUrl}/icon-512.png`,
   };
 }
 
