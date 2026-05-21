@@ -3,13 +3,10 @@
   "version": "0.1.0",
   "description": "OpenAPI-emitted TypeScript types from the Rust backend. Empty until the OpenAPI codegen pipeline activates per ADR-0003 (utoipa -> openapi-typescript -> @quilty/api-types -> re-export here).",
   "private": true,
-  "sideEffects": false,
   "type": "module",
-  "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
-    }
+  "engines": {
+    "node": ">=24.0.0 <25.0.0",
+    "pnpm": ">=10.0.0 <11.0.0"
   },
   "scripts": {
     "build": "echo 'no build until OpenAPI codegen activates' && exit 0",
@@ -18,14 +15,17 @@
     "test": "echo 'no tests until source lands' && exit 0",
     "typecheck": "tsc --noEmit"
   },
-  "engines": {
-    "node": ">=24.0.0 <25.0.0",
-    "pnpm": ">=10.0.0 <11.0.0"
-  },
   "devDependencies": {
-    "typescript": "5.7.2"
+    "typescript": "^5.7.2"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
   },
   "files": [
     "src"
-  ]
+  ],
+  "sideEffects": false
 }

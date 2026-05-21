@@ -3,8 +3,40 @@
   "version": "0.1.0",
   "description": "Typed block-library content layer + BlockRenderer + Velite config. Zod-validated block schemas + the discriminated-union React block library.",
   "private": true,
-  "sideEffects": false,
   "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25.0.0",
+    "pnpm": ">=10.0.0 <11.0.0"
+  },
+  "scripts": {
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@quilty/seo": "workspace:*",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@types/react": "19.0.2",
+    "@types/react-dom": "19.0.2",
+    "@vitejs/plugin-react": "4.3.4",
+    "@vitest/coverage-v8": "2.1.8",
+    "jsdom": "25.0.1",
+    "next": "16.2.0",
+    "react": "^19.0.0",
+    "react-dom": "19.0.0",
+    "typescript": "^5.7.2",
+    "velite": "0.2.1",
+    "vitest": "2.1.8"
+  },
+  "peerDependencies": {
+    "next": "16.2.0",
+    "react": "^19.0.0"
+  },
   "exports": {
     ".": {
       "types": "./src/index.ts",
@@ -15,37 +47,5 @@
       "default": "./src/velite-config.ts"
     }
   },
-  "scripts": {
-    "lint": "eslint src --max-warnings 0",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit"
-  },
-  "engines": {
-    "node": ">=24.0.0 <25.0.0",
-    "pnpm": ">=10.0.0 <11.0.0"
-  },
-  "dependencies": {
-    "@quilty/seo": "workspace:*",
-    "zod": "3.25.76"
-  },
-  "peerDependencies": {
-    "next": "^16.0.0",
-    "react": "^19.0.0"
-  },
-  "devDependencies": {
-    "@types/node": "22.10.2",
-    "@types/react": "19.0.2",
-    "@types/react-dom": "19.0.2",
-    "@vitejs/plugin-react": "4.3.4",
-    "@vitest/coverage-v8": "2.1.8",
-    "jsdom": "25.0.1",
-    "next": "16.2.0",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
-    "typescript": "5.7.2",
-    "velite": "0.2.1",
-    "vitest": "2.1.8"
-  }
+  "sideEffects": false
 }

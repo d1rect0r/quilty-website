@@ -41,9 +41,9 @@
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
-    "@quilty/content": "workspace:*",
     "@eslint/js": "^9.17.0",
     "@lhci/cli": "0.15.1",
+    "@quilty/content": "workspace:*",
     "@secretlint/secretlint-rule-preset-recommend": "^11.7.1",
     "@size-limit/file": "12.1.0",
     "@size-limit/preset-app": "12.1.0",
@@ -81,7 +81,7 @@
       "@opentelemetry/sdk-trace-base": "^2.7.1",
       "@opentelemetry/resources": "^2.7.1",
       "@opentelemetry/core": "^2.7.1",
-      "sharp": "0.34.5"
+      "sharp": "^0.34.5"
     }
   },
   "typeCoverage": {

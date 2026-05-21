@@ -3,10 +3,27 @@
   "version": "0.1.0",
   "description": "Rate limiter — sliding-window port + in-memory adapter (production today; auth-adjacent paths) + DynamoDB adapter skeleton (typed-throwing until table provisioning).",
   "private": true,
-  "sideEffects": [
-    "./src/index.ts"
-  ],
   "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25.0.0",
+    "pnpm": ">=10.0.0 <11.0.0"
+  },
+  "scripts": {
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@vitest/coverage-v8": "2.1.8",
+    "typescript": "^5.7.2",
+    "vitest": "2.1.8"
+  },
   "exports": {
     ".": {
       "types": "./src/index.ts",
@@ -17,24 +34,7 @@
       "default": "./src/testing/index.ts"
     }
   },
-  "scripts": {
-    "lint": "eslint src --max-warnings 0",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit"
-  },
-  "engines": {
-    "node": ">=24.0.0 <25.0.0",
-    "pnpm": ">=10.0.0 <11.0.0"
-  },
-  "dependencies": {
-    "server-only": "0.0.1"
-  },
-  "devDependencies": {
-    "@types/node": "22.10.2",
-    "@vitest/coverage-v8": "2.1.8",
-    "typescript": "5.7.2",
-    "vitest": "2.1.8"
-  }
+  "sideEffects": [
+    "./src/index.ts"
+  ]
 }
