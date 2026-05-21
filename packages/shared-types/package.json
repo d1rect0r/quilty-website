@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "OpenAPI-emitted TypeScript types from the Rust backend. Empty at M1; populated post-M5 via ADR-0003 pipeline (utoipa -> openapi-typescript -> @quilty/api-types -> re-export here).",
   "private": true,
+  "sideEffects": false,
   "type": "module",
   "scripts": {
     "build": "echo 'no build at M1' && exit 0",
@@ -10,6 +11,10 @@
     "lint": "echo 'no lint at M1' && exit 0",
     "test": "echo 'no tests at M1' && exit 0",
     "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=24.0.0 <25.0.0",
+    "pnpm": ">=10.0.0 <11.0.0"
   },
   "devDependencies": {
     "typescript": "5.7.2"

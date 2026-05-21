@@ -22,6 +22,10 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
   },
+  "engines": {
+    "node": ">=24.0.0 <25.0.0",
+    "pnpm": ">=10.0.0 <11.0.0"
+  },
   "dependencies": {
     "@quilty/seo": "workspace:*",
     "zod": "3.25.76"
