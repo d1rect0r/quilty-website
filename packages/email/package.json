@@ -13,8 +13,8 @@
       "default": "./src/index.ts"
     },
     "./testing": {
-      "types": "./src/__fakes__/index.ts",
-      "default": "./src/__fakes__/index.ts"
+      "types": "./src/testing/index.ts",
+      "default": "./src/testing/index.ts"
     }
   },
   "scripts": {

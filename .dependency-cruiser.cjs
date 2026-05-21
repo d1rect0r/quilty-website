@@ -15,7 +15,7 @@
  *      instrumentation.ts). ESLint catches per-file static imports;
  *      depcruise catches transitive imports too.
  *   3. Cross-package imports go through the package barrel only
- *      (index.ts or __fakes__/index.ts).
+ *      (index.ts or testing/index.ts).
  *   4. No cycles. No orphans (depcruise defaults).
  *
  * Run on demand via `pnpm depcruise`; CI runs `--validate` (exit non-
@@ -62,7 +62,7 @@ module.exports = {
     {
       name: 'cross-package-imports-must-use-barrel',
       comment:
-        'Workspace packages expose their public API through barrel files. The package root barrel is `src/index.ts`; subpath barrels (matching the `exports` map in package.json) live one directory deep at `src/<subpath>/index.ts` — e.g. `src/server/index.ts`, `src/__fakes__/index.ts`. Deep imports past these barrels bypass the public-API contract and re-create the chokepoint risk D67/D78 close. ESLint enforces this at the import statement layer; depcruise enforces it across the transitive graph.',
+        'Workspace packages expose their public API through barrel files. The package root barrel is `src/index.ts`; subpath barrels (matching the `exports` map in package.json) live one directory deep at `src/<subpath>/index.ts` — e.g. `src/server/index.ts`, `src/testing/index.ts`. Deep imports past these barrels bypass the public-API contract and re-create the chokepoint risk D67/D78 close. ESLint enforces this at the import statement layer; depcruise enforces it across the transitive graph.',
       severity: 'error',
       from: { path: '^apps/web/' },
       to: {

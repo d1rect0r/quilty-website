@@ -9,7 +9,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts', 'src/**/*.tsx'],
-      exclude: ['src/__fakes__/**', 'src/__tests__/**', 'src/index.ts'],
+      exclude: ['src/testing/**', 'src/__tests__/**', 'src/index.ts'],
       reporter: ['text', 'html', 'json-summary'],
       // The observability spine carries the default-deny consent gate +
       // PHI sanitizer chokepoint composition. Coverage targets sit above

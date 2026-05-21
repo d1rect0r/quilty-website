@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { makeReplayFake } from '../__fakes__/index.js';
+import { makeReplayFake } from '../testing/index.js';
 import { wrapReplay } from '../domain/wrap-replay.js';
 
 describe('wrapReplay — D68 floor enforcement', () => {

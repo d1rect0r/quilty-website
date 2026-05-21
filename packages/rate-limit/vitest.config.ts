@@ -10,7 +10,7 @@ export default defineConfig({
       // ports.ts is type-only (interfaces + type aliases — zero
       // runtime surface to cover). Tests + barrels are scaffolding,
       // not subject material.
-      exclude: ['src/index.ts', 'src/__fakes__/index.ts', 'src/ports.ts', 'src/__tests__/**'],
+      exclude: ['src/index.ts', 'src/testing/index.ts', 'src/ports.ts', 'src/__tests__/**'],
       reporter: ['text', 'html', 'json-summary'],
       thresholds: {
         // META-3 target: in-memory adapter is load-bearing for
