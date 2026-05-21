@@ -21,6 +21,7 @@
   "dependencies": {
     "@quilty/consent": "workspace:*",
     "@quilty/content": "workspace:*",
+    "@quilty/email": "workspace:*",
     "@quilty/observability": "workspace:*",
     "@quilty/security": "workspace:*",
     "@quilty/seo": "workspace:*",

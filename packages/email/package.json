@@ -1,0 +1,33 @@
+{
+  "name": "@quilty/email",
+  "version": "0.1.0",
+  "description": "Transactional email surface — EmailSender port + in-memory adapter (production-grade) + SES adapter skeleton (typed-throwing until sandbox-lift). Zero PHI in email content per D31.",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./testing": {
+      "types": "./src/__fakes__/index.ts",
+      "default": "./src/__fakes__/index.ts"
+    }
+  },
+  "scripts": {
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@quilty/security": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@vitest/coverage-v8": "2.1.8",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}

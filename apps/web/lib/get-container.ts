@@ -24,6 +24,7 @@
  *   own globalThis — so the singleton is per-runtime by construction.
  */
 
+import type { EmailSender } from '@quilty/email';
 import type { Analytics, ErrorReporter, FeatureFlagEvaluator, Logger } from '@quilty/observability';
 import type { CspBuilder, HeadersBuilder, Sanitizer } from '@quilty/security';
 
@@ -67,6 +68,21 @@ export interface Container {
   readonly errorReporter: ErrorReporter;
   readonly logger: Logger;
   readonly featureFlags: FeatureFlagEvaluator;
+  /**
+   * Server-only port — wired only on the server-runtime Container.
+   * Client + edge containers carry `undefined` so the optional shape
+   * compiles uniformly. At M1.5 the in-memory adapter is the
+   * production wiring; the SES adapter activates only after
+   * `dmarc-ramp.md` + `baa-inventory.md` both list SES as covered.
+   *
+   * Consumer discipline: server-only Route Handlers MUST narrow with
+   * an explicit `if (!container.emailSender) throw new Error(...)`
+   * rather than `container.emailSender?.send(...)`. The optional-chain
+   * form silently no-ops on a client/edge container, which is
+   * indistinguishable from a correctly-never-called path; the loud
+   * narrowing surfaces a wiring bug at the call site.
+   */
+  readonly emailSender?: EmailSender;
 }
 
 declare global {

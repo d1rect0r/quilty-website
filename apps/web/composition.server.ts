@@ -21,6 +21,7 @@
 import 'server-only';
 
 import { makeDefaultDenyConsentReader } from '@quilty/consent';
+import { makeInMemoryEmailSender, wrapEmailSender } from '@quilty/email';
 import {
   makeAmplitudeAnalytics,
   makeCloudWatchLogger,
@@ -61,5 +62,13 @@ export function makeServerContainer(): Container {
       sanitizer,
     }),
     featureFlags: makeEnvFlagEvaluator(),
+    // In-memory adapter is the production wiring at M1.5; the SES
+    // adapter activates once the DMARC ramp + BAA inventory both list
+    // SES as covered (see docs/runbook/*.md). The wrapper composes the
+    // PHI sanitizer chokepoint around the adapter per D67.
+    emailSender: wrapEmailSender({
+      adapter: makeInMemoryEmailSender(),
+      sanitizer,
+    }),
   };
 }

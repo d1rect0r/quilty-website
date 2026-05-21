@@ -119,6 +119,9 @@ importers:
       '@quilty/content':
         specifier: workspace:*
         version: link:../../packages/content
+      '@quilty/email':
+        specifier: workspace:*
+        version: link:../../packages/email
       '@quilty/observability':
         specifier: workspace:*
         version: link:../../packages/observability
@@ -305,6 +308,25 @@ importers:
       velite:
         specifier: 0.2.1
         version: 0.2.1
+      vitest:
+        specifier: 2.1.8
+        version: 2.1.8(@types/node@22.10.2)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.47.1)
+
+  packages/email:
+    dependencies:
+      '@quilty/security':
+        specifier: workspace:*
+        version: link:../security
+    devDependencies:
+      '@types/node':
+        specifier: 22.10.2
+        version: 22.10.2
+      '@vitest/coverage-v8':
+        specifier: 2.1.8
+        version: 2.1.8(vitest@2.1.8(@types/node@22.10.2)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.47.1))
+      typescript:
+        specifier: 5.7.2
+        version: 5.7.2
       vitest:
         specifier: 2.1.8
         version: 2.1.8(@types/node@22.10.2)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.47.1)
