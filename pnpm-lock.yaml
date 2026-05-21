@@ -113,6 +113,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@quilty/captcha':
+        specifier: workspace:*
+        version: link:../../packages/captcha
       '@quilty/consent':
         specifier: workspace:*
         version: link:../../packages/consent
@@ -218,6 +221,21 @@ importers:
         version: 4.3.0
       typescript:
         specifier: ^5.7.2
+        version: 5.7.2
+      vitest:
+        specifier: 2.1.8
+        version: 2.1.8(@types/node@22.10.2)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.47.1)
+
+  packages/captcha:
+    devDependencies:
+      '@types/node':
+        specifier: 22.10.2
+        version: 22.10.2
+      '@vitest/coverage-v8':
+        specifier: 2.1.8
+        version: 2.1.8(vitest@2.1.8(@types/node@22.10.2)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.47.1))
+      typescript:
+        specifier: 5.7.2
         version: 5.7.2
       vitest:
         specifier: 2.1.8

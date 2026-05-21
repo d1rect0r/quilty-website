@@ -24,6 +24,7 @@
  *   own globalThis — so the singleton is per-runtime by construction.
  */
 
+import type { CaptchaVerifier } from '@quilty/captcha';
 import type { EmailSender } from '@quilty/email';
 import type { Analytics, ErrorReporter, FeatureFlagEvaluator, Logger } from '@quilty/observability';
 import type { CspBuilder, HeadersBuilder, Sanitizer } from '@quilty/security';
@@ -38,7 +39,7 @@ import type { CspBuilder, HeadersBuilder, Sanitizer } from '@quilty/security';
  * Subsequent extraction commits add:
  *   - @quilty/consent         — ConsentStore
  *   - @quilty/email           — EmailSender
- *   - @quilty/captcha         — Captcha
+ *   - @quilty/captcha         — CaptchaVerifier
  *   - @quilty/rate-limit      — RateLimiter
  *
  * RedirectValidator is exported from @quilty/security as a config-bound
@@ -83,6 +84,13 @@ export interface Container {
    * narrowing surfaces a wiring bug at the call site.
    */
   readonly emailSender?: EmailSender;
+  /**
+   * Server-only port — same consumer-discipline contract as
+   * `emailSender`. At M1.5 the in-memory verifier (default-pass) is
+   * the production wiring; Turnstile activates once the Cloudflare
+   * BAA + secret-key provisioning are both green.
+   */
+  readonly captchaVerifier?: CaptchaVerifier;
 }
 
 declare global {

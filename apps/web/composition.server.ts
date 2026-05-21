@@ -20,6 +20,7 @@
 
 import 'server-only';
 
+import { makeInMemoryCaptchaVerifier } from '@quilty/captcha';
 import { makeDefaultDenyConsentReader } from '@quilty/consent';
 import { makeInMemoryEmailSender, wrapEmailSender } from '@quilty/email';
 import {
@@ -70,5 +71,9 @@ export function makeServerContainer(): Container {
       adapter: makeInMemoryEmailSender(),
       sanitizer,
     }),
+    // Default-pass in-memory verifier at M1.5 (no widget rendered yet).
+    // Turnstile activates once the Cloudflare BAA + secret-key
+    // provisioning are both green (see docs/runbook/baa-inventory.md).
+    captchaVerifier: makeInMemoryCaptchaVerifier(),
   };
 }

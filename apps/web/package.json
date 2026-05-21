@@ -19,6 +19,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@quilty/captcha": "workspace:*",
     "@quilty/consent": "workspace:*",
     "@quilty/content": "workspace:*",
     "@quilty/email": "workspace:*",

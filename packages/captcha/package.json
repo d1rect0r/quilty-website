@@ -1,0 +1,30 @@
+{
+  "name": "@quilty/captcha",
+  "version": "0.1.0",
+  "description": "CAPTCHA verifier — Verifier port + always-pass in-memory adapter (test fake + pre-activation production) + Turnstile adapter skeleton (typed-throwing until BAA + secret provisioning).",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./testing": {
+      "types": "./src/__fakes__/index.ts",
+      "default": "./src/__fakes__/index.ts"
+    }
+  },
+  "scripts": {
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@vitest/coverage-v8": "2.1.8",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}
