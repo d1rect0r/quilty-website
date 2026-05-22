@@ -35,6 +35,7 @@ export function Footer() {
               { label: 'About', href: '/en/about' },
               { label: 'Contact', href: '/en/contact' },
               { label: 'Customers', href: '/en/customers' },
+              { label: 'Trust', href: '/en/trust' },
               { label: 'Help', href: '/en/help' },
             ]}
           />

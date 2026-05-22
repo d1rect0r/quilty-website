@@ -28,6 +28,7 @@ const SCAFFOLD_DATE = '2026-05-18';
 const SECURITY_PAGE_DATE = '2026-05-21';
 const ACCESSIBILITY_PAGE_DATE = '2026-05-22';
 const SUBPROCESSORS_PAGE_DATE = '2026-05-22';
+const TRUST_PAGE_DATE = '2026-05-22';
 
 interface MarketingRoute {
   readonly path: string;
@@ -87,6 +88,19 @@ const MARKETING_ROUTES: readonly MarketingRoute[] = [
     lastModified: SUBPROCESSORS_PAGE_DATE,
     changeFrequency: 'monthly',
     priority: 0.7,
+  },
+  // `/trust` is the Trust Center one-pager (D103). Enterprise
+  // procurement teams discover it during vendor security review;
+  // indexable + high priority (peer convention places trust pages at
+  // 0.8 — adjacent to home in the SEO-priority hierarchy). Promotes
+  // to a SafeBase subdomain post-SOC 2 (M7-M8 trigger) at which
+  // point this entry stays as the canonical entry-point URL +
+  // adds a `trust.my-quilty.com` rel-canonical companion.
+  {
+    path: '/trust',
+    lastModified: TRUST_PAGE_DATE,
+    changeFrequency: 'monthly',
+    priority: 0.8,
   },
 ] as const;
 
