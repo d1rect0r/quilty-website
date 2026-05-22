@@ -11,18 +11,25 @@ import { test, expect } from '@playwright/test';
  * is covered alongside its subpaths.
  */
 
-// `/api/auth/callback` + `/api/auth/session` cover two distinct
-// `/api/*` paths so a regression that narrows the regex from
-// `^\/api\/` to a specific subpath fails CI. The change-password
-// well-known path is explicitly added because its noindex header is
-// set on the redirect-response branch in proxy.ts (NOT via the
-// `NOINDEX_PATH_PATTERNS` matcher — `.well-known/*` is excluded from
-// the primary matcher, so the change-password redirect needs its
-// own header-set path that the test pins.
+// Exercise multiple distinct paths under each `NOINDEX_PATH_PATTERNS`
+// regex so a regression that narrows any pattern from its wildcard
+// form to a specific subpath fails CI:
+//   `/api/*` — 5 auth Route Handlers + 1 webhook
+//   `/{locale}/account*` — locale-bare + 1 subpage
+//   `/dev/*` — the synchronous-throw diagnostic surface
+// `/.well-known/change-password` is added because its noindex
+// header is set on the redirect-response branch in proxy.ts (NOT
+// via `NOINDEX_PATH_PATTERNS`) — the .well-known prefix is
+// otherwise excluded from the primary matcher.
 const NOINDEX_PATHS: readonly string[] = [
   '/api/auth/callback',
   '/api/auth/session',
+  '/api/auth/refresh',
+  '/api/auth/logout',
+  '/api/auth/backchannel-logout',
+  '/api/webhooks/stripe',
   '/en/account',
+  '/en/account/security',
   '/dev/boom',
   '/.well-known/change-password',
 ];
@@ -31,13 +38,20 @@ for (const path of NOINDEX_PATHS) {
   test(`@security ${path} response carries X-Robots-Tag: noindex, nofollow`, async ({
     request,
   }) => {
-    const response = await request.get(path, { maxRedirects: 0 });
+    // Some endpoints reject GET (e.g. webhooks expect POST) — POST
+    // for those, GET for everything else. Either way the
+    // proxy-injected response header must be present.
+    const isWebhook = path.startsWith('/api/webhooks/');
+    const response = isWebhook
+      ? await request.post(path, { maxRedirects: 0 })
+      : await request.get(path, { maxRedirects: 0 });
     // Response may be a 200, 307 redirect, 404 (dev/boom in
-    // production), or 501 (auth-stub) — the X-Robots-Tag posture
-    // must hold for every status. A 200 that leaks a portal page
-    // into a SERP is the worst case; a 307 that does the same is
-    // equally bad if the redirect itself is cached.
-    expect(response.headers()['x-robots-tag']).toBe('noindex, nofollow');
+    // production), 405 (wrong method on a webhook stub), or 501
+    // (auth-stub) — the X-Robots-Tag posture must hold for every
+    // status. A 200 that leaks a portal page into a SERP is the
+    // worst case; a 307 that does the same is equally bad if the
+    // redirect itself is cached.
+    expect(response.headers()['x-robots-tag'] ?? '').toBe('noindex, nofollow');
   });
 }
 

@@ -78,19 +78,35 @@ const PRIVATE_PATHS = ['/account*', '/en/account*', '/*/account*', '/api/', '/de
 const CONTENT_SIGNAL = 'Content-Signal: search=yes, ai-input=yes, ai-train=no';
 
 function originFromRequest(request: NextRequest): string {
-  const explicit = process.env.NEXT_PUBLIC_SITE_URL;
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (explicit !== undefined && explicit !== '') {
-    return explicit;
+    // Round-trip through `new URL` so a malformed env var (no scheme,
+    // trailing-newline corruption, etc.) is caught here rather than
+    // emitted as a broken `Sitemap:` line.
+    try {
+      return new URL(explicit).origin;
+    } catch {
+      // Fall through to the request-derived origin below.
+    }
   }
   return new URL(request.url).origin;
 }
 
-function allowBlock(userAgent: string, prefix: readonly string[] = []): string {
+function allowBlock(userAgent: string, extraDirectives: readonly string[] = []): string {
+  // `extraDirectives` are appended AFTER the Allow + Disallow lines
+  // rather than between User-agent and Allow. RFC 9309 §2.2 defines
+  // a "record" as `User-agent` + rule lines (Allow / Disallow);
+  // unrecognized directives in the middle of a record are silently
+  // dropped by strict parsers (Googlebot, Bingbot). Placing the
+  // directive as the LAST line of the record keeps it scoped to the
+  // user-agent (the wildcard) while putting it past the strict
+  // parser's rule-line region — Cloudflare's own reference robots.txt
+  // uses this same end-of-record placement for `Content-Signal`.
   return [
     `User-agent: ${userAgent}`,
-    ...prefix,
     'Allow: /',
     ...PRIVATE_PATHS.map((path) => `Disallow: ${path}`),
+    ...extraDirectives,
   ].join('\n');
 }
 
@@ -107,8 +123,10 @@ export function GET(request: NextRequest): Response {
     'Content-Type': 'text/plain; charset=utf-8',
     // The robots.txt body itself should not appear in search-engine
     // result pages (Google's own guidance) — belt-and-suspenders
-    // against a stray index of the policy file.
-    'X-Robots-Tag': 'noindex',
+    // against a stray index of the policy file. Pair `nofollow`
+    // with `noindex` for consistency with the proxy.ts defense-in-
+    // depth header on every other noindex surface.
+    'X-Robots-Tag': 'noindex, nofollow',
     // 1h CDN TTL: short enough that a policy edit propagates within
     // the hour; long enough not to hammer origin on crawler revisits.
     'Cache-Control': 'public, max-age=3600',

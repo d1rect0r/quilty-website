@@ -10,17 +10,19 @@ export const metadata: Metadata = {
 
 export default function AccountDeletePage() {
   return (
-    <section className="mx-auto max-w-3xl px-6 py-10">
-      <h1 className="text-fg-default text-3xl font-semibold">Delete your account</h1>
+    <section aria-labelledby="delete-heading" className="mx-auto max-w-3xl px-6 py-10">
+      <h1 id="delete-heading" className="text-fg-default text-3xl font-semibold">
+        Delete your account
+      </h1>
       <p className="text-fg-muted mt-4">
-        Self-serve account deletion (DSAR Article 17 erasure) lands at the account-portal +
-        auth-integration activations (static UX first, then real backend wiring). Step-up auth via{' '}
-        <code>prompt=login</code> (D54) gates the destructive action — re-MFA required within the
-        5-min elevated window.
+        Self-serve account deletion (GDPR Article 17 erasure) will appear here when the account
+        portal activates. Re-authentication via a step-up prompt gates the destructive action — a
+        re-MFA challenge is required within a 5-minute elevated-permissions window before deletion
+        can be confirmed.
       </p>
       <p className="text-fg-muted mt-4">
-        URL reserved per Google Play account-deletion policy + CCPA &ldquo;no dark patterns&rdquo;
-        enforcement.
+        The URL is reserved per the Google Play account-deletion policy + CCPA &ldquo;no dark
+        patterns&rdquo; enforcement guidance.
       </p>
     </section>
   );

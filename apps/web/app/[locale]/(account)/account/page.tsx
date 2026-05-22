@@ -13,11 +13,14 @@ export const metadata: Metadata = {
 
 export default function AccountHomePage() {
   return (
-    <section className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="text-fg-default text-3xl font-semibold">Profile</h1>
+    <section aria-labelledby="profile-heading" className="mx-auto max-w-4xl px-6 py-10">
+      <h1 id="profile-heading" className="text-fg-default text-3xl font-semibold">
+        Profile
+      </h1>
       <p className="text-fg-muted mt-4">
-        Authenticated profile UI lands at the account-portal activation; URL reserved the URL + the
-        route-group + the JSON-LD-suppressing robots metadata.
+        Authenticated profile UI will appear here when the account portal activates. The URL, the
+        route-group, and the noindex metadata that prevents this surface from reaching a search
+        index are all reserved at the scaffold stage.
       </p>
     </section>
   );

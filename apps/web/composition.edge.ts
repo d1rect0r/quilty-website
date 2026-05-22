@@ -16,7 +16,8 @@
  * Replay integration is browser-only by design.
  */
 
-import { makeDefaultDenyConsentReader } from '@quilty/consent';
+import { cookies as nextCookies, headers as nextHeaders } from 'next/headers';
+import { makeServerConsentReader } from '@quilty/consent/server';
 import {
   makeAmplitudeAnalytics,
   makeCloudWatchLogger,
@@ -28,6 +29,11 @@ import {
 } from '@quilty/observability';
 import { makeSanitizer } from '@quilty/security';
 import type { EdgeContainer } from './lib/get-container';
+
+// Future cookie name — see composition.server.ts for the cookie-write
+// activation gate. Mirrored here so the edge tier reads the same
+// cookie name once the banner writes it.
+const CONSENT_COOKIE_NAME = '__Host-quilty_consent';
 
 export function makeEdgeContainer(): EdgeContainer {
   const sanitizer = makeSanitizer();
@@ -41,14 +47,21 @@ export function makeEdgeContainer(): EdgeContainer {
     runtime: 'edge',
     sanitizer,
     logger: wrappedLogger,
-    // GPC-propagation TODO: switch this reader to a request-scoped
-    // one calling `detectGpcFromHeaders(request)` before the consent
-    // banner activates — otherwise the live Sec-GPC: 1 signal is
-    // silently bypassed at the edge even though `/.well-known/gpc.json`
-    // commits to honoring it.
+    // ConsentReader detects Sec-GPC: 1 on every read. Reads `headers()`
+    // + `cookies()` from `next/headers` — both are available in
+    // Edge-runtime Route Handlers (where this container is invoked).
+    // The reader is NOT used from `proxy.ts` middleware; middleware
+    // reads `request.headers` directly. See composition.server.ts for
+    // the matching wiring on the Node runtime.
     analytics: wrapAnalytics({
       adapter: makeAmplitudeAnalytics({ logger: wrappedLogger }),
-      consentReader: makeDefaultDenyConsentReader(),
+      consentReader: makeServerConsentReader({
+        headers: async () => nextHeaders(),
+        readConsentCookie: async () => {
+          const cookieStore = await nextCookies();
+          return cookieStore.get(CONSENT_COOKIE_NAME)?.value ?? null;
+        },
+      }),
       sanitizer,
       logger: wrappedLogger,
     }),

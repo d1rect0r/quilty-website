@@ -70,11 +70,12 @@ export default function manifest(): MetadataRoute.Manifest {
       },
       {
         name: 'Subscription',
-        // `short_name` "Subscription" fits the ≤12 char W3C budget
-        // exactly and is more precise than a generic "Plan" in
-        // surfaces (Windows jump-list tooltip, constrained Android
-        // launcher labels) where the parent app name isn't shown.
-        short_name: 'Subscription',
+        // `short_name` "Manage plan" fits the ≤12 char W3C budget
+        // (11 chars) with a 1-char margin against truncation in
+        // constrained Android launchers + Windows jump-list tooltips.
+        // The full `name` field carries the precise term on surfaces
+        // that render the longer label.
+        short_name: 'Manage plan',
         description: 'Manage your Quilty subscription.',
         url: '/en/account/subscription',
         icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' }],

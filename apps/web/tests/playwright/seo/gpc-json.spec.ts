@@ -24,7 +24,7 @@ test('@seo @privacy /.well-known/gpc.json serves with status 200 + application/j
 }) => {
   const response = await request.get('/.well-known/gpc.json');
   expect(response.status()).toBe(200);
-  expect(response.headers()['content-type']).toContain('application/json');
+  expect(response.headers()['content-type'] ?? '').toContain('application/json');
 });
 
 test('@seo @privacy /.well-known/gpc.json carries a 1h public Cache-Control', async ({
@@ -33,7 +33,7 @@ test('@seo @privacy /.well-known/gpc.json carries a 1h public Cache-Control', as
   const response = await request.get('/.well-known/gpc.json');
   // 1h TTL — the file changes only when the policy itself changes;
   // short enough that a policy edit propagates within the hour.
-  expect(response.headers()['cache-control']).toContain('max-age=3600');
+  expect(response.headers()['cache-control'] ?? '').toContain('max-age=3600');
 });
 
 test('@seo @privacy /.well-known/gpc.json declares gpc=true + lastUpdate per W3C spec', async ({
@@ -61,16 +61,18 @@ test('@seo @privacy /.well-known/gpc.json declares gpc=true + lastUpdate per W3C
 
   // ISO 8601 date — YYYY-MM-DD. Spec permits longer forms but the
   // shortest valid form is convention.
-  expect(typeof body.lastUpdate).toBe('string');
-  expect(body.lastUpdate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  const rawLastUpdate = body.lastUpdate;
+  expect(typeof rawLastUpdate).toBe('string');
+  expect(rawLastUpdate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 
   // Defense against shipping a future-dated lastUpdate (would suggest
-  // a clock-skew or copy-paste error) or a multi-year-stale value
-  // (suggests the policy publication has drifted from the runtime
-  // behavior). 2-year window is generous; tighten later if needed.
-  const lastUpdate = new Date(String(body.lastUpdate));
+  // a clock-skew or copy-paste error) or a stale value (suggests the
+  // policy publication has drifted from the runtime behavior).
+  // 1-year window matches enforcement-audit expectations + the W3C
+  // TR review cadence.
+  const lastUpdate = new Date(rawLastUpdate as string);
   const now = Date.now();
-  const twoYearsMs = 2 * 365 * 24 * 60 * 60 * 1000;
+  const oneYearMs = 365 * 24 * 60 * 60 * 1000;
   expect(lastUpdate.getTime()).toBeLessThanOrEqual(now);
-  expect(now - lastUpdate.getTime()).toBeLessThan(twoYearsMs);
+  expect(now - lastUpdate.getTime()).toBeLessThan(oneYearMs);
 });

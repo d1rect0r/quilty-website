@@ -47,17 +47,23 @@ const CHANGE_PASSWORD_DESTINATION = `/${DEFAULT_LOCALE}/account/security`;
 // page-metadata layer + the per-account-layout cascade remain in
 // place; this is the response-header tier.
 const NOINDEX_PATH_PATTERNS: readonly RegExp[] = [
+  // Whole `/api/*` tree — broader than `isPortalRoute` in
+  // `packages/security/src/domain/csp-builder.ts` (which only marks
+  // `/api/auth/*` + `/api/webhooks/*` as portal-CSP). The wider
+  // surface is deliberate: every Route Handler — webhooks, future
+  // payment callbacks, csp-report — must be unreachable via SERP.
   /^\/api\//,
   // `(\/|$)` alternation handles BOTH the trailing-slash subpage
   // case AND the no-trailing-slash account-index case
   // (`trailingSlash: false` in next.config.ts means `/en/account`
-  // arrives without a trailing slash). Mirrors `isPortalRoute` in
-  // `packages/security/src/domain/csp-builder.ts` exactly.
+  // arrives without a trailing slash). `^` anchor is stricter than
+  // `isPortalRoute`'s unanchored test, which would also match
+  // `/foo/account` mid-path — we explicitly want apex + locale-
+  // prefixed paths only.
   /^\/account(\/|$)/,
-  // `{2,}` (not `{2}`) mirrors `isPortalRoute`'s open-ended locale
-  // pattern — a future 3-letter ISO 639-2 prefix (`zho`, `hin`,
-  // `ara`) must receive the response-header noindex tier alongside
-  // its stricter portal CSP.
+  // `{2,}` (not `{2}`) is open-ended to match future 3-letter ISO
+  // 639-2 prefixes (`zho`, `hin`, `ara`) — every locale receives
+  // the response-header noindex tier alongside its portal CSP.
   /^\/[a-z]{2,}\/account(\/|$)/,
   /^\/dev(\/|$)/,
 ];

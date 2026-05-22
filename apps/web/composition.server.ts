@@ -20,8 +20,9 @@
 
 import 'server-only';
 
+import { cookies as nextCookies, headers as nextHeaders } from 'next/headers';
 import { makeInMemoryCaptchaVerifier } from '@quilty/captcha';
-import { makeDefaultDenyConsentReader } from '@quilty/consent';
+import { makeServerConsentReader } from '@quilty/consent/server';
 import { makeInMemoryEmailSender, wrapEmailSender } from '@quilty/email';
 import { makeInMemoryRateLimiter } from '@quilty/rate-limit';
 import {
@@ -35,6 +36,11 @@ import {
 } from '@quilty/observability';
 import { makeSanitizer } from '@quilty/security';
 import type { ServerContainer } from './lib/get-container';
+
+// Future cookie name — reserved at the scaffold so the reader path
+// is wired now. The banner activation will start writing to it; the
+// current reader returns `null` (default-deny) until then.
+const CONSENT_COOKIE_NAME = '__Host-quilty_consent';
 
 export function makeServerContainer(): ServerContainer {
   const sanitizer = makeSanitizer();
@@ -50,12 +56,23 @@ export function makeServerContainer(): ServerContainer {
     runtime: 'server',
     sanitizer,
     logger: wrappedLogger,
-    // Default-deny ConsentReader baseline; the composition root swaps
-    // this for the real cookie-aware @quilty/consent server reader at
-    // the banner activation without changing the wrapper API.
+    // ConsentReader detects Sec-GPC: 1 from the request headers on
+    // every read AND parses the consent cookie when the banner
+    // activation writes it. Today the cookie is always null so the
+    // reader returns the default-deny baseline — but GPC detection
+    // is LIVE: a Sec-GPC: 1 request now surfaces `gpc_detected: true`
+    // through the snapshot, which lets the wrapper enforce the
+    // /.well-known/gpc.json commitment from day one rather than
+    // silently falling back to the previous static `false`.
     analytics: wrapAnalytics({
       adapter: makeAmplitudeAnalytics({ logger: wrappedLogger }),
-      consentReader: makeDefaultDenyConsentReader(),
+      consentReader: makeServerConsentReader({
+        headers: async () => nextHeaders(),
+        readConsentCookie: async () => {
+          const cookieStore = await nextCookies();
+          return cookieStore.get(CONSENT_COOKIE_NAME)?.value ?? null;
+        },
+      }),
       sanitizer,
       logger: wrappedLogger,
     }),

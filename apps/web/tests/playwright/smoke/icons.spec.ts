@@ -43,14 +43,20 @@ for (const { path, acceptedContentTypes } of ICON_ASSETS) {
   });
 }
 
-test('@smoke /manifest.webmanifest is valid JSON with maskable icons + D110 forward-claim fields', async ({
+test('@smoke /manifest.webmanifest has required forward-claim fields (id, scope, display_override, launch_handler)', async ({
   request,
 }) => {
   const response = await request.get('/manifest.webmanifest');
   expect(response.status()).toBe(200);
-  expect(response.headers()['content-type']).toContain('application/manifest+json');
+  expect(response.headers()['content-type'] ?? '').toContain('application/manifest+json');
 
-  const manifest = (await response.json()) as {
+  // Narrow from `unknown` rather than direct-casting to a named shape —
+  // a `null` response body would otherwise fail as a `TypeError` on
+  // `.length` access rather than as a clean test assertion.
+  const rawManifest: unknown = await response.json();
+  expect(rawManifest).not.toBeNull();
+  expect(typeof rawManifest).toBe('object');
+  const manifest = rawManifest as {
     id?: unknown;
     scope?: unknown;
     start_url?: unknown;

@@ -91,7 +91,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
               : 'We’ve been notified. Try again, or head back home.'}
           </p>
           {error.digest ? (
-            <p className="text-fg-subtle mt-2 text-xs">
+            <p className="text-fg-muted mt-2 text-xs">
               Reference:{' '}
               <code data-testid="error-digest" className="font-mono">
                 {error.digest}

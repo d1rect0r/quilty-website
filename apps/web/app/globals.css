@@ -156,8 +156,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Skip-link visibility on focus (a11y) */
-.skip-link:not(:focus) {
+/* Skip-link visibility on keyboard focus only (a11y).
+   `:focus-visible` excludes programmatic focus (FocusOnNavigate
+   targets `<main>` after route changes — the bare `:focus` would
+   flash the skip link visible during those transitions). */
+.skip-link:not(:focus-visible) {
   position: absolute;
   width: 1px;
   height: 1px;

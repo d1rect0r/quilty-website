@@ -9,11 +9,13 @@ export const metadata: Metadata = {
 
 export default function AccountNotificationsPage() {
   return (
-    <section className="mx-auto max-w-4xl px-6 py-10">
-      <h1 className="text-fg-default text-3xl font-semibold">Notifications</h1>
+    <section aria-labelledby="notifications-heading" className="mx-auto max-w-4xl px-6 py-10">
+      <h1 id="notifications-heading" className="text-fg-default text-3xl font-semibold">
+        Notifications
+      </h1>
       <p className="text-fg-muted mt-4">
-        Email + push notification preferences activate at the notifications milestone. URL is
-        reserved.
+        Email and push notification preferences will appear here when the notification portal
+        activates.
       </p>
     </section>
   );

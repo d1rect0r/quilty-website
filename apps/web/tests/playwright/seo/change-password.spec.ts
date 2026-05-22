@@ -31,7 +31,7 @@ test('@seo /.well-known/change-password redirect carries Cache-Control: no-store
   // Password managers must always re-evaluate the current pointer.
   // A cached redirect would send users to a stale URL if the
   // security page ever moves.
-  expect(response.headers()['cache-control']).toContain('no-store');
+  expect(response.headers()['cache-control'] ?? '').toContain('no-store');
 });
 
 test('@seo /.well-known/change-password destination resolves (not 404/500)', async ({

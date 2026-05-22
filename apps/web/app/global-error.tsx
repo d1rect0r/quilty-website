@@ -146,7 +146,11 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
                   minWidth: '2.75rem',
                   padding: '0.5rem 1.25rem',
                   borderRadius: '0.375rem',
-                  border: '1px solid #ccc',
+                  // #767676 on #fff = 4.54:1 (WCAG 1.4.11 ≥ 3:1 for UI
+                  // component boundaries). The prior #ccc was 1.61:1 —
+                  // a fail. Hard-coded because globals.css doesn't load
+                  // when the root layout has thrown.
+                  border: '1px solid #767676',
                   background: '#fff',
                   cursor: 'pointer',
                   fontSize: '1rem',

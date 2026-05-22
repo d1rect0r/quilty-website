@@ -12,22 +12,22 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const SECURITY_SECTIONS = [
-  { label: 'Overview', href: '/en/account/security' },
-  { label: 'Passkeys', href: '/en/account/security#passkeys' },
-  { label: 'TOTP', href: '/en/account/security#totp' },
-  { label: 'Backup codes', href: '/en/account/security#backup-codes' },
-  { label: 'Active sessions', href: '/en/account/security#sessions' },
-] as const;
+// Only the top-level "Overview" link ships at the stub stage. The
+// section-anchored entries (Passkeys / TOTP / Backup codes / Active
+// sessions) land alongside the real auth-portal content — adding
+// them now would create fragment links to anchors that do not exist
+// in the DOM, a WCAG 2.4.4 (Link Purpose) failure.
+const SECURITY_SECTIONS = [{ label: 'Overview', href: '/en/account/security' }] as const;
 
 export default function AccountSecurityPage() {
   return (
     <PortalSidebar title="Security" sections={SECURITY_SECTIONS}>
-      <h1 className="text-fg-default text-3xl font-semibold">Security</h1>
+      <h1 id="security-heading" className="text-fg-default text-3xl font-semibold">
+        Security
+      </h1>
       <p className="text-fg-muted mt-4">
-        Passkeys (D50 Plus tier) + TOTP + email MFA + backup codes (D55) + active-session list (D51
-        DynamoDB store) + step-up auth via <code>prompt=login</code> (D54) all land at the
-        auth-integration activation.
+        Passkey management, TOTP setup, backup codes, and active-session review will appear here
+        when the auth portal activates.
       </p>
     </PortalSidebar>
   );

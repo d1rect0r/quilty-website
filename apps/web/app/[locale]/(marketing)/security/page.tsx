@@ -1,3 +1,4 @@
+import { buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
 import type { Metadata } from 'next';
 
 /**
@@ -15,19 +16,65 @@ import type { Metadata } from 'next';
  * — peer disclosure pages routinely omit this and the omission is a
  * real exposure path for a consumer-health product.
  */
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+const pageUrl = `${siteUrl}/en/security`;
+
+// "Responsible Disclosure · Quilty" (32 chars under the template
+// expansion `'%s · Quilty'` in the root layout) lands in the
+// recommended 50-60 char SERP-title window AND signals the page's
+// purpose to AI-citation crawlers (Perplexity / ChatGPT) more
+// precisely than a bare "Security" ever could.
+const PAGE_TITLE = 'Responsible Disclosure';
+
+// 145-char description sits in the recommended 140-160 char window
+// without truncation. Names the contact channel + scope hint so
+// researchers scanning a SERP can decide whether to click in.
+const PAGE_DESCRIPTION =
+  'Quilty responsible-disclosure policy + safe-harbor commitment. Report security findings to security@my-quilty.com — three-business-day acknowledgement.';
+
+const ogMetadata = buildOpenGraphMetadata({
+  ogImage: new URL('/og-default.jpg', siteUrl).toString(),
+  ogImageAlt: 'Quilty — responsible disclosure policy',
+  ogImageType: 'image/jpeg',
+  siteName: 'Quilty',
+  title: PAGE_TITLE,
+  description: PAGE_DESCRIPTION,
+  url: pageUrl,
+  locale: 'en_US',
+});
+
 export const metadata: Metadata = {
-  title: 'Security',
-  description:
-    'Quilty responsible disclosure policy. Report security vulnerabilities to security@my-quilty.com.',
+  title: PAGE_TITLE,
+  description: PAGE_DESCRIPTION,
   alternates: {
     canonical: '/en/security',
     languages: { en: '/en/security', 'x-default': '/en/security' },
   },
+  ...ogMetadata,
 };
+
+// Inline WebPage JSON-LD anchors the page in the schema.org graph
+// emitted by the root layout (Organization + WebSite). Without this
+// node, the security page is a dangling URL in the graph — AI-
+// citation crawlers (Perplexity / ChatGPT) downweight orphan nodes
+// when deciding which URL to surface in answer text.
+const webPageJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  '@id': `${pageUrl}#webpage`,
+  url: pageUrl,
+  name: PAGE_TITLE,
+  description: PAGE_DESCRIPTION,
+  inLanguage: 'en',
+  isPartOf: { '@id': `${siteUrl}#website` },
+  publisher: { '@id': `${siteUrl}#organization` },
+} as const;
 
 export default function SecurityPage() {
   return (
     <section className="mx-auto max-w-3xl px-6 py-24" aria-labelledby="security-heading">
+      <JsonLd data={webPageJsonLd} />
       <h1 id="security-heading" className="text-fg-default text-4xl font-semibold">
         Security
       </h1>

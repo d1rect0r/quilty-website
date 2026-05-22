@@ -5,7 +5,7 @@
 # proof-of-concept payloads.
 
 Contact: mailto:security@my-quilty.com
-Expires: 2026-12-31T23:59:00.000Z
+Expires: 2026-12-31T23:59:00Z
 Preferred-Languages: en
 Canonical: https://my-quilty.com/.well-known/security.txt
 Policy: https://my-quilty.com/en/security

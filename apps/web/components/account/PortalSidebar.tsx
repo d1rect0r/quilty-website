@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { PortalSidebarLinks } from './PortalSidebarLinks';
 
 /**
  * Secondary sidebar for complex portal sub-screens (U1 hybrid pattern).
@@ -6,8 +6,9 @@ import Link from 'next/link';
  * own depth — e.g., /account/security (passkeys, TOTP, backup codes,
  * sessions) or /account/subscription (plan, payment, invoices, cancel).
  *
- * Real content + active-route highlighting + mobile collapse land in M5
- * with the portal v0 work. M1 ships the structural shell.
+ * The link list is a Client Component (`PortalSidebarLinks`) — same
+ * reason as PortalNavLinks: `aria-current="page"` needs the live
+ * pathname. The decorative shell stays server-rendered.
  */
 
 export interface PortalSidebarProps {
@@ -26,9 +27,8 @@ export function PortalSidebar({ title, sections, children }: PortalSidebarProps)
           The sidebar title renders as a styled `<span>` (presentational
           only). The page's `<h1>` lives in the page route file — emitting
           an `<h2>` here before the page's `<h1>` mounts would invert the
-          heading hierarchy . The
-          `<nav aria-label>` is what AT users hear; the visual label is
-          decorative reinforcement. */}
+          heading hierarchy. The `<nav aria-label>` is what AT users hear;
+          the visual label is decorative reinforcement. */}
       <nav aria-label={title}>
         <span
           aria-hidden="true"
@@ -36,18 +36,7 @@ export function PortalSidebar({ title, sections, children }: PortalSidebarProps)
         >
           {title}
         </span>
-        <ul className="text-fg-muted space-y-1 text-sm">
-          {sections.map((section) => (
-            <li key={section.href}>
-              <Link
-                href={section.href}
-                className="hover:bg-bg-elevated hover:text-fg-default flex min-h-11 items-center rounded-md px-3"
-              >
-                {section.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <PortalSidebarLinks sections={sections} />
       </nav>
       <div>{children}</div>
     </div>

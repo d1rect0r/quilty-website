@@ -12,21 +12,22 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const SUBSCRIPTION_SECTIONS = [
-  { label: 'Overview', href: '/en/account/subscription' },
-  { label: 'Plan', href: '/en/account/subscription#plan' },
-  { label: 'Payment method', href: '/en/account/subscription#payment' },
-  { label: 'Invoices', href: '/en/account/subscription#invoices' },
-  { label: 'Cancel', href: '/en/account/subscription#cancel' },
-] as const;
+// Only the top-level "Overview" link ships at the stub stage. The
+// section-anchored entries (Plan / Payment method / Invoices /
+// Cancel) land alongside the real subscription-management content —
+// adding them now would create fragment links to anchors that do
+// not exist in the DOM (WCAG 2.4.4 Link Purpose failure).
+const SUBSCRIPTION_SECTIONS = [{ label: 'Overview', href: '/en/account/subscription' }] as const;
 
 export default function AccountSubscriptionPage() {
   return (
     <PortalSidebar title="Subscription" sections={SUBSCRIPTION_SECTIONS}>
-      <h1 className="text-fg-default text-3xl font-semibold">Subscription</h1>
+      <h1 id="subscription-heading" className="text-fg-default text-3xl font-semibold">
+        Subscription
+      </h1>
       <p className="text-fg-muted mt-4">
-        Stripe Customer Portal (hosted redirect per D44) + RevenueCat IAP routing copy + plan-switch
-        + cancel flow all land at the subscription activation. URL is reserved.
+        Plan management, payment-method updates, invoice history, and cancellation flows will appear
+        here when the subscription portal activates.
       </p>
     </PortalSidebar>
   );

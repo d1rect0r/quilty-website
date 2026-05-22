@@ -43,15 +43,23 @@ export function buildHstsValue(phase: HstsPhase): string {
   }
 }
 
+// Type predicate: narrows an arbitrary string to `HstsPhase` if it
+// matches the locked union. Lets `currentHstsPhase` avoid the
+// double-`as HstsPhase` cast on the Set membership test + return.
+function isHstsPhase(value: string): value is HstsPhase {
+  return (HSTS_PHASES as ReadonlySet<string>).has(value);
+}
+
 /**
  * Read the current HSTS ramp phase from env. Server-only env var (not
  * `NEXT_PUBLIC_` — no browser exposure). Falls back to `'scaffold'` if
- * unset or invalid.
+ * unset or invalid (an unrecognised value — including the meaningless
+ * `m1` / sprint-label shape — falls back rather than throwing).
  */
 export function currentHstsPhase(): HstsPhase {
   const raw = process.env.HSTS_PHASE;
-  if (raw && HSTS_PHASES.has(raw as HstsPhase)) {
-    return raw as HstsPhase;
+  if (raw !== undefined && isHstsPhase(raw)) {
+    return raw;
   }
   return 'scaffold';
 }

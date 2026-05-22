@@ -67,19 +67,24 @@ async function wellKnownHeaders() {
         { key: 'Content-Type', value: 'text/plain; charset=utf-8' },
         { key: 'Cache-Control', value: 'public, max-age=3600' },
         { key: 'X-Robots-Tag', value: 'noindex' },
+        { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
       ],
     },
     {
       // Chrome Private Prefetch Proxy hint per privacycg/private-prefetch-proxy.
       // Custom media type required — plain application/json makes the
-      // proxy ignore the policy. fraction:1.0 is safe pre-launch because
-      // the marketing tier (the only public link graph) carries no
-      // authenticated paths; revisit when /en/account/* becomes
-      // link-graph-reachable from public pages.
+      // proxy ignore the policy. `fraction:0.0` because the PWA manifest
+      // now exposes portal-route shortcuts that are link-graph-reachable
+      // for any prefetch-eligible bot. A non-zero fraction would let the
+      // Google-operated prefetch proxy forward credentialless pre-fetch
+      // requests against authenticated paths. Raise to a positive value
+      // only after the portal session-validation path returns a hardened
+      // non-PHI response to unauthenticated requests.
       source: '/.well-known/traffic-advice',
       headers: [
         { key: 'Content-Type', value: 'application/trafficadvice+json' },
         { key: 'Cache-Control', value: 'public, max-age=3600' },
+        { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
       ],
     },
     {
@@ -93,6 +98,7 @@ async function wellKnownHeaders() {
       headers: [
         { key: 'Content-Type', value: 'application/json' },
         { key: 'Cache-Control', value: 'public, max-age=3600' },
+        { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
       ],
     },
   ];

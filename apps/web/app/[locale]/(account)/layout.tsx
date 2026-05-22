@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { SkipLink } from '@/components/site/SkipLink';
 import { PortalNav } from '@/components/account/PortalNav';
 import { FocusOnNavigate } from '@/components/site/FocusOnNavigate';
@@ -45,6 +46,24 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
       <main id="main" tabIndex={-1} className="bg-bg-surface">
         {children}
       </main>
+      {/* contentinfo landmark for AT landmark-navigation parity with
+          the marketing layout. Minimal — copyright + privacy link
+          satisfies SC 1.3.1 + closes the symmetry gap. `role` is
+          redundant on a direct-body-child `<footer>` but defensive
+          against deeper React-fragment nesting. */}
+      <footer role="contentinfo" className="border-border-default bg-bg-elevated border-t">
+        <div className="text-fg-muted mx-auto max-w-6xl px-6 py-4 text-sm">
+          <p>
+            © {new Date().getFullYear()} Quilty Inc. ·{' '}
+            <Link
+              href="/en/legal/privacy"
+              className="hover:text-fg-default underline underline-offset-2"
+            >
+              Privacy
+            </Link>
+          </p>
+        </div>
+      </footer>
     </>
   );
 }

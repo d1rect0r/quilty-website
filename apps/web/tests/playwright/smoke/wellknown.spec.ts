@@ -25,20 +25,25 @@ test('@smoke .well-known/apple-app-site-association serves as application/json',
 }) => {
   const response = await request.get('/.well-known/apple-app-site-association');
   expect(response.status()).toBe(200);
-  expect(response.headers()['content-type']).toContain('application/json');
+  expect(response.headers()['content-type'] ?? '').toContain('application/json');
 });
 
 test('@smoke .well-known/assetlinks.json serves as application/json', async ({ request }) => {
   const response = await request.get('/.well-known/assetlinks.json');
   expect(response.status()).toBe(200);
-  expect(response.headers()['content-type']).toContain('application/json');
+  expect(response.headers()['content-type'] ?? '').toContain('application/json');
 });
 
 test('@smoke AASA matches modern applinks.details[].components schema (no legacy keys)', async ({
   request,
 }) => {
   const aasaResponse = await request.get('/.well-known/apple-app-site-association');
-  const aasa = (await aasaResponse.json()) as Record<string, unknown>;
+  // Narrow from `unknown` before casting — direct `as Record<...>`
+  // would silently accept a `null` response body.
+  const rawAasa: unknown = await aasaResponse.json();
+  expect(rawAasa).not.toBeNull();
+  expect(typeof rawAasa).toBe('object');
+  const aasa = rawAasa as Record<string, unknown>;
 
   // iOS 13+ `swcd` consumes only `applinks.details[].components`. The
   // legacy `applinks.details[].paths` array remains parseable but is
@@ -59,11 +64,12 @@ test('@smoke AASA matches modern applinks.details[].components schema (no legacy
   expect(webcredentials).not.toBeNull();
   expect(typeof webcredentials).toBe('object');
   const webcredentialsRecord = webcredentials as Record<string, unknown>;
-  // Narrow from `unknown` before casting — under
-  // noUncheckedIndexedAccess + exactOptionalPropertyTypes, the direct
-  // `as readonly unknown[]` cast silently accepts a missing key
-  // (undefined) and pushes the failure to the runtime arrayContaining
-  // check. The explicit guard fails as a test, not as an exception.
+  // Narrow from `unknown` before casting (same rationale as the
+  // gpc-json spec): under noUncheckedIndexedAccess +
+  // exactOptionalPropertyTypes, the direct `as readonly unknown[]`
+  // cast silently accepts a missing key (undefined) and pushes the
+  // failure to a runtime exception. The explicit guard fails as a
+  // test, not as an exception.
   const rawApps = webcredentialsRecord['apps'];
   expect(Array.isArray(rawApps)).toBe(true);
   const webcredentialApps = rawApps as readonly unknown[];
@@ -116,13 +122,17 @@ test('@smoke AASA matches modern applinks.details[].components schema (no legacy
     // `components: []` is the intentional empty-claim signal — Apple
     // validators treat the absence of any pattern as "no Universal
     // Links claimed yet" (informational, not warning). When auth
-    // routes ship, claims land here.
-    expect(Array.isArray(detail.components)).toBe(true);
+    // routes ship, claims land here. Narrow with a runtime guard
+    // before reading `.length` (consistent with the rawApps /
+    // rawAppIDs pattern above).
+    const rawComponents = detail.components;
+    expect(Array.isArray(rawComponents)).toBe(true);
+    const components = rawComponents as readonly unknown[];
     // Negative-assert empty today so a premature path claim — added
     // without the mobile-team coordination gate in the deeplink-
     // manifests runbook — fails CI. Remove or relax this assertion
     // when the first real claim ships through the gate.
-    expect((detail.components as unknown[]).length).toBe(0);
+    expect(components.length).toBe(0);
   }
 
   // Passkey-readiness parity: every iOS bundle in the applinks claim
@@ -141,7 +151,9 @@ test('@smoke AASA matches modern applinks.details[].components schema (no legacy
   // is still caught — without the set-equality check this comparison
   // would be vacuous against the Android count.
   const assetlinksResponse = await request.get('/.well-known/assetlinks.json');
-  const assetlinksStatements = (await assetlinksResponse.json()) as readonly unknown[];
+  const rawAssetlinks: unknown = await assetlinksResponse.json();
+  expect(Array.isArray(rawAssetlinks)).toBe(true);
+  const assetlinksStatements = rawAssetlinks as readonly unknown[];
   expect(assetlinksStatements.length).toBe(webcredentialAppSet.size);
 });
 
@@ -149,12 +161,13 @@ test('@smoke assetlinks.json matches Digital Asset Links schema + valid SHA256 f
   request,
 }) => {
   const response = await request.get('/.well-known/assetlinks.json');
-  const statements = (await response.json()) as readonly {
+  const rawStatements: unknown = await response.json();
+  expect(Array.isArray(rawStatements)).toBe(true);
+  const statements = rawStatements as readonly {
     relation?: readonly string[];
     target?: { namespace?: string; package_name?: string; sha256_cert_fingerprints?: string[] };
   }[];
 
-  expect(Array.isArray(statements)).toBe(true);
   expect(statements.length).toBeGreaterThanOrEqual(1);
 
   for (const statement of statements) {

@@ -26,7 +26,7 @@ const USER_FETCH_BOTS = ['ChatGPT-User', 'Claude-User', 'Perplexity-User'];
 test('@seo /robots.txt returns 200 + text/plain', async ({ request }) => {
   const response = await request.get('/robots.txt');
   expect(response.status()).toBe(200);
-  expect(response.headers()['content-type']).toContain('text/plain');
+  expect(response.headers()['content-type'] ?? '').toContain('text/plain');
 });
 
 test('@seo /robots.txt names every training crawler with Disallow: /', async ({ request }) => {
@@ -75,10 +75,13 @@ test('@seo /robots.txt declares Content-Signal in the wildcard block', async ({ 
   const occurrences = body.split(contentSignalLine).length - 1;
   expect(occurrences).toBe(1);
 
-  // The directive must sit inside the wildcard block, not a
-  // bot-specific one. Look for the `User-agent: *` line preceding
-  // the Content-Signal within a contiguous block (no blank line
-  // between them).
+  // The directive must sit inside the wildcard block (not a
+  // bot-specific one) — the wildcard `User-agent: *` line precedes
+  // it within a contiguous block (no blank line between them).
+  // Placement is end-of-block (after all Disallow rules) per RFC
+  // 9309 + Cloudflare reference robots.txt — unrecognized in-record
+  // lines are dropped by strict parsers, so the directive sits past
+  // the rule-line region the strict parsers consume.
   const wildcardWithSignal = /User-agent:\s*\*[\s\S]{0,500}?Content-Signal:/;
   expect(body).toMatch(wildcardWithSignal);
 });
@@ -94,8 +97,9 @@ test('@seo /robots.txt splits Applebot from Applebot-Extended', async ({ request
   expect(body).not.toMatch(/^User-agent:\s*Applebot\s*$/im);
 
   // Applebot-Extended (Apple Intelligence training) MUST appear with
-  // Disallow: /. Confirmed indirectly by the TRAINING_BOTS sweep
-  // above; this assertion makes the Applebot-split intent explicit.
+  // Disallow: /. Already covered by the training-bot User-agent
+  // matrix above; this assertion documents the Applebot-split intent
+  // explicitly so a future bot-list edit cannot silently drop it.
   expect(body).toMatch(/^User-agent:\s*Applebot-Extended\s*$/im);
 });
 

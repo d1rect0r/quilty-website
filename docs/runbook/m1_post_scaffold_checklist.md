@@ -117,7 +117,10 @@ FEATURE_FLAG_POSTHOG_CLIENT_ENABLED=false
 FEATURE_FLAG_SENTRY_REPLAY_BOOST=false
 
 # ── Security (D58 + D60) ───────────────────────────────────────────
-HSTS_PHASE=m1
+# HSTS_PHASE = scaffold | short-ramp | medium-ramp | long-ramp | preload
+# Unrecognised values silently fall back to `scaffold` (5-min TTL) —
+# stick to the named tiers. See `docs/runbook/hsts-preload-gate.md`.
+HSTS_PHASE=scaffold
 
 # ── AWS (SST 4.x) ──────────────────────────────────────────────────
 AWS_PROFILE=quilty-dev
