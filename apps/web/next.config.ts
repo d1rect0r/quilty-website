@@ -1,10 +1,14 @@
 import type { NextConfig } from 'next';
 
 /**
- * Headers for mobile-deeplink files served from `public/.well-known/`
- * (per S8 + .gitattributes). These files must serve as `application/json`
- * regardless of extension — iOS silently fails universal-link verification
- * if AASA is sent as `application/octet-stream`.
+ * Headers for static files served from `apps/web/public/.well-known/`.
+ *
+ * Covers four classes of well-known file: (1) mobile-deeplink manifests
+ * (`apple-app-site-association`, `assetlinks.json`) — iOS silently fails
+ * universal-link verification if AASA is sent as `application/octet-stream`;
+ * (2) RFC 9116 security disclosure (`security.txt`); (3) the Chrome
+ * Private Prefetch Proxy hint (`traffic-advice` — custom media type);
+ * (4) W3C TR `tracking-protection` GPC policy declaration (`gpc.json`).
  */
 async function wellKnownHeaders() {
   return [
@@ -49,6 +53,19 @@ async function wellKnownHeaders() {
       source: '/.well-known/traffic-advice',
       headers: [
         { key: 'Content-Type', value: 'application/trafficadvice+json' },
+        { key: 'Cache-Control', value: 'public, max-age=3600' },
+      ],
+    },
+    {
+      // W3C TR `tracking-protection` machine-readable GPC policy
+      // declaration. Compliance scanners + the California AG
+      // enforcement tooling read this file to verify the site honors
+      // the Sec-GPC: 1 request signal. 1h TTL — the file changes only
+      // when the policy itself changes; short enough that a policy
+      // edit propagates within the hour.
+      source: '/.well-known/gpc.json',
+      headers: [
+        { key: 'Content-Type', value: 'application/json' },
         { key: 'Cache-Control', value: 'public, max-age=3600' },
       ],
     },

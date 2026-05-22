@@ -41,6 +41,11 @@ export function makeEdgeContainer(): EdgeContainer {
     runtime: 'edge',
     sanitizer,
     logger: wrappedLogger,
+    // GPC-propagation TODO: switch this reader to a request-scoped
+    // one calling `detectGpcFromHeaders(request)` before the consent
+    // banner activates — otherwise the live Sec-GPC: 1 signal is
+    // silently bypassed at the edge even though `/.well-known/gpc.json`
+    // commits to honoring it.
     analytics: wrapAnalytics({
       adapter: makeAmplitudeAnalytics({ logger: wrappedLogger }),
       consentReader: makeDefaultDenyConsentReader(),
