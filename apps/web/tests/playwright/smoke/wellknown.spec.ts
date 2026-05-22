@@ -84,12 +84,17 @@ test('@smoke AASA matches modern applinks.details[].components schema (no legacy
   // array — the latter is the modern shape, the former is dead.
   expect(applinksRecord['apps']).toBeUndefined();
 
-  const details = applinksRecord['details'] as readonly {
+  // Narrow `details` from `unknown` with a runtime guard before the
+  // structural cast — same pattern as the gpc-json + webcredentials
+  // specs in this batch (the direct-cast form silently accepts an
+  // absent `details` key and pushes failures to runtime `.length`).
+  const rawDetails = applinksRecord['details'];
+  expect(Array.isArray(rawDetails)).toBe(true);
+  const details = rawDetails as readonly {
     appIDs?: unknown;
     components?: unknown;
     paths?: unknown;
   }[];
-  expect(Array.isArray(details)).toBe(true);
   expect(details.length).toBeGreaterThanOrEqual(1);
 
   const aasaAppIdSet = new Set<string>();
@@ -98,8 +103,10 @@ test('@smoke AASA matches modern applinks.details[].components schema (no legacy
     // information twice creates a stale-config smell.
     expect(detail.paths).toBeUndefined();
 
-    const appIDs = detail.appIDs as readonly string[];
-    expect(Array.isArray(appIDs)).toBe(true);
+    // Same narrowing pattern applied to detail.appIDs.
+    const rawAppIDs = detail.appIDs;
+    expect(Array.isArray(rawAppIDs)).toBe(true);
+    const appIDs = rawAppIDs as readonly string[];
     expect(appIDs.length).toBeGreaterThanOrEqual(1);
     for (const appID of appIDs) {
       expect(appID).toMatch(APPLE_BUNDLE_ID_PATTERN);

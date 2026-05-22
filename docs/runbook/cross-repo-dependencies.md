@@ -38,12 +38,12 @@ Each item below names the owning repo, the activation window, the verification s
   ```
 - DNS TXT record at `_smtp._tls.my-quilty.com` for TLS-RPT:
   ```
-  v=TLSRPTv1; rua=mailto:tlsrpt@my-quilty.com
+  v=TLSRPTv1; rua=mailto:tls-reports@my-quilty.com
   ```
 
-### Activation prerequisite: `tlsrpt@my-quilty.com` mailbox
+### Activation prerequisite: `tls-reports@my-quilty.com` mailbox
 
-The TLS-RPT `rua` directive directs receivers to send daily TLS-handshake-failure reports to the named mailbox. The audit-loop HIPAA-alignment claim in the next section holds only if the mailbox is provisioned + monitored before the `_smtp._tls` TXT record is published. Provision the inbox via the managed-mailbox provider (M365 today per `docs/runbook/baa-inventory.md`; cross-repo provisioning under `quilty-m365/`), assign an owner on the security on-call rotation, and verify a test report parses cleanly. **Until the mailbox exists, omit the `rua=` directive from the TXT record** — `v=TLSRPTv1` alone is valid per RFC 8460 and avoids the silent-discard window.
+The TLS-RPT `rua` directive directs receivers to send daily TLS-handshake-failure reports to the named mailbox. The audit-loop HIPAA-alignment claim in the next section holds only if the mailbox is provisioned + monitored. The `tls-reports@my-quilty.com` alias is already live (routed to the M365 dmarc shared mailbox per `quilty-aws/dns/records.tf`); the gate at the actual `mta-sts.my-quilty.com` cut-over is verifying that the alias still routes correctly + that the security on-call rotation owns triage. **Before publishing a `rua=` directive for a NEW alias** (e.g. if Quilty splits TLS-RPT reports off from dmarc), assign an owner first and omit the directive from the TXT record until verified — `v=TLSRPTv1` alone is valid per RFC 8460 and avoids the silent-discard window.
 
 ### Why a separate subdomain
 
@@ -66,7 +66,7 @@ If a misconfigured policy starts bouncing legitimate mail (symptoms: SES sends r
 
 1. Update the TXT record `_mta-sts.my-quilty.com` to `v=STSv1; id=<new-id>;` AND change the policy file's `mode` to `testing` (RFC 8461 testing mode logs but does not enforce).
 2. Wait 24h for the prior policy's `max_age` window to expire on receiver caches.
-3. Investigate via the TLS-RPT reports landing at `tlsrpt@my-quilty.com`.
+3. Investigate via the TLS-RPT reports landing at `tls-reports@my-quilty.com`.
 
 ---
 

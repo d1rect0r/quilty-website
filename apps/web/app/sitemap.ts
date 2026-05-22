@@ -24,6 +24,10 @@ const MARKETING_ROUTES = [
   '/for-business',
   '/customers',
   '/help',
+  // `/security` is the RFC 9116 policy page — indexable on purpose
+  // so security researchers + automated tooling discover the
+  // responsible-disclosure surface through normal search paths.
+  '/security',
   '/legal/privacy',
   '/legal/terms',
   '/legal/cookies',

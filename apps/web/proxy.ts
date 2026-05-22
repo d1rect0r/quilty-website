@@ -128,6 +128,12 @@ export function proxy(request: NextRequest): NextResponse {
     target.pathname = CHANGE_PASSWORD_DESTINATION;
     const redirect = NextResponse.redirect(target, 302);
     redirect.headers.set('Cache-Control', 'no-store');
+    // Defense-in-depth noindex on the redirect hop itself — a
+    // non-follow crawler indexing the intermediate /.well-known URL
+    // would otherwise see no crawl-suppression signal. The
+    // destination (portal) carries its own noindex on its own
+    // response, but the redirect hop must say so explicitly too.
+    redirect.headers.set('X-Robots-Tag', 'noindex, nofollow');
     // omitCsp: the destination (portal) carries the portal CSP on its
     // own response. Applying marketing CSP to this 302 (whose body is
     // never rendered) would mis-bucket header-inspecting observers.

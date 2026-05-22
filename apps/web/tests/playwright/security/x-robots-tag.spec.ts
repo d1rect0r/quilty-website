@@ -13,12 +13,18 @@ import { test, expect } from '@playwright/test';
 
 // `/api/auth/callback` + `/api/auth/session` cover two distinct
 // `/api/*` paths so a regression that narrows the regex from
-// `^\/api\/` to a specific subpath fails CI.
+// `^\/api\/` to a specific subpath fails CI. The change-password
+// well-known path is explicitly added because its noindex header is
+// set on the redirect-response branch in proxy.ts (NOT via the
+// `NOINDEX_PATH_PATTERNS` matcher — `.well-known/*` is excluded from
+// the primary matcher, so the change-password redirect needs its
+// own header-set path that the test pins.
 const NOINDEX_PATHS: readonly string[] = [
   '/api/auth/callback',
   '/api/auth/session',
   '/en/account',
   '/dev/boom',
+  '/.well-known/change-password',
 ];
 
 for (const path of NOINDEX_PATHS) {
