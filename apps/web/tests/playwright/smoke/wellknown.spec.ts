@@ -49,17 +49,40 @@ test('@smoke AASA matches modern applinks.details[].components schema (no legacy
   // assertion would be dead coverage. The per-detail-entry check
   // below at line ~70 is the real guard.)
   expect(aasa['appclips']).toBeUndefined();
-  // `webcredentials` (Shared Web Credentials) is only consumed when the
-  // iOS app declares the matching entitlement. Until mobile confirms
-  // the entitlement is wired, the block stays out of AASA.
-  expect(aasa['webcredentials']).toBeUndefined();
+  // `webcredentials` (Shared Web Credentials) is shipped pre-emptively
+  // as passkey-readiness — iOS Safari + Chrome credential autofill
+  // association lights up the moment the mobile team wires the
+  // matching `webcredentials:my-quilty.com` entitlement. Until then
+  // the block parses cleanly under `swcd` with zero behavior change.
+  // The apps array must list every iOS bundle variant.
+  const webcredentials = aasa['webcredentials'];
+  expect(webcredentials).not.toBeNull();
+  expect(typeof webcredentials).toBe('object');
+  const webcredentialsRecord = webcredentials as Record<string, unknown>;
+  // Narrow from `unknown` before casting — under
+  // noUncheckedIndexedAccess + exactOptionalPropertyTypes, the direct
+  // `as readonly unknown[]` cast silently accepts a missing key
+  // (undefined) and pushes the failure to the runtime arrayContaining
+  // check. The explicit guard fails as a test, not as an exception.
+  const rawApps = webcredentialsRecord['apps'];
+  expect(Array.isArray(rawApps)).toBe(true);
+  const webcredentialApps = rawApps as readonly unknown[];
+  expect(webcredentialApps.length).toBeGreaterThanOrEqual(1);
+  for (const appID of webcredentialApps) {
+    expect(typeof appID).toBe('string');
+    expect(appID).toMatch(APPLE_BUNDLE_ID_PATTERN);
+  }
 
   const applinks = aasa['applinks'];
   expect(applinks).not.toBeNull();
   expect(typeof applinks).toBe('object');
   const applinksRecord = applinks as Record<string, unknown>;
-  expect(Array.isArray(applinksRecord['apps'])).toBe(true);
-  expect((applinksRecord['apps'] as unknown[]).length).toBe(0);
+  // Apple's modern AASA schema (iOS 13+) drops the `applinks.apps`
+  // key entirely. Older Apple samples + Branch.io's validator flag
+  // its presence as a legacy-schema smell. The Universal Links
+  // `apps:` placeholder is NOT the same as the `webcredentials.apps`
+  // array — the latter is the modern shape, the former is dead.
+  expect(applinksRecord['apps']).toBeUndefined();
 
   const details = applinksRecord['details'] as readonly {
     appIDs?: unknown;
@@ -95,13 +118,24 @@ test('@smoke AASA matches modern applinks.details[].components schema (no legacy
     expect((detail.components as unknown[]).length).toBe(0);
   }
 
-  // Cross-file parity: the count of Android assetlinks statements must
-  // match the count of iOS AASA appIDs. A coordination drift (e.g.,
-  // mobile adds a new iOS variant but forgets the Android counterpart)
-  // would otherwise pass both per-file tests silently.
+  // Passkey-readiness parity: every iOS bundle in the applinks claim
+  // must also appear in the webcredentials apps array (and vice
+  // versa). A mismatch would leave one variant without credential
+  // autofill association once the mobile entitlement lights up.
+  const webcredentialAppSet = new Set<string>(
+    webcredentialApps.filter((a): a is string => typeof a === 'string'),
+  );
+  expect(webcredentialAppSet).toEqual(aasaAppIdSet);
+
+  // Cross-file parity: the count of Android assetlinks statements
+  // must match the count of iOS bundle variants. Use the
+  // webcredentialAppSet (which is set-equal to aasaAppIdSet by the
+  // line above) so a webcredentials-only edit that bypasses applinks
+  // is still caught — without the set-equality check this comparison
+  // would be vacuous against the Android count.
   const assetlinksResponse = await request.get('/.well-known/assetlinks.json');
   const assetlinksStatements = (await assetlinksResponse.json()) as readonly unknown[];
-  expect(assetlinksStatements.length).toBe(aasaAppIdSet.size);
+  expect(assetlinksStatements.length).toBe(webcredentialAppSet.size);
 });
 
 test('@smoke assetlinks.json matches Digital Asset Links schema + valid SHA256 fingerprints', async ({
@@ -119,6 +153,12 @@ test('@smoke assetlinks.json matches Digital Asset Links schema + valid SHA256 f
   for (const statement of statements) {
     expect(Array.isArray(statement.relation)).toBe(true);
     expect(statement.relation).toContain('delegate_permission/common.handle_all_urls');
+    // Passkey-readiness: `delegate_permission/common.get_login_creds`
+    // is the Android equivalent of iOS's `webcredentials` block.
+    // Shipping it pre-emptively means Chrome Credential Manager
+    // association lights up the moment the mobile Passkey-association
+    // library is wired in the Android app.
+    expect(statement.relation).toContain('delegate_permission/common.get_login_creds');
 
     const target = statement.target;
     expect(target).not.toBeNull();

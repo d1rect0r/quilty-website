@@ -27,17 +27,29 @@ async function siteRewrites(): Promise<RewritesReturn> {
 async function wellKnownHeaders() {
   return [
     {
+      // `Cross-Origin-Resource-Policy: cross-origin` is the explicit
+      // form of what currently happens by omission (the .well-known
+      // path is excluded from proxy.ts so the baseline `same-origin`
+      // CORP is never set). Stating it explicitly prevents a future
+      // CORP-everywhere hardening sweep from silently blocking
+      // iOS swcd + Apple AASA CDN fetches, which are cross-origin
+      // by nature.
       source: '/.well-known/apple-app-site-association',
       headers: [
         { key: 'Content-Type', value: 'application/json' },
         { key: 'Cache-Control', value: 'public, max-age=300' },
+        { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
       ],
     },
     {
+      // Same CORP rationale as AASA — Google's Digital Asset Links
+      // API fetches assetlinks.json cross-origin during App Links
+      // verification.
       source: '/.well-known/assetlinks.json',
       headers: [
         { key: 'Content-Type', value: 'application/json' },
         { key: 'Cache-Control', value: 'public, max-age=300' },
+        { key: 'Cross-Origin-Resource-Policy', value: 'cross-origin' },
       ],
     },
     {

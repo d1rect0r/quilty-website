@@ -40,6 +40,13 @@ This runbook covers:
         "components": []
       }
     ]
+  },
+  "webcredentials": {
+    "apps": [
+      "7XGU6BN3K3.app.quilty.myquilty",
+      "7XGU6BN3K3.app.quilty.myquilty.staging",
+      "7XGU6BN3K3.app.quilty.myquilty.dev"
+    ]
   }
 }
 ```
@@ -48,11 +55,11 @@ This runbook covers:
 
 **Why no `paths` key:** the legacy `applinks.details[].paths` form is Apple-deprecated since iOS 13. iOS 13+ `swcd` reads only `components`. Shipping both forms together (which the prior manifest did) leaves stale paths in the manifest that AASA validators flag as warnings.
 
-**Why no `webcredentials` key:** Shared Web Credentials is consumed only when the iOS app declares the matching entitlement (`com.apple.developer.associated-domains` with `webcredentials:my-quilty.com`). The mobile team has not confirmed this entitlement is wired. Until they do, the `webcredentials` block stays out of the manifest — its presence without the matching entitlement causes a silent `swcd` parse path that is observable in device console logs as a `webcredentials-entitlement-missing` warning.
+**`webcredentials` block (passkey-readiness):** Shared Web Credentials + Passkey/WebAuthn credential autofill association is consumed only when the iOS app declares the matching entitlement (`com.apple.developer.associated-domains` with `webcredentials:my-quilty.com`). The block ships pre-emptively so iOS Safari + Chrome credential autofill association lights up the moment the mobile team wires the matching entitlement — there is zero behavior change on devices without the entitlement (`swcd` parses the block cleanly and emits no warning). Lists all 3 iOS bundle variants in lockstep with `applinks.details[].appIDs`; the cross-file parity check in `wellknown.spec.ts` fails CI on drift between the two arrays. **Mobile-team coordination dependency:** the iOS entitlements file must declare `webcredentials:my-quilty.com` BEFORE any real passkey UX ships in the mobile build; until then the block is dormant.
 
 ### Android App Links (`assetlinks.json`)
 
-3 Digital Asset Links statements — one per Android variant (`production`, `staging`, `dev`) — each delegating `common.handle_all_urls` to the website host. All 3 variants currently share a **single SHA256 fingerprint**: `50:0C:AE:2E:D2:E1:18:0F:F5:6F:EC:6E:2D:99:CB:94:C6:E9:71:5F:25:28:15:1A:96:7B:86:DC:FD:58:71:19`.
+3 Digital Asset Links statements — one per Android variant (`production`, `staging`, `dev`) — each delegating BOTH `delegate_permission/common.handle_all_urls` (App Links — deep-link opening) AND `delegate_permission/common.get_login_creds` (Passkey-readiness — Android's equivalent of iOS Shared Web Credentials; Chrome Credential Manager association). The `get_login_creds` relation ships pre-emptively for the same reason as iOS `webcredentials`: zero behavior change on devices until the mobile Passkey-association library is wired, then credential autofill lights up automatically. All 3 variants currently share a **single SHA256 fingerprint**: `50:0C:AE:2E:D2:E1:18:0F:F5:6F:EC:6E:2D:99:CB:94:C6:E9:71:5F:25:28:15:1A:96:7B:86:DC:FD:58:71:19`.
 
 The shared-fingerprint posture means a single signing-key compromise rotates 3 variants in lockstep. The mobile team has not confirmed whether they intend to migrate to distinct keystores per variant. Until they confirm, the shared posture is the documented state — DO NOT change `assetlinks.json` without explicit mobile sign-off on the new fingerprint list.
 
@@ -80,7 +87,7 @@ Before any change to `apple-app-site-association` or `assetlinks.json` ships, th
 1. **iOS Team ID** — `7XGU6BN3K3` matches the Apple Developer Program team that signs the production iOS build. Confirm via Xcode → Signing & Capabilities → Team picker.
 2. **iOS bundle variants** — production / staging / dev bundle identifiers in the deploying AASA exactly match the bundle IDs configured in the 3 Xcode build schemes. Mismatch (even by case) causes `swcd` to fail verification silently.
 3. **Android package variants** — production / staging / dev package names in `assetlinks.json` match `applicationId` (NOT `applicationIdSuffix`) in each Gradle build variant. The `.staging` + `.dev` suffix in the package names is intentional and mirrors the iOS variant.
-4. **Android SHA256 strategy** — if the change moves from shared-fingerprint to distinct-per-variant, the new fingerprints are produced via `keytool -list -v -keystore <production.keystore>` and verified to match the keystore Play App Signing actually signs builds with (NOT the upload key — App Links uses the signing key after Play resigns).
+4. **Android SHA256 strategy** — if the change moves from shared-fingerprint to distinct-per-variant, the new fingerprints are produced via `keytool -list -v -keystore <production.keystore>` and verified to match the keystore Play App Signing actually signs builds with (NOT the upload key — App Links uses the signing key after Play resigns). **Passkey-readiness amplifies this:** the `delegate_permission/common.get_login_creds` relation (Chrome Credential Manager association) shares the same fingerprint as App Links — an upload-key-vs-signing-key mismatch silently breaks credential autofill on Android alongside App Links verification. Before mobile wires the Passkey-association library, the Play App Signing key fingerprint MUST be independently confirmed against Play Console → Setup → App Signing → "App signing key certificate".
 5. **iOS entitlements** — the Xcode entitlements file declares `associated-domains` with `applinks:my-quilty.com` (apex). If `webcredentials` is being re-added, the entitlement also declares `webcredentials:my-quilty.com`.
 6. **Android intent filters** — `AndroidManifest.xml` declares `<intent-filter android:autoVerify="true">` with `<data android:scheme="https" android:host="my-quilty.com" />`. Without `autoVerify="true"`, the Android Verifier never fetches `assetlinks.json` and links open in a chooser instead of the app.
 7. **App handler safety** — every `components` pattern + every `assetlinks.json`-claimed route MUST have a corresponding in-app deep-link handler. An unhandled deep-link crash or "page not found" inside the app post-redirect is a worse UX than no claim at all.
@@ -88,13 +95,13 @@ Before any change to `apple-app-site-association` or `assetlinks.json` ships, th
 
 ## Activation triggers
 
-| When                                                          | Action                                                                                                                                       |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Website ships an auth-related route the mobile app should own | Add a single entry to `applinks.details[].components` + the corresponding Android `path_pattern` intent filter. Run the 8-item checklist.    |
-| Mobile team confirms Shared Web Credentials entitlement       | Re-add `webcredentials` block to AASA + matching iOS entitlement.                                                                            |
-| Mobile team migrates to distinct per-variant keystores        | Update each variant's `sha256_cert_fingerprints` array in `assetlinks.json`. Each variant becomes a distinct rotation surface.               |
-| App Clips entitlement lands                                   | Add `appclips` block with the App Clip Bundle IDs.                                                                                           |
-| Mobile team rotates a signing key                             | The displaced variant block in `assetlinks.json` must list BOTH old + new fingerprints during the rollover (production rollover: 7-14 days). |
+| When                                                              | Action                                                                                                                                                                                                                    |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Website ships an auth-related route the mobile app should own     | Add a single entry to `applinks.details[].components` + the corresponding Android `path_pattern` intent filter. Run the 8-item checklist.                                                                                 |
+| Mobile team confirms Shared Web Credentials / Passkey entitlement | iOS entitlements file declares `webcredentials:my-quilty.com`; Android Passkey-association library wired. The website-side blocks already ship and become live automatically — no manifest change required at activation. |
+| Mobile team migrates to distinct per-variant keystores            | Update each variant's `sha256_cert_fingerprints` array in `assetlinks.json`. Each variant becomes a distinct rotation surface.                                                                                            |
+| App Clips entitlement lands                                       | Add `appclips` block with the App Clip Bundle IDs.                                                                                                                                                                        |
+| Mobile team rotates a signing key                                 | The displaced variant block in `assetlinks.json` must list BOTH old + new fingerprints during the rollover (production rollover: 7-14 days).                                                                              |
 
 ## Rollback procedure
 

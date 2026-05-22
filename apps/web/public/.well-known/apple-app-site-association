@@ -1,6 +1,5 @@
 {
   "applinks": {
-    "apps": [],
     "details": [
       {
         "appIDs": [
@@ -10,6 +9,13 @@
         ],
         "components": []
       }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "7XGU6BN3K3.app.quilty.myquilty",
+      "7XGU6BN3K3.app.quilty.myquilty.staging",
+      "7XGU6BN3K3.app.quilty.myquilty.dev"
     ]
   }
 }
