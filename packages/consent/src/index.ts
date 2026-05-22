@@ -17,7 +17,9 @@
  * depend on this package for the port type rather than re-exporting it.
  */
 
-export type { ConsentReader, ConsentSnapshot } from './ports';
+export type { ConsentReader, ConsentSnapshot, ConsentStore, ConsentIdentifier } from './ports';
+
+export { mergeConsentSnapshots } from './domain/migrate';
 
 export {
   type CookieCategory,
@@ -26,6 +28,7 @@ export {
   type V0ConsentCategoryState,
   type TaxonomyVersion,
   TAXONOMY_VERSION,
+  CONSENT_COOKIE_NAME,
   COOKIE_REGISTRY,
   DEFAULT_DENY_STATE,
   migrateFromV0,
@@ -36,3 +39,9 @@ export { detectGpcFromHeaders, type HeaderGetter } from './domain/gpc-detector';
 export { makeDefaultDenyConsentReader } from './domain/default-deny-consent';
 
 export { Banner, type BannerProps } from './components/Banner';
+
+// `makeInMemoryConsentStore` lives on the server subpath
+// (`@quilty/consent/server`) rather than the universal barrel — the
+// store carries an in-process audit-history Map that should never
+// instantiate in a client bundle. The server + edge composition roots
+// import it from the server subpath; client code cannot reach it.

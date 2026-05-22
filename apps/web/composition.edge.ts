@@ -17,7 +17,8 @@
  */
 
 import { cookies as nextCookies, headers as nextHeaders } from 'next/headers';
-import { makeServerConsentReader } from '@quilty/consent/server';
+import { CONSENT_COOKIE_NAME } from '@quilty/consent';
+import { makeInMemoryConsentStore, makeServerConsentReader } from '@quilty/consent/server';
 import {
   makeAmplitudeAnalytics,
   makeCloudWatchLogger,
@@ -29,11 +30,6 @@ import {
 } from '@quilty/observability';
 import { makeSanitizer } from '@quilty/security';
 import type { EdgeContainer } from './lib/get-container';
-
-// Future cookie name — see composition.server.ts for the cookie-write
-// activation gate. Mirrored here so the edge tier reads the same
-// cookie name once the banner writes it.
-const CONSENT_COOKIE_NAME = '__Host-quilty_consent';
 
 export function makeEdgeContainer(): EdgeContainer {
   const sanitizer = makeSanitizer();
@@ -70,5 +66,10 @@ export function makeEdgeContainer(): EdgeContainer {
       sanitizer,
     }),
     featureFlags: makeEnvFlagEvaluator(),
+    // In-memory ConsentStore on the Edge tier. The adapter uses only
+    // the Map Web API + plain JS — Edge-runtime-safe. The DynamoDB
+    // adapter is server-only (AWS SDK is Node-only); when it activates,
+    // a parallel Edge-compat fetch-based adapter ships here.
+    consentStore: makeInMemoryConsentStore(),
   };
 }

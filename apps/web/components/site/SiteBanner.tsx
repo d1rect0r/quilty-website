@@ -1,6 +1,7 @@
 import { cookies, headers } from 'next/headers';
 import {
   Banner,
+  CONSENT_COOKIE_NAME,
   COOKIE_REGISTRY,
   detectGpcFromHeaders,
   TAXONOMY_VERSION,
@@ -24,15 +25,13 @@ import {
  *      Matches the parse path in `@quilty/consent/server` cookie-reader.
  */
 
-// Cookie name + lifetime are sourced from the taxonomy registry so a
-// future rename or lifetime change in `@quilty/consent` surfaces here
-// without a parallel hand-edit. The registry is the single source of
-// truth (mismatch is a Disney $2.75M / Ford $375K enforcement risk).
-const COOKIE_NAME = '__Host-quilty_consent';
-const CONSENT_COOKIE_ENTRY = COOKIE_REGISTRY.find((c) => c.name === COOKIE_NAME);
+// Cookie lifetime sourced from the taxonomy registry — single source
+// of truth (mismatch is a Disney $2.75M / Ford $375K enforcement
+// risk). Cookie NAME is the shared `CONSENT_COOKIE_NAME` constant.
+const CONSENT_COOKIE_ENTRY = COOKIE_REGISTRY.find((c) => c.name === CONSENT_COOKIE_NAME);
 if (CONSENT_COOKIE_ENTRY === undefined || CONSENT_COOKIE_ENTRY.lifetime === 'session') {
   throw new Error(
-    `Consent cookie "${COOKIE_NAME}" missing from @quilty/consent COOKIE_REGISTRY or has session lifetime — registry must declare a numeric day count.`,
+    `Consent cookie "${CONSENT_COOKIE_NAME}" missing from @quilty/consent COOKIE_REGISTRY or has session lifetime — registry must declare a numeric day count.`,
   );
 }
 const COOKIE_LIFETIME_DAYS = CONSENT_COOKIE_ENTRY.lifetime;
@@ -113,7 +112,7 @@ async function persistConsent(state: unknown): Promise<void> {
   const encoded = Buffer.from(JSON.stringify(payload), 'utf-8').toString('base64');
   const cookieStore = await cookies();
   cookieStore.set({
-    name: COOKIE_NAME,
+    name: CONSENT_COOKIE_NAME,
     value: encoded,
     // `__Host-` prefix requires Secure + Path=/ + no Domain. httpOnly is
     // intentionally false so the client-side useConsent() hook can read
@@ -129,7 +128,7 @@ async function persistConsent(state: unknown): Promise<void> {
 
 export async function SiteBanner(): Promise<React.JSX.Element | null> {
   const cookieStore = await cookies();
-  const existingCookie = cookieStore.get(COOKIE_NAME)?.value;
+  const existingCookie = cookieStore.get(CONSENT_COOKIE_NAME)?.value;
   const h = await headers();
   const gpcDetected = detectGpcFromHeaders(h);
 

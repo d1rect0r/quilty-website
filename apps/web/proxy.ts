@@ -1,3 +1,4 @@
+import { CONSENT_COOKIE_NAME, COOKIE_REGISTRY, TAXONOMY_VERSION } from '@quilty/consent';
 import {
   buildMarketingCsp,
   buildPortalCsp,
@@ -72,6 +73,74 @@ function shouldNoindexPath(pathname: string): boolean {
   return NOINDEX_PATH_PATTERNS.some((pattern) => pattern.test(pathname));
 }
 
+// GPC FORCE-OFF cookie (D100 + Disney $2.75M Feb 2026). Lifetime
+// derived from COOKIE_REGISTRY so a future legal review can rotate
+// in one place. Module-init throw guards against a registry drop or
+// `session`-lifetime reassignment.
+const CONSENT_COOKIE_ENTRY = COOKIE_REGISTRY.find((c) => c.name === CONSENT_COOKIE_NAME);
+if (CONSENT_COOKIE_ENTRY === undefined || CONSENT_COOKIE_ENTRY.lifetime === 'session') {
+  throw new Error(
+    `proxy.ts: consent cookie "${CONSENT_COOKIE_NAME}" missing from @quilty/consent COOKIE_REGISTRY or has session lifetime — registry must declare a numeric day count.`,
+  );
+}
+const CONSENT_COOKIE_MAX_AGE_SECONDS = CONSENT_COOKIE_ENTRY.lifetime * 24 * 60 * 60;
+
+/**
+ * Edge-runtime-safe base64 encoder. `Buffer` is polyfilled in the
+ * Next.js Edge runtime but the Web-API path here is the canonical
+ * cross-runtime form. JSON output is ASCII-only (taxonomy field
+ * names + boolean literals + ISO timestamp) so the Latin-1 round
+ * trip is safe; if non-ASCII content ever lands in the payload,
+ * promote to `TextEncoder` + chunked encoding.
+ */
+function base64Encode(value: string): string {
+  return btoa(value);
+}
+
+/**
+ * Write the GPC FORCE-OFF consent cookie on the response if and only
+ * if `Sec-GPC: 1` is present AND no consent cookie already exists.
+ * Idempotent — a returning GPC user with the cookie already set
+ * skips the write so the existing record (which may carry a more
+ * recent `updated_at`) is preserved.
+ */
+function applyGpcForceOffCookie(request: NextRequest, response: NextResponse): void {
+  if (request.headers.get('sec-gpc') !== '1') return;
+  if (request.cookies.has(CONSENT_COOKIE_NAME)) return;
+
+  // `gpc_detected` is included for type-shape completeness — the
+  // cookie reader re-derives it from the live header on every read,
+  // but writing it absent leaves the persisted object structurally
+  // partial against the ConsentSnapshot contract.
+  const payload = JSON.stringify({
+    essential: true,
+    functional: true,
+    analytics: false,
+    marketing: false,
+    personalization: false,
+    gpc_detected: false,
+    gpc_honored: true,
+    version: TAXONOMY_VERSION,
+    updated_at: new Date().toISOString(),
+  });
+
+  response.cookies.set({
+    name: CONSENT_COOKIE_NAME,
+    value: base64Encode(payload),
+    // `__Host-` prefix requires Secure + Path=/ + no Domain. httpOnly
+    // intentionally false (matches the cookie-taxonomy registry +
+    // future useConsent() client hook). SameSite=Lax — the cookie
+    // travels with top-level navigation but not with cross-site
+    // sub-resource POSTs, which is the right CSRF posture for an
+    // opt-out marker.
+    secure: true,
+    httpOnly: false,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: CONSENT_COOKIE_MAX_AGE_SECONDS,
+  });
+}
+
 /**
  * Apply the response-side security header stack (CSP-Report-Only +
  * HSTS + COOP + CORP + nosniff + frame-options + referrer + permissions).
@@ -119,6 +188,7 @@ export function proxy(request: NextRequest): NextResponse {
     target.pathname = `/${DEFAULT_LOCALE}`;
     const redirect = NextResponse.redirect(target, 307);
     applySecurityHeaders(redirect, { portal: false, nonce: undefined });
+    applyGpcForceOffCookie(request, redirect);
     return redirect;
   }
 
@@ -144,6 +214,7 @@ export function proxy(request: NextRequest): NextResponse {
     // own response. Applying marketing CSP to this 302 (whose body is
     // never rendered) would mis-bucket header-inspecting observers.
     applySecurityHeaders(redirect, { portal: false, nonce: undefined, omitCsp: true });
+    applyGpcForceOffCookie(request, redirect);
     return redirect;
   }
 
@@ -168,12 +239,10 @@ export function proxy(request: NextRequest): NextResponse {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   }
 
-  // Sec-GPC is a REQUEST-only signal per the spec (browser → server). We
-  // do NOT echo it on responses — server consumers read it from the
-  // request directly. The CloudFront Function edge layer (D63) sets a
-  // persistent opt-out cookie when Sec-GPC: 1 is detected; downstream
-  // Server Components + Route Handlers (e.g. GpcHonoredIndicator) read
-  // the header from the request, not from any response echo.
+  // GPC FORCE-OFF persistence write per D100. The CloudFront Function
+  // edge layer (D63) is the eventual production home for this cookie
+  // write; proxy.ts is the stand-in until that infrastructure ships.
+  applyGpcForceOffCookie(request, response);
 
   return response;
 }

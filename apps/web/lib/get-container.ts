@@ -33,6 +33,7 @@
  */
 
 import type { CaptchaVerifier } from '@quilty/captcha';
+import type { ConsentStore } from '@quilty/consent';
 import type { EmailSender } from '@quilty/email';
 import type { Analytics, ErrorReporter, FeatureFlagEvaluator, Logger } from '@quilty/observability';
 import type { RateLimiter } from '@quilty/rate-limit';
@@ -70,6 +71,16 @@ export interface ServerContainer extends BaseContainer {
   readonly emailSender: EmailSender;
   readonly captchaVerifier: CaptchaVerifier;
   readonly rateLimiter: RateLimiter;
+  /**
+   * ConsentStore (D87) — persists consent records keyed by either the
+   * anonymous cookie identifier or the signed-in user_id_hash. Used
+   * by Route Handlers that mutate consent (auth-callback's
+   * migrate(cookie→user)) and by Server Components that read the
+   * signed-in user's record. The cookie tier consent read still
+   * happens via `makeServerConsentReader` reading the
+   * `__Host-quilty_consent` cookie directly.
+   */
+  readonly consentStore: ConsentStore;
 }
 
 /**
@@ -95,6 +106,13 @@ export interface ClientContainer extends BaseContainer {
  */
 export interface EdgeContainer extends BaseContainer {
   readonly runtime: 'edge';
+  /**
+   * ConsentStore at the Edge tier. The in-memory adapter is
+   * Edge-runtime-safe (Map-based, no Node-only APIs). When the
+   * DynamoDB adapter ships, an Edge-compat fetch-based variant lands
+   * here while the Node tier uses the AWS SDK adapter.
+   */
+  readonly consentStore: ConsentStore;
 }
 
 /**

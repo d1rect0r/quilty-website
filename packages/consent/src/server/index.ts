@@ -9,3 +9,6 @@ import 'server-only';
 
 export { makeServerConsentReader, type ServerConsentReaderInput } from './cookie-reader';
 export { GpcHonoredIndicator } from '../components/GpcHonoredIndicator';
+
+export { makeDynamoDBConsentStore, type DynamoDBConsentStoreInput } from '../adapters/dynamodb';
+export { makeInMemoryConsentStore, type InMemoryConsentStore } from '../adapters/in-memory';

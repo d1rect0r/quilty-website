@@ -70,7 +70,12 @@ export interface ServerConsentReaderInput {
 function parseConsentCookie(raw: string | null): Partial<ConsentSnapshot> | null {
   if (raw === null) return null;
   try {
-    const decoded = Buffer.from(raw, 'base64').toString('utf-8');
+    // atob() is the Web-API path used by proxy.ts (Edge-runtime) on
+    // the encode side. The decoder uses the same API for symmetry +
+    // edge-runtime-portability if this reader is ever invoked from an
+    // Edge Route Handler. The payload is all-ASCII JSON so the
+    // Latin-1 round trip is safe.
+    const decoded = atob(raw);
     const parsed: unknown = JSON.parse(decoded);
     if (typeof parsed !== 'object' || parsed === null) return null;
     // v0 → v1 grandfathering per D98. A v0-shaped cookie is migrated

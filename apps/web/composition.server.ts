@@ -22,7 +22,8 @@ import 'server-only';
 
 import { cookies as nextCookies, headers as nextHeaders } from 'next/headers';
 import { makeInMemoryCaptchaVerifier } from '@quilty/captcha';
-import { makeServerConsentReader } from '@quilty/consent/server';
+import { CONSENT_COOKIE_NAME } from '@quilty/consent';
+import { makeInMemoryConsentStore, makeServerConsentReader } from '@quilty/consent/server';
 import { makeInMemoryEmailSender, wrapEmailSender } from '@quilty/email';
 import { makeInMemoryRateLimiter } from '@quilty/rate-limit';
 import {
@@ -36,11 +37,6 @@ import {
 } from '@quilty/observability';
 import { makeSanitizer } from '@quilty/security';
 import type { ServerContainer } from './lib/get-container';
-
-// Future cookie name — reserved at the scaffold so the reader path
-// is wired now. The banner activation will start writing to it; the
-// current reader returns `null` (default-deny) until then.
-const CONSENT_COOKIE_NAME = '__Host-quilty_consent';
 
 export function makeServerContainer(): ServerContainer {
   const sanitizer = makeSanitizer();
@@ -97,5 +93,11 @@ export function makeServerContainer(): ServerContainer {
     // today — load-bearing for auth-adjacent paths. The DynamoDB
     // adapter activates once the table + Lambda IAM grant ship.
     rateLimiter: makeInMemoryRateLimiter(),
+    // In-memory ConsentStore at the scaffold. The DynamoDB adapter
+    // activates with the D63 two-table layout (consent-current +
+    // consent-audit) in `quilty-aws/website-baseline/`. The store
+    // shape is identical across adapters — only the persistence
+    // backing changes.
+    consentStore: makeInMemoryConsentStore(),
   };
 }

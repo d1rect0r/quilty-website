@@ -49,6 +49,13 @@ export type CookieCategory =
  */
 export const TAXONOMY_VERSION = 'v1' as const;
 
+/**
+ * Canonical name for the persisted consent cookie. Imported by every
+ * site that reads or writes it (proxy.ts, composition roots,
+ * SiteBanner Server Action) so a future rename surfaces in one place.
+ */
+export const CONSENT_COOKIE_NAME = '__Host-quilty_consent' as const;
+
 export type TaxonomyVersion = typeof TAXONOMY_VERSION;
 
 /**

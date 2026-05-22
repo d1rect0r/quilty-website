@@ -1,5 +1,6 @@
 import { makeInMemoryCaptchaVerifier } from '@quilty/captcha';
 import { makeDefaultDenyConsentReader } from '@quilty/consent';
+import { makeInMemoryConsentStore } from '@quilty/consent/server';
 import { makeInMemoryEmailSender, wrapEmailSender } from '@quilty/email';
 import {
   makeAmplitudeAnalytics,
@@ -41,6 +42,7 @@ function makeTestServerContainer(): ServerContainer {
     emailSender: wrapEmailSender({ adapter: makeInMemoryEmailSender(), sanitizer }),
     captchaVerifier: makeInMemoryCaptchaVerifier(),
     rateLimiter: makeInMemoryRateLimiter(),
+    consentStore: makeInMemoryConsentStore(),
   };
 }
 
@@ -75,6 +77,7 @@ function makeTestEdgeContainer(): EdgeContainer {
     }),
     errorReporter: wrapErrorReporter({ adapter: makeSentryErrorReporter(), sanitizer }),
     featureFlags: makeEnvFlagEvaluator(),
+    consentStore: makeInMemoryConsentStore(),
   };
 }
 
