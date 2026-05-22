@@ -1,6 +1,27 @@
 import type { NextConfig } from 'next';
 
 type RewritesReturn = Awaited<ReturnType<NonNullable<NextConfig['rewrites']>>>;
+type RedirectsReturn = Awaited<ReturnType<NonNullable<NextConfig['redirects']>>>;
+
+/**
+ * Short-alias redirects. `/accessibility` → `/en/legal/accessibility`
+ * so the conformance-statement URL travels well on business cards +
+ * email signatures + supervisory-authority correspondence (the EAA
+ * complaint procedure surfaces the URL in regulatory paperwork; a
+ * memorable short form reduces friction). `permanent: false` keeps
+ * the alias mutable while the locale strategy is single-locale —
+ * promotes to `true` (308) when i18n locks at the next-intl
+ * activation.
+ */
+async function siteRedirects(): Promise<RedirectsReturn> {
+  return [
+    {
+      source: '/accessibility',
+      destination: '/en/legal/accessibility',
+      permanent: false,
+    },
+  ];
+}
 
 /**
  * `/robots.txt` is internally rewritten to the Route Handler at
@@ -151,6 +172,7 @@ const config: NextConfig = {
     remotePatterns: [],
   },
   headers: wellKnownHeaders,
+  redirects: siteRedirects,
   rewrites: siteRewrites,
 };
 

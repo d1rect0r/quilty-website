@@ -21,10 +21,12 @@ import type { MetadataRoute } from 'next';
 const SUPPORTED_LOCALES = ['en'] as const;
 
 // Most stub pages share a scaffold-baseline date until real content
-// lands. The security page is RFC 9116 + responsible-disclosure
-// content, edited 2026-05-21.
+// lands. Real-content dates are stamped per page so Googlebot treats
+// the lastModified signal as reliable (per-route stability rather
+// than per-request `new Date()`).
 const SCAFFOLD_DATE = '2026-05-18';
 const SECURITY_PAGE_DATE = '2026-05-21';
+const ACCESSIBILITY_PAGE_DATE = '2026-05-22';
 
 interface MarketingRoute {
   readonly path: string;
@@ -58,6 +60,19 @@ const MARKETING_ROUTES: readonly MarketingRoute[] = [
   { path: '/legal/privacy', lastModified: SCAFFOLD_DATE, changeFrequency: 'yearly', priority: 0.7 },
   { path: '/legal/terms', lastModified: SCAFFOLD_DATE, changeFrequency: 'yearly', priority: 0.7 },
   { path: '/legal/cookies', lastModified: SCAFFOLD_DATE, changeFrequency: 'yearly', priority: 0.7 },
+  // `/legal/accessibility` is the EAA (EU 2019/882) + EN 301 549
+  // conformance statement — indexable so supervisory-authority
+  // tooling + research crawlers can discover it without the
+  // /accessibility short alias. Priority 0.7 matches peer legal
+  // pages — EAA discoverability is a load-bearing compliance
+  // posture; signalling it as lower-priority than the cookie
+  // policy would invert the regulatory intent.
+  {
+    path: '/legal/accessibility',
+    lastModified: ACCESSIBILITY_PAGE_DATE,
+    changeFrequency: 'yearly',
+    priority: 0.7,
+  },
 ] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {

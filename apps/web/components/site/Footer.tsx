@@ -44,6 +44,7 @@ export function Footer() {
               { label: 'Privacy', href: '/en/legal/privacy' },
               { label: 'Terms', href: '/en/legal/terms' },
               { label: 'Cookies', href: '/en/legal/cookies' },
+              { label: 'Accessibility', href: '/en/legal/accessibility' },
               { label: 'Your Privacy Choices', href: '/en/legal/privacy#gpc' },
             ]}
           />
