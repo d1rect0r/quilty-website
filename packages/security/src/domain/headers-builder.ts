@@ -4,9 +4,13 @@
  *
  * HSTS ramp (D60): ships `max-age=300` (5 minutes) at the scaffold
  * phase — submitting to hstspreload.org is the irreversible 6-12-month
- * commitment deferred to the launch gate. Ramp schedule:
- *   5min → 1day → 1week → 1year → 1yr+includeSubDomains →
- *   2yr+includeSubDomains+preload.
+ * commitment deferred to the launch gate. Five-phase ramp:
+ *   scaffold (5min) → short-ramp (1day) → medium-ramp (1week) →
+ *   long-ramp (1yr+includeSubDomains) →
+ *   preload (2yr+includeSubDomains+preload).
+ * `includeSubDomains` first appears at `long-ramp`, which is also the
+ * tier where subdomain HSTS coverage becomes mandatory before
+ * submission (see `docs/runbook/hsts-preload-gate.md`).
  */
 
 import type { HstsPhase, SecurityHeaderEntry } from '../ports';
