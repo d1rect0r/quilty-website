@@ -27,6 +27,17 @@ import { NextResponse, type NextRequest } from 'next/server';
 const isDev = process.env.NODE_ENV === 'development';
 const DEFAULT_LOCALE = 'en';
 
+// RFC 8615 well-known path; credential managers (Chrome, Safari,
+// 1Password, Bitwarden, Apple Passwords) discover it to surface
+// "change password" UX. Destination + Cache-Control live HERE rather
+// than in next.config.ts because Next.js evaluates `redirects` BEFORE
+// `headers`, so a redirect entry would short-circuit the header rule
+// and leave `Cache-Control: no-store` unreachable. Routing through
+// proxy.ts gives the redirect response a header — which password
+// managers MUST receive so they never cache a stale pointer.
+const CHANGE_PASSWORD_WELL_KNOWN = '/.well-known/change-password';
+const CHANGE_PASSWORD_DESTINATION = `/${DEFAULT_LOCALE}/account/security`;
+
 /**
  * Apply the response-side security header stack (CSP-Report-Only +
  * HSTS + COOP + CORP + nosniff + frame-options + referrer + permissions).
@@ -36,13 +47,26 @@ const DEFAULT_LOCALE = 'en';
  */
 function applySecurityHeaders(
   response: NextResponse,
-  options: { readonly portal: boolean; readonly nonce: string | undefined },
+  options: {
+    readonly portal: boolean;
+    readonly nonce: string | undefined;
+    readonly omitCsp?: boolean;
+  },
 ): void {
-  const cspValue =
-    options.portal && options.nonce !== undefined
-      ? buildPortalCsp(options.nonce, { isDevelopment: isDev })
-      : buildMarketingCsp({ isDevelopment: isDev });
-  response.headers.set('Content-Security-Policy-Report-Only', cspValue);
+  // omitCsp is set on redirect responses targeting a different CSP
+  // tier than the redirect itself. A 302/307 body is never rendered,
+  // so the CSP on the hop is inert — but applying a tier-mismatched
+  // policy mis-buckets any header-inspecting observer (bots, password
+  // managers reading the report-only header). The destination URL
+  // gets its own CSP on its own response, which is what actually
+  // matters for browser execution.
+  if (options.omitCsp !== true) {
+    const cspValue =
+      options.portal && options.nonce !== undefined
+        ? buildPortalCsp(options.nonce, { isDevelopment: isDev })
+        : buildMarketingCsp({ isDevelopment: isDev });
+    response.headers.set('Content-Security-Policy-Report-Only', cspValue);
+  }
   for (const { key, value } of buildSecurityHeaders()) {
     response.headers.set(key, value);
   }
@@ -61,6 +85,25 @@ export function proxy(request: NextRequest): NextResponse {
     target.pathname = `/${DEFAULT_LOCALE}`;
     const redirect = NextResponse.redirect(target, 307);
     applySecurityHeaders(redirect, { portal: false, nonce: undefined });
+    return redirect;
+  }
+
+  // RFC 8615 + W3C webappsec-change-password-url. 302 per spec — 301
+  // is explicitly prohibited (the destination must remain mutable as
+  // auth flows evolve). Cache-Control: no-store ensures password
+  // managers always re-evaluate the current pointer; a cached
+  // redirect would send users to a stale URL the moment the portal
+  // security page moves. Locale is hard-coded — credential managers
+  // do not negotiate locale; the portal handles locale on landing.
+  if (pathname === CHANGE_PASSWORD_WELL_KNOWN) {
+    const target = request.nextUrl.clone();
+    target.pathname = CHANGE_PASSWORD_DESTINATION;
+    const redirect = NextResponse.redirect(target, 302);
+    redirect.headers.set('Cache-Control', 'no-store');
+    // omitCsp: the destination (portal) carries the portal CSP on its
+    // own response. Applying marketing CSP to this 302 (whose body is
+    // never rendered) would mis-bucket header-inspecting observers.
+    applySecurityHeaders(redirect, { portal: false, nonce: undefined, omitCsp: true });
     return redirect;
   }
 
@@ -99,6 +142,13 @@ export function proxy(request: NextRequest): NextResponse {
  * portal-tier CSP, and security-test discipline (csp.spec.ts) asserts
  * the nonce on `/api/auth/*`. The per-request CPU cost of computing 7
  * headers is microseconds — not worth the security boundary erosion.
+ *
+ * `/.well-known/change-password` is the lone .well-known path that
+ * MUST flow through the proxy — it returns a 302 redirect, not a
+ * static deeplink-manifest file. Every other .well-known path
+ * (apple-app-site-association, assetlinks.json, security.txt,
+ * traffic-advice, …) is a static file served via next.config.ts
+ * `headers()` and stays excluded.
  */
 export const config = {
   matcher: [
@@ -106,5 +156,6 @@ export const config = {
     // (deeplink files served with their own Content-Type via
     // next.config.ts headers()).
     '/((?!_next/static|_next/image|favicon\\.ico|\\.well-known).*)',
+    '/.well-known/change-password',
   ],
 };

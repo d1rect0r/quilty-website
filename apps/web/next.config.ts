@@ -55,20 +55,6 @@ async function wellKnownHeaders() {
   ];
 }
 
-type RedirectsReturn = Awaited<ReturnType<NonNullable<NextConfig['redirects']>>>;
-
-/**
- * Versioned redirect table (D16). Root `/` → default locale is owned
- * by `proxy.ts` (so the redirect response carries the full CSP +
- * security-header stack); historic content-moved redirects land here
- * with `permanent: true` since `next.config.ts` redirects fire before
- * the proxy + apply to static assets too. Never blanket-301 to
- * homepage — Google soft-404 trap.
- */
-async function siteRedirects(): Promise<RedirectsReturn> {
-  return [];
-}
-
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -115,7 +101,6 @@ const config: NextConfig = {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [],
   },
-  redirects: siteRedirects,
   headers: wellKnownHeaders,
 };
 

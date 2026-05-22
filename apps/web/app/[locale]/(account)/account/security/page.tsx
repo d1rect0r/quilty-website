@@ -1,8 +1,15 @@
 import { PortalSidebar } from '@/components/account/PortalSidebar';
 import type { Metadata } from 'next';
 
+// `robots` repeated explicitly (rather than inherited from the
+// account-segment layout) because this page is the destination of
+// the `/.well-known/change-password` redirect — credential managers
+// funnel every user with saved credentials here. Belt-and-suspenders
+// against a future metadata edit silently breaking the layout-cascade
+// noindex (e.g., adding a canonical key without re-stating robots).
 export const metadata: Metadata = {
   title: 'Security',
+  robots: { index: false, follow: false },
 };
 
 const SECURITY_SECTIONS = [
