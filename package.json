@@ -23,6 +23,7 @@
     "lint": "turbo run lint",
     "prepare": "husky",
     "secretlint": "secretlint --secretlintrc .secretlintrc.json --secretlintignore .secretlintignore '**/*' --maskSecrets",
+    "security-txt:check": "node scripts/check-security-txt-expires.mjs",
     "size": "size-limit",
     "size:why": "size-limit --why",
     "sst:dev": "sst dev --stage dev",
@@ -36,7 +37,7 @@
     "test:e2e": "turbo run test:e2e",
     "type-coverage": "type-coverage",
     "typecheck": "turbo run typecheck",
-    "verify": "pnpm syncpack:lint && pnpm knip && pnpm depcruise && pnpm typecheck && pnpm lint && pnpm test && pnpm type-coverage && pnpm format:check && pnpm secretlint"
+    "verify": "pnpm syncpack:lint && pnpm knip && pnpm depcruise && pnpm security-txt:check && pnpm typecheck && pnpm lint && pnpm test && pnpm type-coverage && pnpm format:check && pnpm secretlint"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",

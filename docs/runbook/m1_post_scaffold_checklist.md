@@ -220,6 +220,25 @@ After steps 1-9:
 If all green: M1 sprint is officially closed. Bump
 `.claude/CURRENT_PHASE` to `M2` (step 2 above) and we move on.
 
+## 11. Provision the `security@my-quilty.com` mailbox before the public DNS cut-over
+
+The static `/.well-known/security.txt` file declares
+`Contact: mailto:security@my-quilty.com`. The mailbox must exist before
+the file becomes publicly reachable — researchers + automated tooling
+will start emailing the moment the file is crawled. **Pre-merge gate
+for the public-DNS deploy:**
+
+1. Provision `security@my-quilty.com` via the managed-mailbox provider
+   (M365 today per the BAA inventory at `docs/runbook/baa-inventory.md`;
+   cross-repo provisioning lives in `quilty-m365/`).
+2. Verify a test message reaches the security on-call mailbox.
+3. Document the SLA in the on-call runbook (3 business days
+   acknowledgement per the policy page).
+
+Until the mailbox exists, route `security@` to an already-monitored
+inbox via a temporary alias so no report falls into a silent-discard
+window.
+
 ## Things to expect at the M2 kickoff
 
 - [ ] Real content lands in the 7 placeholder marketing pages

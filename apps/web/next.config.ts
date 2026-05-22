@@ -22,6 +22,36 @@ async function wellKnownHeaders() {
         { key: 'Cache-Control', value: 'public, max-age=300' },
       ],
     },
+    {
+      // RFC 9116 mandates text/plain. The charset suffix is
+      // belt-and-suspenders against browsers (not crawlers) attempting
+      // to render the file. 1h CDN TTL — short enough that an annual
+      // rotation propagates within the hour; long enough not to hammer
+      // origin. X-Robots-Tag prevents the file from appearing in
+      // search-engine SERPs (it's meant for RFC-9116 tooling to fetch
+      // directly, not for users to discover via web search — the PHI
+      // warning copy in the file is for security researchers, not the
+      // general public).
+      source: '/.well-known/security.txt',
+      headers: [
+        { key: 'Content-Type', value: 'text/plain; charset=utf-8' },
+        { key: 'Cache-Control', value: 'public, max-age=3600' },
+        { key: 'X-Robots-Tag', value: 'noindex' },
+      ],
+    },
+    {
+      // Chrome Private Prefetch Proxy hint per privacycg/private-prefetch-proxy.
+      // Custom media type required — plain application/json makes the
+      // proxy ignore the policy. fraction:1.0 is safe pre-launch because
+      // the marketing tier (the only public link graph) carries no
+      // authenticated paths; revisit when /en/account/* becomes
+      // link-graph-reachable from public pages.
+      source: '/.well-known/traffic-advice',
+      headers: [
+        { key: 'Content-Type', value: 'application/trafficadvice+json' },
+        { key: 'Cache-Control', value: 'public, max-age=3600' },
+      ],
+    },
   ];
 }
 

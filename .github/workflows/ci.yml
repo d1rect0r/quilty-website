@@ -3,22 +3,26 @@
 # Runs on every PR + push to main. Jobs:
 #   1. install — pnpm install with frozen lockfile + cache
 #   2. lint — ESLint flat + Prettier --check
-#   3. typecheck — TypeScript strict across workspaces
-#   4. test — Vitest unit (with v8 coverage)
-#   5. test:a11y — Playwright + axe-core WCAG 2.2 AA
-#   6. test:e2e — Playwright smoke + security + seo
-#   7. build — Next.js production build (verifies the full app compiles)
+#   3. hygiene — syncpack + Knip + depcruise + security.txt expires
+#                gate + type-coverage + secretlint
+#   4. typecheck — TypeScript strict across workspaces
+#   5. test — Vitest unit (with v8 coverage)
+#   6. test:a11y — Playwright + axe-core WCAG 2.2 AA
+#   7. test:e2e — Playwright smoke + security + seo
+#   8. build — Next.js production build (verifies the full app compiles)
 #
 # Concurrency cancellation per PR: a new push cancels in-flight runs on
 # the same head ref. Saves CI minutes + keeps queue depth bounded.
 #
 # Node 24 + pnpm 10 per S3. Turbo remote cache + Sentry source-map
-# upload wired at the next-sprint deploy phase (TURBO_TOKEN +
-# SENTRY_AUTH_TOKEN secrets, gated until OIDC role exists).
+# upload activate at the SST deploy gate (TURBO_TOKEN +
+# SENTRY_AUTH_TOKEN secrets, gated until quilty-aws/website-baseline/
+# vends the OIDC role).
 #
-# Round-5 perf-bundle reviewer note: webServer-based Playwright tests
-# use `pnpm dev`; M2+ swap to production-mode `pnpm build && pnpm start`
-# once Lighthouse CI lands.
+# webServer-based Playwright tests use `pnpm dev`; switch to
+# production-mode `pnpm build && pnpm start` once Lighthouse CI lands
+# and the build path is stable enough to keep the e2e wall-clock under
+# the CI timeout budget.
 
 name: CI
 
@@ -83,7 +87,7 @@ jobs:
     # Tier-1 dev-tooling gates (ADR-0007). Run early — fast, catches the
     # version-drift / unused-deps / graph-rule classes of regression
     # before the heavier typecheck + test jobs do.
-    name: Hygiene (syncpack + Knip + depcruise + type-coverage)
+    name: Hygiene (syncpack + Knip + depcruise + security-txt + type-coverage + secretlint)
     needs: install
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -101,6 +105,8 @@ jobs:
         run: pnpm knip
       - name: Import-graph rule validation (dependency-cruiser)
         run: pnpm depcruise
+      - name: security.txt expires gate (≥30 days, RFC 9116)
+        run: pnpm security-txt:check
       - name: Type coverage threshold (≥97%)
         run: pnpm type-coverage
       - name: Secret scan (secretlint)
