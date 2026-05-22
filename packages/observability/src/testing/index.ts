@@ -32,10 +32,15 @@ export {
 } from '../adapters/in-memory';
 
 const DENIAL_SNAPSHOT: ConsentSnapshot = {
+  essential: true,
+  functional: false,
   analytics: false,
   marketing: false,
-  preferences: false,
+  personalization: false,
   gpc_detected: false,
+  gpc_honored: false,
+  version: 'v1',
+  updated_at: null,
 };
 
 /**
@@ -64,10 +69,15 @@ export function makeGrantingConsentReaderFake(
   overrides: Partial<ConsentSnapshot> = {},
 ): ConsentReader {
   const snapshot: ConsentSnapshot = {
+    essential: true,
+    functional: true,
     analytics: true,
     marketing: true,
-    preferences: true,
+    personalization: true,
     gpc_detected: false,
+    gpc_honored: false,
+    version: 'v1',
+    updated_at: null,
     ...overrides,
   };
   if (snapshot.gpc_detected && (snapshot.analytics || snapshot.marketing)) {

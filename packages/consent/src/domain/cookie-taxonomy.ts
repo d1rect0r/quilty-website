@@ -1,32 +1,89 @@
 /**
  * Cookie taxonomy + category enumeration.
  *
- * Four categories per the EDPB cookie classification + ePrivacy Directive
- * + CCPA + Colorado Privacy Act framework (D35 + D62):
+ * Five categories per D98 (EDPB cookie classification + ePrivacy Directive
+ * + CCPA + CPRA + WA MHMDA + Colorado Privacy Act framework). The split
+ * mirrors Stripe / Headspace / Calm / BetterHelp convergent peer practice:
  *
- *   - `necessary`: strictly necessary for site function (session, CSRF,
- *     auth). NEVER gated on consent — opt-out would break the site.
- *   - `analytics`: usage analytics, error reporting (Amplitude, Sentry
- *     non-error events). Gated on `state.analytics === true`.
- *   - `marketing`: cross-site / advertising / retargeting. Gated on
- *     `state.marketing === true`. Quilty doesn't ship this category yet;
- *     reserved for marketing-pixel activation.
- *   - `preferences`: non-essential UX (theme, locale override, feature
- *     toggles). Gated on `state.preferences === true`.
+ *   - `essential`: strictly necessary for site function (session, CSRF,
+ *     auth, consent cookie itself). NEVER gated on consent — opt-out
+ *     would break the site. Always `true` in every snapshot.
+ *   - `functional`: non-essential UX (theme, locale override, in-app
+ *     feature toggles, accessibility preferences). User can opt-out
+ *     without breaking core function. Gated on `state.functional === true`.
+ *   - `analytics`: usage analytics, error reporting (Sentry non-error
+ *     events, future product-analytics SDK). Gated on
+ *     `state.analytics === true`.
+ *   - `marketing`: cross-site / advertising / retargeting / email
+ *     marketing. Gated on `state.marketing === true`. Quilty doesn't
+ *     ship this category yet; reserved for marketing-pixel activation.
+ *   - `personalization`: recommendation engines, behaviour-derived
+ *     content ranking, ad personalization beyond simple marketing pixel.
+ *     Gated on `state.personalization === true`. Reserved for the
+ *     recommendation-engine activation.
  *
  * The taxonomy is the cookie-policy contract surface — every cookie set
  * by Quilty (or any vendor SDK loaded by Quilty) must declare a category.
  * The `/legal/cookies` page renders the per-category table from this
  * source of truth.
+ *
+ * Versioning + grandfathering (D98):
+ *   - `version: 'v1'` is the locked schema field. Migrations across
+ *     versions follow the grandfathering rule below.
+ *   - v2 with NEW categories → re-consent banner for existing users.
+ *   - v2 with REMOVED / RENAMED categories → re-consent banner.
+ *   - v2 with same categories + new vendors → no re-consent.
  */
 
-export type CookieCategory = 'necessary' | 'analytics' | 'marketing' | 'preferences';
+export type CookieCategory =
+  | 'essential'
+  | 'functional'
+  | 'analytics'
+  | 'marketing'
+  | 'personalization';
 
 /**
- * Per-category default-deny state. The wrapper at the analytics layer
- * reads this to decide whether to fire a vendor SDK call.
+ * Locked taxonomy version. Bump when the category set itself changes;
+ * vendor additions inside an existing category do NOT bump the version
+ * (no re-consent required per D98 grandfathering rule).
+ */
+export const TAXONOMY_VERSION = 'v1' as const;
+
+export type TaxonomyVersion = typeof TAXONOMY_VERSION;
+
+/**
+ * Per-category state. The wrapper at the analytics layer reads this to
+ * decide whether to fire a vendor SDK call. `essential` is `true` by
+ * type (the site cannot function without it; there is no consent prompt
+ * for session cookies).
  */
 export interface ConsentCategoryState {
+  readonly essential: true;
+  readonly functional: boolean;
+  readonly analytics: boolean;
+  readonly marketing: boolean;
+  readonly personalization: boolean;
+}
+
+/**
+ * The default-deny baseline. `essential: true` is hard-coded by type.
+ * Every other category defaults to `false` — the Cerebral-lesson
+ * Cookie-banner baseline (D35).
+ */
+export const DEFAULT_DENY_STATE: ConsentCategoryState = {
+  essential: true,
+  functional: false,
+  analytics: false,
+  marketing: false,
+  personalization: false,
+};
+
+/**
+ * v0 (pre-migration) 4-category shape. Retained for the `migrateFromV0`
+ * helper so any persisted v0 cookie can be promoted to v1 cleanly. v0
+ * was: `necessary` + `analytics` + `marketing` + `preferences`.
+ */
+export interface V0ConsentCategoryState {
   readonly necessary: true;
   readonly analytics: boolean;
   readonly marketing: boolean;
@@ -34,16 +91,35 @@ export interface ConsentCategoryState {
 }
 
 /**
- * The default-deny baseline. `necessary: true` is hard-coded because
- * the site cannot function without it — there is no consent prompt for
- * session cookies. The other three categories default to `false`.
+ * Grandfathering helper: promote a v0 4-category state to v1 5-category
+ * state per D98. The mapping:
+ *
+ *   - v0 `necessary` → v1 `essential` (rename; value preserved)
+ *   - v0 `preferences` → v1 `functional` (semantic match — theme /
+ *     locale / feature toggles)
+ *   - v0 `analytics` → v1 `analytics` (unchanged)
+ *   - v0 `marketing` → v1 `marketing` (unchanged)
+ *   - v1 `personalization` is NEW with no v0 counterpart → defaults to
+ *     `false`. Per D98 grandfathering rule, the appearance of a NEW
+ *     category triggers a re-consent banner for the affected user;
+ *     this helper returns the migrated state so the read path stays
+ *     well-typed even before the re-consent banner is dismissed.
+ *
+ * Per D98 grandfathering: no production v0 cookies exist at the time
+ * this code ships (the previous `__Host-quilty_consent` cookie was
+ * never written in production), so this helper is forward-compat
+ * scaffolding — its first real invocation is when v2 of the taxonomy
+ * ships.
  */
-export const DEFAULT_DENY_STATE: ConsentCategoryState = {
-  necessary: true,
-  analytics: false,
-  marketing: false,
-  preferences: false,
-};
+export function migrateFromV0(state: V0ConsentCategoryState): ConsentCategoryState {
+  return {
+    essential: state.necessary,
+    functional: state.preferences,
+    analytics: state.analytics,
+    marketing: state.marketing,
+    personalization: false,
+  };
+}
 
 /**
  * Cookie declaration for the `/legal/cookies` page table. Each entry
@@ -77,14 +153,14 @@ export interface CookieDeclaration {
 export const COOKIE_REGISTRY: readonly CookieDeclaration[] = [
   {
     name: '__Host-quilty_sid',
-    category: 'necessary',
+    category: 'essential',
     purpose: 'Server-side session identifier (BFF pattern); opaque ID, no PII.',
     lifetime: 'session',
     attributes: { httpOnly: true, secure: true, sameSite: 'Lax' },
   },
   {
     name: '__Host-quilty_csrf',
-    category: 'necessary',
+    category: 'essential',
     purpose: 'CSRF double-submit token, paired with the X-Quilty-CSRF header.',
     lifetime: 'session',
     attributes: { httpOnly: false, secure: true, sameSite: 'Lax' },
@@ -100,7 +176,7 @@ export const COOKIE_REGISTRY: readonly CookieDeclaration[] = [
     // useConsent() client hook reads it), but the host-prefix locks
     // out cross-subdomain writes.
     name: '__Host-quilty_consent',
-    category: 'necessary',
+    category: 'essential',
     // CCPA/CPRA implementing regulations require renewed consent at
     // least annually for sensitive personal information; 180 days is
     // deliberately conservative and must not be extended without a
@@ -109,9 +185,4 @@ export const COOKIE_REGISTRY: readonly CookieDeclaration[] = [
     lifetime: 180,
     attributes: { httpOnly: false, secure: true, sameSite: 'Lax' },
   },
-  // The mirror cookie for Sec-GPC: 1 cache-key consistency lands at the
-  // CloudFront Function edge milestone (D63). Until that write path
-  // ships, the cookie is intentionally absent from the registry — the
-  // /legal/cookies page must not declare a cookie that is not set
-  // (CCPA §1798.100 + GDPR Art. 13 prohibit false cookie disclosures).
 ];

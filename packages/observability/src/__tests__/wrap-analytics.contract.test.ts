@@ -98,10 +98,15 @@ describe('wrapAnalytics — Cerebral-lesson chokepoint', () => {
     const adapter = makeAnalyticsFake();
     const marketingOnlyReader = {
       read: () => ({
+        essential: true as const,
+        functional: true,
         analytics: false,
         marketing: true,
-        preferences: true,
+        personalization: true,
         gpc_detected: false,
+        gpc_honored: false,
+        version: 'v1' as const,
+        updated_at: null,
       }),
     };
     const wrapped = wrapAnalytics({

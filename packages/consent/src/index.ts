@@ -3,8 +3,8 @@
  *
  * Three consumer surfaces:
  *   1. `@quilty/consent`               — universal exports (port types
- *      + taxonomy + GPC detector + default-deny reader + isomorphic
- *      ConsentBanner stub). Safe in any runtime.
+ *      + taxonomy + GPC detector + default-deny reader + Banner Client
+ *      Component). Safe in any runtime.
  *   2. `@quilty/consent/server`        — server-only entry points
  *      (cookie-based ConsentReader + GpcHonoredIndicator; depend on
  *      Next.js `headers()`/`cookies()`). Importing this subpath from a
@@ -23,12 +23,16 @@ export {
   type CookieCategory,
   type CookieDeclaration,
   type ConsentCategoryState,
+  type V0ConsentCategoryState,
+  type TaxonomyVersion,
+  TAXONOMY_VERSION,
   COOKIE_REGISTRY,
   DEFAULT_DENY_STATE,
+  migrateFromV0,
 } from './domain/cookie-taxonomy';
 
 export { detectGpcFromHeaders, type HeaderGetter } from './domain/gpc-detector';
 
 export { makeDefaultDenyConsentReader } from './domain/default-deny-consent';
 
-export { ConsentBanner } from './components/ConsentBanner';
+export { Banner, type BannerProps } from './components/Banner';
