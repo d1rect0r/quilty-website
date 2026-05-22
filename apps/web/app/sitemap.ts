@@ -27,6 +27,7 @@ const SUPPORTED_LOCALES = ['en'] as const;
 const SCAFFOLD_DATE = '2026-05-18';
 const SECURITY_PAGE_DATE = '2026-05-21';
 const ACCESSIBILITY_PAGE_DATE = '2026-05-22';
+const SUBPROCESSORS_PAGE_DATE = '2026-05-22';
 
 interface MarketingRoute {
   readonly path: string;
@@ -71,6 +72,20 @@ const MARKETING_ROUTES: readonly MarketingRoute[] = [
     path: '/legal/accessibility',
     lastModified: ACCESSIBILITY_PAGE_DATE,
     changeFrequency: 'yearly',
+    priority: 0.7,
+  },
+  // `/legal/subprocessors` is the public-facing sub-processor list
+  // (D102 Stripe 5-column convention). Indexable so enterprise
+  // procurement teams can discover the BAA-status surface during
+  // vendor due-diligence. `changeFrequency: 'monthly'` reflects the
+  // 30-business-day customer-notice cadence + quarterly review
+  // discipline — Googlebot uses changeFrequency loosely so the
+  // monthly hint is the correct truthful signal for a list that
+  // republishes whenever an inventory row changes.
+  {
+    path: '/legal/subprocessors',
+    lastModified: SUBPROCESSORS_PAGE_DATE,
+    changeFrequency: 'monthly',
     priority: 0.7,
   },
 ] as const;
