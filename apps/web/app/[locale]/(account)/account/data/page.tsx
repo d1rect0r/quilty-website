@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 
+// Explicit `robots` re-statement — DSAR / data-export surfaces
+// must never reach a SERP for a HIPAA-aligned product.
 export const metadata: Metadata = {
   title: 'Data',
+  robots: { index: false, follow: false },
 };
 
 export default function AccountDataPage() {

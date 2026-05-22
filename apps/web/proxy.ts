@@ -38,6 +38,34 @@ const DEFAULT_LOCALE = 'en';
 const CHANGE_PASSWORD_WELL_KNOWN = '/.well-known/change-password';
 const CHANGE_PASSWORD_DESTINATION = `/${DEFAULT_LOCALE}/account/security`;
 
+// Defense-in-depth: any crawler that ignores robots.txt + page
+// metadata still gets a response-level `X-Robots-Tag: noindex,
+// nofollow` on every path that should never appear in a SERP. The
+// patterns cover `/api/*` (Route Handlers — webhook callbacks,
+// auth, csp-report), `/account/*` + `/{locale}/account/*` (the
+// portal), and `/dev/*` (the dev-only diagnostic surface). The
+// page-metadata layer + the per-account-layout cascade remain in
+// place; this is the response-header tier.
+const NOINDEX_PATH_PATTERNS: readonly RegExp[] = [
+  /^\/api\//,
+  // `(\/|$)` alternation handles BOTH the trailing-slash subpage
+  // case AND the no-trailing-slash account-index case
+  // (`trailingSlash: false` in next.config.ts means `/en/account`
+  // arrives without a trailing slash). Mirrors `isPortalRoute` in
+  // `packages/security/src/domain/csp-builder.ts` exactly.
+  /^\/account(\/|$)/,
+  // `{2,}` (not `{2}`) mirrors `isPortalRoute`'s open-ended locale
+  // pattern — a future 3-letter ISO 639-2 prefix (`zho`, `hin`,
+  // `ara`) must receive the response-header noindex tier alongside
+  // its stricter portal CSP.
+  /^\/[a-z]{2,}\/account(\/|$)/,
+  /^\/dev(\/|$)/,
+];
+
+function shouldNoindexPath(pathname: string): boolean {
+  return NOINDEX_PATH_PATTERNS.some((pattern) => pattern.test(pathname));
+}
+
 /**
  * Apply the response-side security header stack (CSP-Report-Only +
  * HSTS + COOP + CORP + nosniff + frame-options + referrer + permissions).
@@ -123,6 +151,10 @@ export function proxy(request: NextRequest): NextResponse {
   });
 
   applySecurityHeaders(response, { portal, nonce });
+
+  if (shouldNoindexPath(pathname)) {
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  }
 
   // Sec-GPC is a REQUEST-only signal per the spec (browser → server). We
   // do NOT echo it on responses — server consumers read it from the

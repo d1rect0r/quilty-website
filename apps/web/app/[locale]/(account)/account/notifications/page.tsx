@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 
+// Explicit `robots` re-statement — notification preferences are
+// session-aware portal surfaces that must never reach a SERP.
 export const metadata: Metadata = {
   title: 'Notifications',
+  robots: { index: false, follow: false },
 };
 
 export default function AccountNotificationsPage() {

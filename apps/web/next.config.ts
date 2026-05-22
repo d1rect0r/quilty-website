@@ -1,5 +1,19 @@
 import type { NextConfig } from 'next';
 
+type RewritesReturn = Awaited<ReturnType<NonNullable<NextConfig['rewrites']>>>;
+
+/**
+ * `/robots.txt` is internally rewritten to the Route Handler at
+ * `/api/robots`. The Route Handler emits the Cloudflare `Content-Signal`
+ * directive — a per-block free-text field that the static
+ * `MetadataRoute.Robots` shape cannot express (Next.js #85382).
+ * `locale: false` keeps the rewrite from being matched against
+ * locale-prefixed variants (crawlers always fetch the apex path).
+ */
+async function siteRewrites(): Promise<RewritesReturn> {
+  return [{ source: '/robots.txt', destination: '/api/robots', locale: false }];
+}
+
 /**
  * Headers for static files served from `apps/web/public/.well-known/`.
  *
@@ -119,6 +133,7 @@ const config: NextConfig = {
     remotePatterns: [],
   },
   headers: wellKnownHeaders,
+  rewrites: siteRewrites,
 };
 
 export default config;

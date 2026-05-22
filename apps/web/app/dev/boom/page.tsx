@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 
 /**
  * Dev-only error-boundary trigger. Visiting `/dev/boom` synchronously
@@ -9,6 +10,15 @@ import { notFound } from 'next/navigation';
  * prod regardless of misconfiguration — never ship a synchronous-
  * throw route to a live deploy.
  */
+
+// Explicit metadata-tier `noindex, nofollow` on top of the
+// `X-Robots-Tag` response header (proxy.ts) and the robots.txt
+// `Disallow: /dev/` entry. A misconfigured build that ships
+// NODE_ENV=development cannot leak this route into a SERP.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
+
 export default function BoomPage(): never {
   if (process.env.NODE_ENV === 'production') {
     // Explicit `return` so a future Next.js change to `notFound()`'s
