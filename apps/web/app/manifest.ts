@@ -16,6 +16,17 @@ import type { MetadataRoute } from 'next';
  * require a manifest schema migration. `id` is the install identity
  * (re-uses the apex URL so Chrome treats the apex install as a single
  * PWA entity across all locale segments).
+ *
+ * `shortcuts` + `launch_handler` ship now so OS-level long-press
+ * shortcut menus + single-instance PWA behavior work the moment the
+ * install prompt activates. Two deeper manifest fields are deliberately
+ * deferred:
+ *   - `screenshots`: requires real product UI (placeholder images in
+ *     the install dialog degrade first-impression UX).
+ *   - `related_applications` + `prefer_related_applications`: requires
+ *     the iOS App Store numeric ID, which is not assigned until App
+ *     Store Connect submission. Adding back at the public-launch
+ *     milestone.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -40,5 +51,40 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: '/icon-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
       { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
+    // OS-level long-press shortcuts (Android home-screen icon, Chrome
+    // app-list, Windows jump-list, macOS Dock right-click). URLs are
+    // hard-coded to the default locale — shortcut UA does not negotiate
+    // locale, the portal handles locale on landing.
+    shortcuts: [
+      {
+        // Second-person framing on the description: AT (TalkBack /
+        // VoiceOver / Narrator) reads this verbatim on long-press
+        // shortcut surfaces, and a definite-article "the" can imply
+        // the user already has an active account/subscription —
+        // ambiguous for first-time installs.
+        name: 'My account',
+        short_name: 'Account',
+        description: 'Open your Quilty account portal.',
+        url: '/en/account',
+        icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' }],
+      },
+      {
+        name: 'Subscription',
+        // `short_name` "Subscription" fits the ≤12 char W3C budget
+        // exactly and is more precise than a generic "Plan" in
+        // surfaces (Windows jump-list tooltip, constrained Android
+        // launcher labels) where the parent app name isn't shown.
+        short_name: 'Subscription',
+        description: 'Manage your Quilty subscription.',
+        url: '/en/account/subscription',
+        icons: [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' }],
+      },
+    ],
+    // Single-instance PWA: a shortcut tap (or any OS-initiated launch)
+    // navigates the existing window instead of spawning a duplicate.
+    // Convergent enterprise pattern — every reference shop (Linear,
+    // 1Password, Notion, Discord) ships `navigate-existing` to avoid
+    // the multi-window split-attention UX failure mode.
+    launch_handler: { client_mode: 'navigate-existing' },
   };
 }

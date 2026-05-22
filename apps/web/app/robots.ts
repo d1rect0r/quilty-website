@@ -45,12 +45,12 @@ export default function robots(): MetadataRoute.Robots {
   const allowRule = (userAgent: string): AllowRule => ({
     userAgent,
     allow: ['/'],
-    // `/dev/` blocks the dev-only `/dev/boom` throw route + any future
-    // dev-only diagnostic page. The route is NODE_ENV-gated at the
-    // page level, but blocking at the robots layer too means a
-    // misconfigured build that ships NODE_ENV=development cannot be
-    // indexed by mistake.
-    disallow: ['/account/', '/api/', '/dev/'],
+    // `/dev/` covers the dev-only `/dev/boom` throw route. Portal
+    // routes are listed at both the locale-bare path (`/account/`)
+    // and the locale-prefixed path (`/en/account/`) since the bare
+    // entry would not match the actual `[locale]/` segment URLs;
+    // `/*/account/` future-proofs additional locales.
+    disallow: ['/account/', '/en/account/', '/*/account/', '/api/', '/dev/'],
   });
 
   const blockRule = (userAgent: string): BlockRule => ({

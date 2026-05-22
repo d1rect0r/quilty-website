@@ -60,6 +60,14 @@ test('@smoke /manifest.webmanifest is valid JSON with maskable icons + D110 forw
     orientation?: unknown;
     categories?: unknown;
     icons?: readonly { src?: string; sizes?: string; type?: string; purpose?: string }[];
+    shortcuts?: readonly {
+      name?: string;
+      short_name?: string;
+      description?: string;
+      url?: string;
+      icons?: readonly { src?: string }[];
+    }[];
+    launch_handler?: { client_mode?: unknown };
   };
 
   expect(manifest.id).toBe('/');
@@ -74,12 +82,50 @@ test('@smoke /manifest.webmanifest is valid JSON with maskable icons + D110 forw
   const icons = manifest.icons ?? [];
   const maskable = icons.filter((icon) => icon.purpose === 'maskable');
   expect(maskable.length).toBeGreaterThanOrEqual(2);
-  expect(maskable.map((icon) => icon.sizes)).toEqual(
-    expect.arrayContaining(['192x192', '512x512']),
-  );
+  // Filter undefined entries: `sizes` is typed `string | undefined`
+  // so a maskable icon missing the sizes attribute would slip past
+  // arrayContaining unnoticed. Narrow to the defined-string subset.
+  const maskableSizes = maskable
+    .map((icon) => icon.sizes)
+    .filter((size): size is string => size !== undefined);
+  expect(maskableSizes).toEqual(expect.arrayContaining(['192x192', '512x512']));
 
   const svg = icons.find((icon) => icon.type === 'image/svg+xml');
   expect(svg?.src).toBe('/icon.svg');
+
+  // OS long-press shortcuts must each carry a name + url + at least
+  // one icon — missing any of the three degrades the launcher UX
+  // (Android renders a bullet, Chrome omits the entry, Windows shows
+  // a generic placeholder).
+  const shortcuts = manifest.shortcuts ?? [];
+  expect(shortcuts.length).toBeGreaterThanOrEqual(2);
+  for (const shortcut of shortcuts) {
+    expect(shortcut.name).toBeTruthy();
+    expect(shortcut.url).toBeTruthy();
+    expect((shortcut.icons ?? []).length).toBeGreaterThanOrEqual(1);
+  }
+  // Pin the shortcut URL contract: the manifest is the only public
+  // surface naming these portal paths, so a typo or relative-path
+  // regression would route OS shortcut taps to a wrong destination.
+  // A separate `noindex` posture per shortcut target is asserted at
+  // the page-metadata layer (see account/page.tsx + subscription/
+  // page.tsx).
+  const shortcutUrls = shortcuts.map((s) => s.url);
+  expect(shortcutUrls).toEqual(expect.arrayContaining(['/en/account', '/en/account/subscription']));
+
+  // Pin the AT-announced label contract — TalkBack / VoiceOver /
+  // Narrator read these verbatim on long-press surfaces. A future
+  // refactor replacing these with empty strings or jargon would
+  // otherwise pass the looser truthy check above.
+  const shortcutNames = shortcuts.map((s) => s.name);
+  expect(shortcutNames).toEqual(expect.arrayContaining(['My account', 'Subscription']));
+
+  // launch_handler.client_mode === 'navigate-existing' is the
+  // single-instance PWA contract. Anything else (a missing value, or
+  // 'auto'/'navigate-new'/'focus-existing') would let an OS shortcut
+  // spawn a duplicate window — the multi-window split-attention
+  // failure mode every reference shop avoids.
+  expect(manifest.launch_handler?.client_mode).toBe('navigate-existing');
 });
 
 test('@smoke og-default.jpg fits the 300 KB share-preview budget', async ({ request }) => {

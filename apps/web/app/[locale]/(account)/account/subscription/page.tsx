@@ -1,8 +1,15 @@
 import { PortalSidebar } from '@/components/account/PortalSidebar';
 import type { Metadata } from 'next';
 
+// `robots` repeated explicitly (rather than inherited from the
+// account-segment layout) because this route is the second manifest
+// shortcut target (`/en/account/subscription` in
+// `app/manifest.ts#shortcuts`). Manifest discoverability + the
+// commercial sensitivity of a subscription-management page make this
+// the highest-risk portal page to leave behind layout-cascade only.
 export const metadata: Metadata = {
   title: 'Subscription',
+  robots: { index: false, follow: false },
 };
 
 const SUBSCRIPTION_SECTIONS = [

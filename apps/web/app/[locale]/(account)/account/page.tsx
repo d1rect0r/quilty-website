@@ -1,7 +1,14 @@
 import type { Metadata } from 'next';
 
+// `robots` repeated explicitly (rather than inherited from the
+// account-segment layout) because this route is now a manifest
+// shortcut target (`/en/account` is the first entry in
+// `app/manifest.ts#shortcuts`). The manifest is publicly fetchable,
+// so the shortcut URL is link-graph-reachable for any crawler that
+// fetches `/manifest.webmanifest`.
 export const metadata: Metadata = {
   title: 'Profile',
+  robots: { index: false, follow: false },
 };
 
 export default function AccountHomePage() {
