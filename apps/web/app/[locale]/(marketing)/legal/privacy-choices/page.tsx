@@ -129,9 +129,14 @@ export default function PrivacyChoicesPage() {
         </li>
         <li>
           <strong className="text-fg-default">Consumer Health Data rights (WA MHMDA).</strong>{' '}
-          Washington residents have additional standalone rights over consumer health data — see our
-          Consumer Health Data Privacy Policy, available alongside this page, for the WA- specific
-          surface.
+          Washington residents have additional standalone rights over consumer health data. See our{' '}
+          <Link
+            href="/en/legal/consumer-health-data-privacy"
+            className="text-fg-default underline underline-offset-2"
+          >
+            Consumer Health Data Privacy Policy
+          </Link>{' '}
+          for the WA-specific surface.
         </li>
       </ul>
 

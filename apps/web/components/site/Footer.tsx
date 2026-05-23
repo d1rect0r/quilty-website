@@ -47,6 +47,10 @@ export function Footer() {
               { label: 'Cookies', href: '/en/legal/cookies' },
               { label: 'Accessibility', href: '/en/legal/accessibility' },
               { label: 'Sub-processors', href: '/en/legal/subprocessors' },
+              {
+                label: 'Consumer Health Data Privacy Policy (WA)',
+                href: '/en/legal/consumer-health-data-privacy',
+              },
               { label: 'Your Privacy Choices', href: '/en/legal/privacy-choices' },
             ]}
           />

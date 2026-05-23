@@ -30,6 +30,7 @@ const ACCESSIBILITY_PAGE_DATE = '2026-05-22';
 const SUBPROCESSORS_PAGE_DATE = '2026-05-22';
 const TRUST_PAGE_DATE = '2026-05-22';
 const PRIVACY_CHOICES_PAGE_DATE = '2026-05-22';
+const CONSUMER_HEALTH_DATA_PRIVACY_PAGE_DATE = '2026-05-22';
 
 interface MarketingRoute {
   readonly path: string;
@@ -115,6 +116,19 @@ const MARKETING_ROUTES: readonly MarketingRoute[] = [
   {
     path: '/legal/privacy-choices',
     lastModified: PRIVACY_CHOICES_PAGE_DATE,
+    changeFrequency: 'monthly',
+    priority: 0.7,
+  },
+  // `/legal/consumer-health-data-privacy` is the WA MHMDA-mandated
+  // standalone Consumer Health Data Privacy Policy (RCW 19.373.020
+  // + 19.373.030). Indexable + high-priority — the law requires a
+  // conspicuous link from the home page; making it discoverable in
+  // sitemap.xml + via crawlers is the load-bearing compliance
+  // affordance. `monthly` cadence matches privacy-choices because
+  // both pages track the WA MHMDA enforcement-guidance delta.
+  {
+    path: '/legal/consumer-health-data-privacy',
+    lastModified: CONSUMER_HEALTH_DATA_PRIVACY_PAGE_DATE,
     changeFrequency: 'monthly',
     priority: 0.7,
   },
