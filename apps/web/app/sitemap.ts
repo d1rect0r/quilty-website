@@ -29,6 +29,7 @@ const SECURITY_PAGE_DATE = '2026-05-21';
 const ACCESSIBILITY_PAGE_DATE = '2026-05-22';
 const SUBPROCESSORS_PAGE_DATE = '2026-05-22';
 const TRUST_PAGE_DATE = '2026-05-22';
+const PRIVACY_CHOICES_PAGE_DATE = '2026-05-22';
 
 interface MarketingRoute {
   readonly path: string;
@@ -101,6 +102,21 @@ const MARKETING_ROUTES: readonly MarketingRoute[] = [
     lastModified: TRUST_PAGE_DATE,
     changeFrequency: 'monthly',
     priority: 0.8,
+  },
+  // `/legal/privacy-choices` is the public DSAR landing per D99.
+  // Indexable so EDPB / ICO / CA AG enforcement crawlers can
+  // discover the surface; `/account/privacy` is NOT in the sitemap
+  // because it is the auth-required signed-in hub (noindex by
+  // metadata-cascade per the (account) route group convention).
+  // `changeFrequency: 'monthly'` is the truthful signal — WA MHMDA
+  // enforcement guidance + CPRA rulemaking are still active and
+  // the page tracks the regulatory delta; matches the sub-processors
+  // page's monthly cadence.
+  {
+    path: '/legal/privacy-choices',
+    lastModified: PRIVACY_CHOICES_PAGE_DATE,
+    changeFrequency: 'monthly',
+    priority: 0.7,
   },
 ] as const;
 

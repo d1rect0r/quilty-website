@@ -328,10 +328,13 @@ export default function SubprocessorsPage() {
       </p>
       <p className="text-fg-muted mt-4">
         See our{' '}
-        <Link href="/en/legal/privacy" className="text-fg-default underline underline-offset-2">
-          privacy policy
+        <Link
+          href="/en/legal/privacy-choices"
+          className="text-fg-default underline underline-offset-2"
+        >
+          privacy choices
         </Link>{' '}
-        to exercise these rights.
+        page to exercise these rights.
       </p>
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">Last reviewed</h2>

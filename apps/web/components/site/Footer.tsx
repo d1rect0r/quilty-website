@@ -47,7 +47,7 @@ export function Footer() {
               { label: 'Cookies', href: '/en/legal/cookies' },
               { label: 'Accessibility', href: '/en/legal/accessibility' },
               { label: 'Sub-processors', href: '/en/legal/subprocessors' },
-              { label: 'Your Privacy Choices', href: '/en/legal/privacy#gpc' },
+              { label: 'Your Privacy Choices', href: '/en/legal/privacy-choices' },
             ]}
           />
           <FooterColumn

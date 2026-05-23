@@ -25,6 +25,7 @@ const NAV_LINKS: readonly PortalNavLink[] = [
   { href: '/en/account/security', label: 'Security' },
   { href: '/en/account/subscription', label: 'Subscription' },
   { href: '/en/account/data', label: 'Data' },
+  { href: '/en/account/privacy', label: 'Privacy' },
   { href: '/en/account/notifications', label: 'Notifications' },
 ];
 
