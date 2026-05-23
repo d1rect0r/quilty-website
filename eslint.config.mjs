@@ -103,18 +103,81 @@ export default tseslint.config(
       'no-console': 'error',
       'no-restricted-imports': ['error', { paths: VENDOR_SDK_IMPORTS }],
 
-      // Ban `export *` and `export * as ns` — barrel re-exports force the
-      // bundler to evaluate every sibling module at the import site, which
-      // defeats tree-shaking and inflates client-bundle weight (Hagemeister
-      // benchmarks: 60-80% test speedup from removal; Vercel #27401: bundle
-      // halved after the switch). Named re-exports (`export { foo } from`)
-      // are tree-shakeable; star re-exports are not.
+      // Ban `export *` + ban "HIPAA-compliant" + ban "DPO" self-applied
+      // title in source files.
+      //
+      // Rule 1 — ExportAllDeclaration ban: barrel re-exports force the
+      // bundler to evaluate every sibling module at the import site,
+      // which defeats tree-shaking + inflates client-bundle weight
+      // (Hagemeister benchmarks: 60-80% test speedup from removal;
+      // Vercel #27401: bundle halved after the switch). Named re-exports
+      // (`export { foo } from`) are tree-shakeable; star re-exports are
+      // not.
+      //
+      // Rule 2 + 3 — "HIPAA-compliant" + "HIPAA compliant" string ban
+      // in source files (D104). Claiming HIPAA compliance without
+      // third-party audit attestation is FTC §5 deceptive-acts
+      // territory; the Cerebral $7M settlement (March 2023) was
+      // exactly this claim/posture mismatch. The ceiling is
+      // "HIPAA-aligned" — never "compliant." Rule fires on both
+      // string literals + template literal parts.
+      //
+      // Rule 4 + 5 — "DPO" self-applied title ban (D136). Claiming a
+      // Data Protection Officer that does not exist or has not been
+      // formally appointed under GDPR Article 37 is fineable risk:
+      // Austrian DPB €5K + CJEU C-453/21 X-FAB + Belgian DPA €50K
+      // precedents. The mandated title at Quilty's scale is "Privacy
+      // Lead." Legal-page directories carry a scoped exception
+      // (configured below) so the policy may name "Data Protection
+      // Officer" in the "we do not employ a designated DPO" Article 37
+      // transparency disclosure.
+      // Scope note (D104 + D136): the regex covers the adjective
+      // ("compliant") + noun ("compliance") forms with dash or space
+      // separator. It does NOT catch the no-separator camelCase
+      // variant (e.g., `HIPAACompliant` as an identifier name) by
+      // design — identifier naming is a separate concern from
+      // string-literal claims. The DPO selector carries the /i flag
+      // so lowercase + mixed-case variants also fire; mailbox strings
+      // like `dpo@my-quilty.com` would also trip the rule, so they
+      // must live under the legal-page override or be referenced via
+      // an indirection. JSXText selectors catch React-rendered claims
+      // that bypass string-literal AST nodes.
       'no-restricted-syntax': [
         'error',
         {
           selector: 'ExportAllDeclaration',
           message:
             'Use named re-exports (`export { foo } from`) instead of `export *` — star re-exports defeat tree-shaking. See Hagemeister + Vercel #27401.',
+        },
+        {
+          selector: 'Literal[value=/HIPAA[-\\s]compli(?:ant|ance)/i]',
+          message:
+            'Never claim "HIPAA-compliant" or "HIPAA compliance" — use "HIPAA-aligned." Compliance without third-party attestation is FTC §5 deceptive-acts (Cerebral $7M settlement precedent). [D104]',
+        },
+        {
+          selector: 'TemplateElement[value.raw=/HIPAA[-\\s]compli(?:ant|ance)/i]',
+          message:
+            'Never claim "HIPAA-compliant" or "HIPAA compliance" — use "HIPAA-aligned." Compliance without third-party attestation is FTC §5 deceptive-acts (Cerebral $7M settlement precedent). [D104]',
+        },
+        {
+          selector: 'JSXText[value=/HIPAA[-\\s]compli(?:ant|ance)/i]',
+          message:
+            'Never claim "HIPAA-compliant" or "HIPAA compliance" — use "HIPAA-aligned." Compliance without third-party attestation is FTC §5 deceptive-acts (Cerebral $7M settlement precedent). [D104]',
+        },
+        {
+          selector: 'Literal[value=/\\bDPO\\b/i]',
+          message:
+            'Use "Privacy Lead" — never "DPO" as a self-applied title. Claiming a Data Protection Officer without GDPR Art 37 appointment is fineable (Austrian €5K + CJEU C-453/21 + Belgian €50K precedents). [D136] (Legal pages may name "Data Protection Officer" in the Art 37 non-appointment disclosure — that exception is scoped via files: override.)',
+        },
+        {
+          selector: 'TemplateElement[value.raw=/\\bDPO\\b/i]',
+          message:
+            'Use "Privacy Lead" — never "DPO" as a self-applied title. Claiming a Data Protection Officer without GDPR Art 37 appointment is fineable (Austrian €5K + CJEU C-453/21 + Belgian €50K precedents). [D136]',
+        },
+        {
+          selector: 'JSXText[value=/\\bDPO\\b/i]',
+          message:
+            'Use "Privacy Lead" — never "DPO" as a self-applied title. Claiming a Data Protection Officer without GDPR Art 37 appointment is fineable (Austrian €5K + CJEU C-453/21 + Belgian €50K precedents). [D136]',
         },
       ],
 
@@ -211,12 +274,91 @@ export default tseslint.config(
       'no-restricted-imports': 'off',
     },
   },
+  // Legal-page directories (D104 + D136 exception). The Privacy
+  // Policy must include the GDPR Art 37 transparency disclosure
+  // naming "Data Protection Officer" in the "we do not employ a
+  // designated Data Protection Officer" non-appointment context;
+  // banning DPO entirely would force a paraphrase that loses the
+  // Art 37 cite. The "HIPAA-compliant" string remains banned —
+  // legal copy must use "HIPAA-aligned" too. Tests covering this
+  // copy also inherit the exception so they can assert on the
+  // verbatim DPO disclosure shape.
+  //
+  // Glob pattern note: ESLint flat-config `files:` uses minimatch,
+  // and `[locale]` / `(marketing)` literal Next.js route-group
+  // segments are minimatch metacharacters (character class +
+  // extglob alternation). We therefore use the directory-name-only
+  // `**/legal/**` pattern; the legal/ directory name is unique in
+  // the apps/web tree so the broader match is safe.
+  {
+    files: [
+      'apps/web/app/**/legal/**/*.{ts,tsx}',
+      'apps/web/tests/playwright/a11y/privacy-policy.spec.ts',
+    ],
+    rules: {
+      // D104 HIPAA-compliant ban retained (universal — even legal
+      // copy must use "HIPAA-aligned") + JSXText selector added so
+      // the rule catches React-rendered policy claims.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ExportAllDeclaration',
+          message:
+            'Use named re-exports (`export { foo } from`) instead of `export *` — star re-exports defeat tree-shaking. See Hagemeister + Vercel #27401.',
+        },
+        {
+          selector: 'Literal[value=/HIPAA[-\\s]compli(?:ant|ance)/i]',
+          message:
+            'Never claim "HIPAA-compliant" or "HIPAA compliance" — use "HIPAA-aligned." Compliance without third-party attestation is FTC §5 deceptive-acts (Cerebral $7M settlement precedent). [D104]',
+        },
+        {
+          selector: 'TemplateElement[value.raw=/HIPAA[-\\s]compli(?:ant|ance)/i]',
+          message:
+            'Never claim "HIPAA-compliant" or "HIPAA compliance" — use "HIPAA-aligned." Compliance without third-party attestation is FTC §5 deceptive-acts (Cerebral $7M settlement precedent). [D104]',
+        },
+        {
+          selector: 'JSXText[value=/HIPAA[-\\s]compli(?:ant|ance)/i]',
+          message:
+            'Never claim "HIPAA-compliant" or "HIPAA compliance" — use "HIPAA-aligned." Compliance without third-party attestation is FTC §5 deceptive-acts (Cerebral $7M settlement precedent). [D104]',
+        },
+        // DPO ban LIFTED for legal copy — the Art 37 non-appointment
+        // disclosure requires the verbatim term. Drift to "DPO" as a
+        // self-applied title is caught by Pass A reviewer discipline +
+        // the privacy-policy.spec.ts negative-disclosure test.
+      ],
+    },
+  },
   // Tests can use the bare expectations Vitest/Playwright matchers expect.
+  // `no-restricted-syntax` is OFF in tests because compliance-rule
+  // unit tests deliberately embed the banned strings as fixtures to
+  // verify the rule fires; the lint-staged hook would otherwise reject
+  // a valid + necessary test file. The ExportAllDeclaration ban + the
+  // D104/D136 source bans are still enforced on production code by
+  // the rule block above.
   {
     files: ['**/__tests__/**', '**/tests/**', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       'no-restricted-imports': 'off',
+      'no-restricted-syntax': 'off',
+    },
+  },
+  // Meta-tooling files that DOCUMENT the bans must be allowed to
+  // contain the banned strings in their own source (rule messages,
+  // error output, regex patterns). These files are not user-facing
+  // content + cannot trigger the deceptive-acts risk the bans target;
+  // they are the enforcement layer itself.
+  //
+  // `no-console` is also lifted on the compliance-check script — it
+  // is a CLI gate that prints violations to stderr, which is the
+  // documented Unix-tool pattern for exit-code-bearing scripts (the
+  // observability chokepoint discipline applies to runtime code paths,
+  // not to a standalone pre-commit script).
+  {
+    files: ['eslint.config.mjs', 'scripts/check-compliance-language.mjs'],
+    rules: {
+      'no-restricted-syntax': 'off',
+      'no-console': 'off',
     },
   },
   // sst.config.ts uses the SST-canonical triple-slash reference to its
