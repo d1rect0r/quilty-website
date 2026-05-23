@@ -61,7 +61,18 @@ const MARKETING_ROUTES: readonly MarketingRoute[] = [
     changeFrequency: 'yearly',
     priority: 0.7,
   },
-  { path: '/legal/privacy', lastModified: SCAFFOLD_DATE, changeFrequency: 'yearly', priority: 0.7 },
+  // `/legal/privacy` now carries the real ~600-word Privacy Policy
+  // stub (Privacy Lead title, sensitive-data classification, 45-day
+  // SLA, identity-verification anti-pattern); lastModified bumped
+  // off the scaffold-baseline date. `monthly` cadence matches the
+  // peer legal pages because the page tracks the regulatory-guidance
+  // delta + the M8 lawyer review will tighten the obligations.
+  {
+    path: '/legal/privacy',
+    lastModified: '2026-05-22',
+    changeFrequency: 'monthly',
+    priority: 0.7,
+  },
   { path: '/legal/terms', lastModified: SCAFFOLD_DATE, changeFrequency: 'yearly', priority: 0.7 },
   { path: '/legal/cookies', lastModified: SCAFFOLD_DATE, changeFrequency: 'yearly', priority: 0.7 },
   // `/legal/accessibility` is the EAA (EU 2019/882) + EN 301 549
