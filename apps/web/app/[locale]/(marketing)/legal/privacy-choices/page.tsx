@@ -1,5 +1,6 @@
-import { buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
+import { buildBreadcrumbsJsonLd, buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
 import Link from 'next/link';
+import { formatReviewDate, toIsoDateTime } from '@/lib/format-date';
 import type { Metadata } from 'next';
 
 /**
@@ -79,18 +80,26 @@ const webPageJsonLd: Record<string, unknown> = {
   name: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
   inLanguage: 'en-US',
-  dateModified: LAST_REVIEWED,
+  datePublished: toIsoDateTime(LAST_REVIEWED),
+  dateModified: toIsoDateTime(LAST_REVIEWED),
   isPartOf: { '@id': `${siteUrl}#website` },
   publisher: { '@id': `${siteUrl}#organization` },
 };
 
+const breadcrumbsJsonLd = buildBreadcrumbsJsonLd(siteUrl, [
+  { name: 'Home', url: `${siteUrl}/en` },
+  { name: 'Legal', url: `${siteUrl}/en/legal/privacy` },
+  { name: 'Privacy Choices', url: pageUrl },
+]);
+
 export default function PrivacyChoicesPage() {
   return (
-    <section className="mx-auto max-w-3xl px-6 py-24" aria-labelledby="privacy-choices-heading">
+    // <section> without aria-labelledby — nested-region landmarks
+    // removed across the legal-page cluster.
+    <section className="mx-auto max-w-3xl px-6 py-24">
       <JsonLd data={webPageJsonLd} />
-      <h1 id="privacy-choices-heading" className="text-fg-default text-4xl font-semibold">
-        Privacy Choices
-      </h1>
+      <JsonLd data={breadcrumbsJsonLd} />
+      <h1 className="text-fg-default text-4xl font-semibold">Privacy Choices</h1>
 
       <p className="text-fg-muted mt-6">
         You have specific, statutory rights over the personal data we hold about you. This page
@@ -212,8 +221,9 @@ export default function PrivacyChoicesPage() {
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">Last reviewed</h2>
       <p className="text-fg-muted mt-4">
-        This page was last reviewed on <time dateTime={LAST_REVIEWED}>{LAST_REVIEWED}</time>. We
-        review on every meaningful change + at least annually.
+        This page was last reviewed on{' '}
+        <time dateTime={LAST_REVIEWED}>{formatReviewDate(LAST_REVIEWED)}</time>. We review on every
+        meaningful change + at least annually.
       </p>
     </section>
   );

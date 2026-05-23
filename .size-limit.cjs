@@ -41,4 +41,28 @@ module.exports = [
     limit: '20 KB',
     gzip: true,
   },
+  // Per-route shared-runtime budget. The framework + main + webpack-
+  // runtime chunks load on EVERY route — landing-page latency depends
+  // on this shared payload + the route-specific chunk. Target floor
+  // is < 100 KB gzipped for the shared runtime, well under the
+  // industry-rule-of-thumb 130 KB first-load JS ceiling. Catches a
+  // landing-route regression that the aggregate-only budget above
+  // would only catch much later (when the full chunks dir crosses
+  // 260 KB).
+  //
+  // The pattern targets the framework + main shared chunks Next.js
+  // emits at build time. Turbopack hashes filenames so the glob
+  // matches the chunk directory; the framework chunks are the
+  // largest contributors + the only ones loaded on the apex marketing
+  // route.
+  {
+    name: 'Shared runtime + framework (gzip)',
+    path: [
+      'apps/web/.next/static/chunks/framework-*.js',
+      'apps/web/.next/static/chunks/main-*.js',
+      'apps/web/.next/static/chunks/webpack-*.js',
+    ],
+    limit: '100 KB',
+    gzip: true,
+  },
 ];

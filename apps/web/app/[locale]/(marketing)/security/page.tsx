@@ -73,11 +73,11 @@ const webPageJsonLd = {
 
 export default function SecurityPage() {
   return (
-    <section className="mx-auto max-w-3xl px-6 py-24" aria-labelledby="security-heading">
+    // <section> without aria-labelledby — nested-region landmarks
+    // removed across the (marketing) cluster.
+    <section className="mx-auto max-w-3xl px-6 py-24">
       <JsonLd data={webPageJsonLd} />
-      <h1 id="security-heading" className="text-fg-default text-4xl font-semibold">
-        Security
-      </h1>
+      <h1 className="text-fg-default text-4xl font-semibold">Security</h1>
 
       <p className="text-fg-muted mt-6">
         Quilty takes the security of user data seriously. If you believe you have found a security

@@ -53,7 +53,11 @@ test('@seo /.well-known/security.txt declares all required RFC 9116 fields', asy
 test('@seo /security marketing page serves the policy content', async ({ page }) => {
   await page.goto('/en/security');
   // Page exists (no 404, no error boundary).
-  await expect(page.locator('h1#security-heading')).toBeVisible();
+  // Anchor on the h1's role + name rather than an id — the section
+  // landmark redesign dropped the `id="security-heading"` anchor that
+  // previously paired with `aria-labelledby` (the nested-region
+  // pattern under <main> was retired).
+  await expect(page.getByRole('heading', { level: 1, name: 'Security' })).toBeVisible();
   // HIPAA-aligned "no PHI" warning — convergent peer disclosure pages
   // (Stripe / Anthropic / Linear / Cloudflare / BetterHelp) omit it;
   // for a consumer-health product the warning is the real-exposure

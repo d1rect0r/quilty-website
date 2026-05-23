@@ -1,6 +1,5 @@
 import { cookies, headers } from 'next/headers';
 import {
-  Banner,
   CONSENT_COOKIE_NAME,
   COOKIE_REGISTRY,
   TAXONOMY_VERSION,
@@ -12,6 +11,11 @@ import {
 // Component import would fail at build time rather than ship the
 // function to the client bundle.
 import { detectGpcFromHeaders } from '@quilty/consent/server';
+// BannerLazy is the Client wrapper that lazy-loads the Banner chunk
+// via next/dynamic + ssr:false. Returning users (SiteBanner returns
+// null) never load the Banner JS at all; new users load it on first
+// hydration tick rather than on every marketing page load.
+import { BannerLazy } from './BannerLazy';
 
 /**
  * Server-side wrapper around the `@quilty/consent` Banner.
@@ -150,7 +154,7 @@ export async function SiteBanner(): Promise<React.JSX.Element | null> {
   // additional locales activate (next-intl wiring), these hrefs get
   // derived from the active locale segment + threaded through.
   return (
-    <Banner
+    <BannerLazy
       persistConsent={persistConsent}
       cookiePolicyHref="/en/legal/cookies"
       privacyChoicesHref="/en/legal/privacy-choices"

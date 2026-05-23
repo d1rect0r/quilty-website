@@ -29,11 +29,11 @@ export default function HomePage() {
       <JsonLd data={buildSoftwareApplicationJsonLd(SITE_URL)} />
       <JsonLd data={buildBreadcrumbsJsonLd(SITE_URL, [{ name: 'Home', url: `${SITE_URL}/en` }])} />
 
-      <section aria-labelledby="hero-heading" className="mx-auto max-w-4xl px-6 py-24 text-center">
-        <h1
-          id="hero-heading"
-          className="text-fg-default text-balance text-5xl font-semibold tracking-tight"
-        >
+      {/* <section> without aria-labelledby — nested-region landmarks
+          under <main> add AT-navigation noise without giving sub-page
+          structure (single-section pages especially). */}
+      <section className="mx-auto max-w-4xl px-6 py-24 text-center">
+        <h1 className="text-fg-default text-balance text-5xl font-semibold tracking-tight">
           Mental health, made personal.
         </h1>
         <p className="text-fg-muted mt-6 text-lg">

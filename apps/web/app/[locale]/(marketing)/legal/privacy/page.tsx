@@ -1,5 +1,6 @@
-import { buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
+import { buildBreadcrumbsJsonLd, buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
 import Link from 'next/link';
+import { formatReviewDate, toIsoDateTime } from '@/lib/format-date';
 import type { Metadata } from 'next';
 
 /**
@@ -86,19 +87,26 @@ const webPageJsonLd: Record<string, unknown> = {
   name: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
   inLanguage: 'en-US',
-  datePublished: LAST_REVIEWED,
-  dateModified: LAST_REVIEWED,
+  datePublished: toIsoDateTime(LAST_REVIEWED),
+  dateModified: toIsoDateTime(LAST_REVIEWED),
   isPartOf: { '@id': `${siteUrl}#website` },
   publisher: { '@id': `${siteUrl}#organization` },
 };
 
+const breadcrumbsJsonLd = buildBreadcrumbsJsonLd(siteUrl, [
+  { name: 'Home', url: `${siteUrl}/en` },
+  { name: 'Legal', url: pageUrl },
+  { name: 'Privacy Policy', url: pageUrl },
+]);
+
 export default function PrivacyPolicyPage() {
   return (
-    <section className="mx-auto max-w-3xl px-6 py-24" aria-labelledby="privacy-heading">
+    // <section> without aria-labelledby — nested-region landmarks
+    // removed across the legal-page cluster.
+    <section className="mx-auto max-w-3xl px-6 py-24">
       <JsonLd data={webPageJsonLd} />
-      <h1 id="privacy-heading" className="text-fg-default text-4xl font-semibold">
-        Privacy Policy
-      </h1>
+      <JsonLd data={breadcrumbsJsonLd} />
+      <h1 className="text-fg-default text-4xl font-semibold">Privacy Policy</h1>
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">Privacy at a glance</h2>
       <ul className="text-fg-muted mt-4 list-disc space-y-2 pl-6">
@@ -283,7 +291,8 @@ export default function PrivacyPolicyPage() {
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">Last updated</h2>
       <p className="text-fg-muted mt-4">
-        This policy was last updated on <time dateTime={LAST_REVIEWED}>{LAST_REVIEWED}</time>.
+        This policy was last updated on{' '}
+        <time dateTime={LAST_REVIEWED}>{formatReviewDate(LAST_REVIEWED)}</time>.
       </p>
     </section>
   );

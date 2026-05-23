@@ -1,5 +1,6 @@
-import { buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
+import { buildBreadcrumbsJsonLd, buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
 import Link from 'next/link';
+import { formatReviewDate, toIsoDateTime } from '@/lib/format-date';
 import type { Metadata } from 'next';
 
 /**
@@ -69,18 +70,31 @@ const webPageJsonLd: Record<string, unknown> = {
   name: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
   inLanguage: 'en-US',
-  dateModified: LAST_REVIEWED,
+  datePublished: toIsoDateTime(LAST_REVIEWED),
+  dateModified: toIsoDateTime(LAST_REVIEWED),
   isPartOf: { '@id': `${siteUrl}#website` },
   publisher: { '@id': `${siteUrl}#organization` },
 };
 
+const breadcrumbsJsonLd = buildBreadcrumbsJsonLd(siteUrl, [
+  { name: 'Home', url: `${siteUrl}/en` },
+  { name: 'Legal', url: `${siteUrl}/en/legal/privacy` },
+  { name: 'Accessibility Statement', url: pageUrl },
+]);
+
 export default function AccessibilityStatementPage() {
   return (
-    <section className="mx-auto max-w-3xl px-6 py-24" aria-labelledby="accessibility-heading">
+    // The outermost <section> intentionally carries NO aria-labelledby
+    // — the (marketing) layout's <main id="main"> is the page's sole
+    // landmark, + adding a region landmark here on every legal page
+    // creates a nested-landmark pattern that AT users would have to
+    // step through (NVDA + JAWS surface both as peers in the landmark
+    // list). The h1 still names the page; AT users reach it via
+    // heading navigation.
+    <section className="mx-auto max-w-3xl px-6 py-24">
       <JsonLd data={webPageJsonLd} />
-      <h1 id="accessibility-heading" className="text-fg-default text-4xl font-semibold">
-        Accessibility Statement
-      </h1>
+      <JsonLd data={breadcrumbsJsonLd} />
+      <h1 className="text-fg-default text-4xl font-semibold">Accessibility Statement</h1>
 
       <p className="text-fg-muted mt-6">
         Quilty is designed to support every user — including those who rely on assistive technology
@@ -137,8 +151,9 @@ export default function AccessibilityStatementPage() {
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">Last reviewed</h2>
       <p className="text-fg-muted mt-4">
-        This statement was last reviewed on <time dateTime={LAST_REVIEWED}>{LAST_REVIEWED}</time>.
-        We review at least annually and on every meaningful UI change.
+        This statement was last reviewed on{' '}
+        <time dateTime={LAST_REVIEWED}>{formatReviewDate(LAST_REVIEWED)}</time>. We review at least
+        annually and on every meaningful UI change.
       </p>
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">How to report a barrier</h2>

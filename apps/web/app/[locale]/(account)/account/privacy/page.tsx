@@ -35,10 +35,10 @@ export const metadata: Metadata = {
 
 export default function AccountPrivacyPage() {
   return (
-    <section aria-labelledby="account-privacy-heading" className="mx-auto max-w-3xl px-6 py-10">
-      <h1 id="account-privacy-heading" className="text-fg-default text-3xl font-semibold">
-        Privacy settings
-      </h1>
+    // <section> without aria-labelledby — nested-region landmarks
+    // removed across the (marketing) + (account) clusters.
+    <section className="mx-auto max-w-3xl px-6 py-10">
+      <h1 className="text-fg-default text-3xl font-semibold">Privacy settings</h1>
 
       <p className="text-fg-muted mt-4">
         Exercise your statutory rights here. Most actions are self-serve. Destructive actions

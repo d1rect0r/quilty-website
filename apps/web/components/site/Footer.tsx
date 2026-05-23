@@ -93,11 +93,16 @@ interface FooterColumnProps {
 }
 
 function FooterColumn({ title, links }: FooterColumnProps) {
+  // Column titles render as <p> rather than <h2>. Footer columns are
+  // navigation groupings — the <footer role="contentinfo"> landmark
+  // + <nav aria-label=> below convey grouping context to AT, and the
+  // visual styling is unchanged. Using <h2> for navigation labels
+  // polluted the page heading outline with 4 footer entries on every
+  // page (AT users navigating by heading saw "Product / Company /
+  // Legal / Account" listed as peers of substantive page sections).
   return (
-    <div>
-      <h2 className="text-fg-default mb-3 text-xs font-semibold uppercase tracking-wider">
-        {title}
-      </h2>
+    <nav aria-label={title}>
+      <p className="text-fg-default mb-3 text-xs font-semibold uppercase tracking-wider">{title}</p>
       {/* WCAG 2.5.5 AA Target Size: every footer link gets min-h-11 (44px).
           The visual padding on the row aligns with marketing chrome
           touch-target discipline. */}
@@ -113,6 +118,6 @@ function FooterColumn({ title, links }: FooterColumnProps) {
           </li>
         ))}
       </ul>
-    </div>
+    </nav>
   );
 }

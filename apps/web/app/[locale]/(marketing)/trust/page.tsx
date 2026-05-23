@@ -1,5 +1,6 @@
-import { buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
+import { buildBreadcrumbsJsonLd, buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
 import Link from 'next/link';
+import { formatReviewDate, toIsoDateTime } from '@/lib/format-date';
 import type { Metadata } from 'next';
 
 /**
@@ -81,22 +82,31 @@ const webPageJsonLd: Record<string, unknown> = {
   // 'en' here breaks the graph-consistency hint AI-citation crawlers
   // normalise against.
   inLanguage: 'en-US',
-  // dateModified is a load-bearing freshness signal for a posture
-  // page — AI-citation crawlers (Bing Deep Research, Perplexity) use
-  // it to decide whether to quote claims. A stale Trust Center page
-  // without dateModified is high-risk for misquotation.
-  dateModified: LAST_REVIEWED,
+  // datePublished + dateModified are load-bearing freshness signals
+  // for a posture page — AI-citation crawlers (Bing Deep Research,
+  // Perplexity) use them to decide whether to quote claims. ISO 8601
+  // datetime form (T00:00:00Z) is the validator-preferred shape.
+  datePublished: toIsoDateTime(LAST_REVIEWED),
+  dateModified: toIsoDateTime(LAST_REVIEWED),
   isPartOf: { '@id': `${siteUrl}#website` },
   publisher: { '@id': `${siteUrl}#organization` },
 };
 
+const breadcrumbsJsonLd = buildBreadcrumbsJsonLd(siteUrl, [
+  { name: 'Home', url: `${siteUrl}/en` },
+  { name: 'Trust & Security', url: pageUrl },
+]);
+
 export default function TrustCenterPage() {
   return (
-    <section className="mx-auto max-w-3xl px-6 py-24" aria-labelledby="trust-heading">
+    // <section> without aria-labelledby — see the accessibility-page
+    // header comment; nested-region landmarks under <main> are removed
+    // across the legal-page cluster + the Trust Center sits in the
+    // same convention.
+    <section className="mx-auto max-w-3xl px-6 py-24">
       <JsonLd data={webPageJsonLd} />
-      <h1 id="trust-heading" className="text-fg-default text-4xl font-semibold">
-        Trust Center
-      </h1>
+      <JsonLd data={breadcrumbsJsonLd} />
+      <h1 className="text-fg-default text-4xl font-semibold">Trust Center</h1>
 
       <p className="text-fg-muted mt-6">
         Quilty operates as a HIPAA-aligned consumer mental-health product. This page summarises our
@@ -225,8 +235,9 @@ export default function TrustCenterPage() {
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">Last reviewed</h2>
       <p className="text-fg-muted mt-4">
-        This page was last reviewed on <time dateTime={LAST_REVIEWED}>{LAST_REVIEWED}</time>. We
-        review on every meaningful change + at least quarterly.
+        This page was last reviewed on{' '}
+        <time dateTime={LAST_REVIEWED}>{formatReviewDate(LAST_REVIEWED)}</time>. We review on every
+        meaningful change + at least quarterly.
       </p>
     </section>
   );

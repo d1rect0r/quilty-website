@@ -10,10 +10,8 @@ export const metadata: Metadata = {
 
 export default function AccountDeletePage() {
   return (
-    <section aria-labelledby="delete-heading" className="mx-auto max-w-3xl px-6 py-10">
-      <h1 id="delete-heading" className="text-fg-default text-3xl font-semibold">
-        Delete your account
-      </h1>
+    <section className="mx-auto max-w-3xl px-6 py-10">
+      <h1 className="text-fg-default text-3xl font-semibold">Delete your account</h1>
       <p className="text-fg-muted mt-4">
         Self-serve account deletion (GDPR Article 17 erasure) will appear here when the account
         portal activates. Re-authentication via a step-up prompt gates the destructive action — a

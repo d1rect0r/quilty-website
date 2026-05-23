@@ -1,5 +1,7 @@
-import { buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
+import { buildBreadcrumbsJsonLd, buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
+import { CheckCircle2, Clock, Minus } from 'lucide-react';
 import Link from 'next/link';
+import { formatReviewDate, toIsoDateTime } from '@/lib/format-date';
 import type { Metadata } from 'next';
 
 /**
@@ -133,10 +135,17 @@ const webPageJsonLd: Record<string, unknown> = {
   name: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
   inLanguage: 'en-US',
-  dateModified: LAST_REVIEWED,
+  datePublished: toIsoDateTime(LAST_REVIEWED),
+  dateModified: toIsoDateTime(LAST_REVIEWED),
   isPartOf: { '@id': `${siteUrl}#website` },
   publisher: { '@id': `${siteUrl}#organization` },
 };
+
+const breadcrumbsJsonLd = buildBreadcrumbsJsonLd(siteUrl, [
+  { name: 'Home', url: `${siteUrl}/en` },
+  { name: 'Legal', url: `${siteUrl}/en/legal/privacy` },
+  { name: 'Sub-processors', url: pageUrl },
+]);
 
 const itemListJsonLd: Record<string, unknown> = {
   '@context': 'https://schema.org',
@@ -158,12 +167,14 @@ const itemListJsonLd: Record<string, unknown> = {
 
 export default function SubprocessorsPage() {
   return (
-    <section className="mx-auto max-w-4xl px-6 py-24" aria-labelledby="subprocessors-heading">
+    // <section> without aria-labelledby — see the accessibility-page
+    // header comment; nested-region landmarks under <main> are removed
+    // across the legal-page cluster.
+    <section className="mx-auto max-w-4xl px-6 py-24">
       <JsonLd data={webPageJsonLd} />
       <JsonLd data={itemListJsonLd} />
-      <h1 id="subprocessors-heading" className="text-fg-default text-4xl font-semibold">
-        Sub-processors
-      </h1>
+      <JsonLd data={breadcrumbsJsonLd} />
+      <h1 className="text-fg-default text-4xl font-semibold">Sub-processors</h1>
 
       <p className="text-fg-muted mt-6">
         A sub-processor is a third-party that processes data on behalf of Quilty. We use a small,
@@ -174,9 +185,9 @@ export default function SubprocessorsPage() {
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">Current sub-processors</h2>
       <p className="text-fg-muted mt-4">
         The table below is the authoritative list as of{' '}
-        <time dateTime={LAST_REVIEWED}>{LAST_REVIEWED}</time>. &ldquo;BAA status&rdquo; tracks
-        whether a HIPAA Business Associate Agreement is in force; vendors marked{' '}
-        <em>Required before use</em> are evaluated but not yet wired into the runtime.
+        <time dateTime={LAST_REVIEWED}>{formatReviewDate(LAST_REVIEWED)}</time>. &ldquo;BAA
+        status&rdquo; tracks whether a HIPAA Business Associate Agreement is in force; vendors
+        marked <em>Required before use</em> are evaluated but not yet wired into the runtime.
       </p>
 
       {/*
@@ -198,7 +209,13 @@ export default function SubprocessorsPage() {
       >
         {/* eslint-enable jsx-a11y/no-noninteractive-tabindex */}
         <table className="border-border-default min-w-full border-collapse border text-left text-sm">
-          <caption className="text-fg-muted sr-only">
+          {/*
+            Visible caption (not sr-only) — sighted low-vision users
+            who magnify the page benefit from a structural description
+            before they navigate into the table. WCAG 1.4.4 + 2.4.6
+            both reward visible labels for complex tables.
+          */}
+          <caption className="text-fg-muted caption-top pb-3 pt-1 text-left text-sm">
             Quilty sub-processors: vendor name, data processed, purpose, country, and BAA status.
           </caption>
           <thead className="bg-bg-elevated">
@@ -254,7 +271,7 @@ export default function SubprocessorsPage() {
                   {p.country}
                 </td>
                 <td className="border-border-default text-fg-muted border px-4 py-3 align-top">
-                  {p.baaStatus}
+                  <BaaStatusBadge status={p.baaStatus} />
                 </td>
               </tr>
             ))}
@@ -363,8 +380,9 @@ export default function SubprocessorsPage() {
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">Last reviewed</h2>
       <p className="text-fg-muted mt-4">
-        This list was last reviewed on <time dateTime={LAST_REVIEWED}>{LAST_REVIEWED}</time>. We
-        review on every vendor change + at least quarterly.
+        This list was last reviewed on{' '}
+        <time dateTime={LAST_REVIEWED}>{formatReviewDate(LAST_REVIEWED)}</time>. We review on every
+        vendor change + at least quarterly.
       </p>
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">Cross-references</h2>
@@ -381,4 +399,38 @@ export default function SubprocessorsPage() {
       </p>
     </section>
   );
+}
+
+/**
+ * BAA-status pill — icon + text. The icon is aria-hidden so AT users
+ * hear only the status string ("Executed" / "Required before use" /
+ * "Not applicable") + the text retains the full semantic meaning per
+ * WCAG 1.4.1 (no color-only signal — the icon is a visual scanning
+ * aid for sighted procurement reviewers + the text label is the
+ * actual data).
+ */
+function BaaStatusBadge({ status }: { status: SubProcessor['baaStatus'] }) {
+  switch (status) {
+    case 'Executed':
+      return (
+        <span className="inline-flex items-center gap-1.5">
+          <CheckCircle2 className="text-success-fg h-4 w-4" aria-hidden="true" />
+          <span>{status}</span>
+        </span>
+      );
+    case 'Required before use':
+      return (
+        <span className="inline-flex items-center gap-1.5">
+          <Clock className="text-warning-fg h-4 w-4" aria-hidden="true" />
+          <span>{status}</span>
+        </span>
+      );
+    case 'Not applicable':
+      return (
+        <span className="inline-flex items-center gap-1.5">
+          <Minus className="text-fg-subtle h-4 w-4" aria-hidden="true" />
+          <span>{status}</span>
+        </span>
+      );
+  }
 }

@@ -1,5 +1,6 @@
-import { buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
+import { buildBreadcrumbsJsonLd, buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
 import Link from 'next/link';
+import { formatReviewDate, toIsoDateTime } from '@/lib/format-date';
 import type { Metadata } from 'next';
 
 /**
@@ -82,17 +83,26 @@ const webPageJsonLd: Record<string, unknown> = {
   // regulatory-document recency. For first publication both fields
   // carry the same value; the dateModified moves forward on each
   // meaningful edit while datePublished stays anchored.
-  datePublished: LAST_REVIEWED,
-  dateModified: LAST_REVIEWED,
+  datePublished: toIsoDateTime(LAST_REVIEWED),
+  dateModified: toIsoDateTime(LAST_REVIEWED),
   isPartOf: { '@id': `${siteUrl}#website` },
   publisher: { '@id': `${siteUrl}#organization` },
 };
 
+const breadcrumbsJsonLd = buildBreadcrumbsJsonLd(siteUrl, [
+  { name: 'Home', url: `${siteUrl}/en` },
+  { name: 'Legal', url: `${siteUrl}/en/legal/privacy` },
+  { name: 'Consumer Health Data Privacy (WA)', url: pageUrl },
+]);
+
 export default function ConsumerHealthDataPrivacyPage() {
   return (
-    <section className="mx-auto max-w-3xl px-6 py-24" aria-labelledby="chd-heading">
+    // <section> without aria-labelledby — nested-region landmarks
+    // removed across the legal-page cluster.
+    <section className="mx-auto max-w-3xl px-6 py-24">
       <JsonLd data={webPageJsonLd} />
-      <h1 id="chd-heading" className="text-fg-default text-4xl font-semibold">
+      <JsonLd data={breadcrumbsJsonLd} />
+      <h1 className="text-fg-default text-4xl font-semibold">
         Consumer Health Data Privacy Policy (Washington)
       </h1>
 
@@ -247,8 +257,9 @@ export default function ConsumerHealthDataPrivacyPage() {
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">Last reviewed</h2>
       <p className="text-fg-muted mt-4">
-        This policy was last reviewed on <time dateTime={LAST_REVIEWED}>{LAST_REVIEWED}</time>. We
-        review on every meaningful change + at least annually.
+        This policy was last reviewed on{' '}
+        <time dateTime={LAST_REVIEWED}>{formatReviewDate(LAST_REVIEWED)}</time>. We review on every
+        meaningful change + at least annually.
       </p>
     </section>
   );
