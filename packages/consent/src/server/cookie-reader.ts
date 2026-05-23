@@ -96,6 +96,10 @@ function parseConsentCookie(raw: string | null): Partial<ConsentSnapshot> | null
         personalization: promoted.personalization,
       };
     }
+    // Narrowed from `object` by the typeof + null guard above; the
+    // caller validates each field individually (`=== true` checks +
+    // `isValidIso8601Utc` on the timestamp) so a shape mismatch is
+    // surfaced field-by-field rather than panicking.
     return parsed as Partial<ConsentSnapshot>;
   } catch {
     return null;

@@ -50,24 +50,29 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/en/legal/accessibility',
     languages: {
-      en: '/en/legal/accessibility',
+      // 'en-US' (BCP 47) matches inLanguage on the WebSite +
+      // Organization graph anchors in @quilty/seo; bare 'en' diverges
+      // from the cross-page anchor consistency the AI-citation
+      // crawlers normalise against.
+      'en-US': '/en/legal/accessibility',
       'x-default': '/en/legal/accessibility',
     },
   },
   ...ogMetadata,
 };
 
-const webPageJsonLd = {
+const webPageJsonLd: Record<string, unknown> = {
   '@context': 'https://schema.org',
   '@type': 'WebPage',
   '@id': `${pageUrl}#webpage`,
   url: pageUrl,
   name: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
-  inLanguage: 'en',
+  inLanguage: 'en-US',
+  dateModified: LAST_REVIEWED,
   isPartOf: { '@id': `${siteUrl}#website` },
   publisher: { '@id': `${siteUrl}#organization` },
-} as const;
+};
 
 export default function AccessibilityStatementPage() {
   return (
@@ -158,6 +163,17 @@ export default function AccessibilityStatementPage() {
         supervisory authority in their member state. Each member state publishes the relevant
         contact under the European Accessibility Act implementing legislation. We will provide the
         appropriate contact in response to any unresolved report.
+      </p>
+      <p className="text-fg-muted mt-4">
+        For data-protection questions arising from accessibility correspondence, contact our{' '}
+        <strong className="text-fg-default">Privacy Lead</strong> at{' '}
+        <a
+          href="mailto:privacy@my-quilty.com"
+          className="text-fg-default underline underline-offset-2"
+        >
+          privacy@my-quilty.com
+        </a>
+        .
       </p>
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">Cross-references</h2>

@@ -178,14 +178,19 @@ export function Banner({
             </a>
             .
           </p>
-          {errorMessage !== null ? (
-            // <output> carries implicit role="status" + aria-live="polite"
-            // per HTML-AAM — jsx-a11y/prefer-tag-over-role prefers the
-            // semantic tag over the explicit ARIA role attribute.
-            <output id={statusId} className="text-fg-default mt-2 block text-sm">
-              {errorMessage}
-            </output>
-          ) : null}
+          {/*
+            <output> carries implicit role="status" + aria-live="polite"
+            per HTML-AAM — jsx-a11y/prefer-tag-over-role prefers the
+            semantic tag over the explicit ARIA role attribute.
+            Rendered unconditionally with the empty string when no error
+            is active so NVDA + JAWS observe the live region from initial
+            mount; conditionally mounting the element on first error is
+            unreliable across the AT matrix because neither AT polls for
+            newly-inserted live regions.
+          */}
+          <output id={statusId} className="text-fg-default mt-2 block text-sm">
+            {errorMessage ?? ''}
+          </output>
         </div>
         <div className="flex flex-shrink-0 flex-col gap-2 md:flex-row md:items-center">
           <button

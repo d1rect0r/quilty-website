@@ -98,7 +98,8 @@ export default function AccountPrivacyPage() {
         >
           privacy choices
         </Link>{' '}
-        for the full enumeration of rights + the 45-day response SLA. For escalations email{' '}
+        for the full enumeration of rights + the 45-day response SLA. For escalations email our{' '}
+        <strong className="text-fg-default">Privacy Lead</strong> at{' '}
         <a
           href="mailto:privacy@my-quilty.com"
           className="text-fg-default underline underline-offset-2"

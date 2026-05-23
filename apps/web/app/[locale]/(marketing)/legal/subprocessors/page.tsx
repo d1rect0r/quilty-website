@@ -20,8 +20,8 @@ import type { Metadata } from 'next';
  *
  * Email subscription is the canonical pattern (CSRF + honeypot +
  * time-trap + Turnstile + sanitizer + Server Action + Result envelope).
- * Wave 4 ships the disabled placeholder; the active form lands when
- * the email-platform adapter activates.
+ * The disabled placeholder is the scaffold form; the active form
+ * lands when the email-platform adapter activates.
  */
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
@@ -113,7 +113,7 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/en/legal/subprocessors',
     languages: {
-      en: '/en/legal/subprocessors',
+      'en-US': '/en/legal/subprocessors',
       'x-default': '/en/legal/subprocessors',
     },
   },
@@ -132,7 +132,8 @@ const webPageJsonLd: Record<string, unknown> = {
   url: pageUrl,
   name: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
-  inLanguage: 'en',
+  inLanguage: 'en-US',
+  dateModified: LAST_REVIEWED,
   isPartOf: { '@id': `${siteUrl}#website` },
   publisher: { '@id': `${siteUrl}#organization` },
 };
@@ -311,12 +312,22 @@ export default function SubprocessorsPage() {
           >
             Subscribe
           </button>
+          {/*
+            Status copy lives INSIDE the <fieldset> so the
+            aria-describedby reference resolves within the same
+            grouped-control context. The prior placement (outside
+            </form>) was a valid forward cross-reference per ARIA 1.2
+            but unreliable in NVDA + JAWS Forms Mode.
+          */}
+          <p
+            id="subprocessor-subscribe-status"
+            className="text-fg-muted basis-full pt-2 text-sm sm:pt-0"
+          >
+            Email subscription activates when the email platform launches. Until then, the canonical
+            change record is this page — bookmark it to track updates.
+          </p>
         </fieldset>
       </form>
-      <p id="subprocessor-subscribe-status" className="text-fg-muted mt-2 text-sm">
-        Email subscription activates when the email platform launches. Until then, the canonical
-        change record is this page — bookmark it to track updates.
-      </p>
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">Erasure + your rights</h2>
       <p className="text-fg-muted mt-4">
@@ -335,6 +346,19 @@ export default function SubprocessorsPage() {
           privacy choices
         </Link>{' '}
         page to exercise these rights.
+      </p>
+
+      <h2 className="text-fg-default mt-12 text-2xl font-semibold">Contact</h2>
+      <p className="text-fg-muted mt-4">
+        Questions about this list go to our{' '}
+        <strong className="text-fg-default">Privacy Lead</strong> at{' '}
+        <a
+          href="mailto:privacy@my-quilty.com"
+          className="text-fg-default underline underline-offset-2"
+        >
+          privacy@my-quilty.com
+        </a>
+        .
       </p>
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">Last reviewed</h2>

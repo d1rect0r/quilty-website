@@ -93,11 +93,10 @@ export function makeServerContainer(): ServerContainer {
     // today — load-bearing for auth-adjacent paths. The DynamoDB
     // adapter activates once the table + Lambda IAM grant ship.
     rateLimiter: makeInMemoryRateLimiter(),
-    // In-memory ConsentStore at the scaffold. The DynamoDB adapter
-    // activates with the D63 two-table layout (consent-current +
-    // consent-audit) in `quilty-aws/website-baseline/`. The store
-    // shape is identical across adapters — only the persistence
-    // backing changes.
+    // In-memory ConsentStore (D63). Edge tier owns its own Map; the
+    // cross-tier disjoint state is intentional pre-DynamoDB (auth
+    // callback migrate() hits the no-op branch today). DynamoDB
+    // activation gates on a single canonical store.
     consentStore: makeInMemoryConsentStore(),
   };
 }

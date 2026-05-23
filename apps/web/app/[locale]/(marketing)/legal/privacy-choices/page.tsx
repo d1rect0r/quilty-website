@@ -125,7 +125,8 @@ export default function PrivacyChoicesPage() {
         </li>
         <li>
           <strong className="text-fg-default">Opt-out of sale / sharing (CCPA / CPRA).</strong> We
-          do not sell your personal data; the GPC signal is honored at the edge.
+          do not sell your personal data; the GPC signal is honored at the edge under California
+          Civil Code §1798.135 + 11 CCR §7025(c)(6).
         </li>
         <li>
           <strong className="text-fg-default">Consumer Health Data rights (WA MHMDA).</strong>{' '}
@@ -139,6 +140,21 @@ export default function PrivacyChoicesPage() {
           for the WA-specific surface.
         </li>
       </ul>
+
+      <h2 className="text-fg-default mt-12 text-2xl font-semibold">Sensitive data</h2>
+      <p className="text-fg-muted mt-4">
+        Consumer health data is a <strong className="text-fg-default">sensitive data class</strong>{' '}
+        under CCPA §1798.140, GDPR Article 9, and the Washington My Health My Data Act. We treat all
+        sale or sharing as opt-in only, irrespective of jurisdiction. The full WA-specific surface
+        is at{' '}
+        <Link
+          href="/en/legal/consumer-health-data-privacy"
+          className="text-fg-default underline underline-offset-2"
+        >
+          /legal/consumer-health-data-privacy
+        </Link>
+        .
+      </p>
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">How to exercise these rights</h2>
       <p className="text-fg-muted mt-4">

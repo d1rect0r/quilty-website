@@ -3,10 +3,15 @@ import {
   Banner,
   CONSENT_COOKIE_NAME,
   COOKIE_REGISTRY,
-  detectGpcFromHeaders,
   TAXONOMY_VERSION,
   type ConsentCategoryState,
 } from '@quilty/consent';
+// `detectGpcFromHeaders` is server-only — it reads a request header
+// + is meaningless in the browser. Routed through the /server subpath
+// per the perf-bundle close-pass discipline so a future Client-
+// Component import would fail at build time rather than ship the
+// function to the client bundle.
+import { detectGpcFromHeaders } from '@quilty/consent/server';
 
 /**
  * Server-side wrapper around the `@quilty/consent` Banner.

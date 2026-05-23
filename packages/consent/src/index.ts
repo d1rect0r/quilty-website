@@ -34,7 +34,11 @@ export {
   migrateFromV0,
 } from './domain/cookie-taxonomy';
 
-export { detectGpcFromHeaders, type HeaderGetter } from './domain/gpc-detector';
+// `detectGpcFromHeaders` + its `HeaderGetter` type intentionally live
+// on the `@quilty/consent/server` subpath. They read a request header
+// + are meaningless in the browser; routing them through /server
+// prevents a future Client-Component import from shipping the function
+// to the client bundle without a build-time error.
 
 export { makeDefaultDenyConsentReader } from './domain/default-deny-consent';
 

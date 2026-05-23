@@ -62,7 +62,7 @@ export const metadata: Metadata = {
   alternates: {
     canonical: '/en/trust',
     languages: {
-      en: '/en/trust',
+      'en-US': '/en/trust',
       'x-default': '/en/trust',
     },
   },
@@ -208,6 +208,19 @@ export default function TrustCenterPage() {
         Once our SOC 2 Type II attestation is in force, we will migrate to a dedicated Trust Center
         with controls evidence + policy library + audit-report access. This page remains the entry
         point — bookmark it.
+      </p>
+
+      <h2 className="text-fg-default mt-12 text-2xl font-semibold">Privacy questions</h2>
+      <p className="text-fg-muted mt-4">
+        Data + privacy enquiries from procurement reviewers + data subjects go to our{' '}
+        <strong className="text-fg-default">Privacy Lead</strong> at{' '}
+        <a
+          href="mailto:privacy@my-quilty.com"
+          className="text-fg-default underline underline-offset-2"
+        >
+          privacy@my-quilty.com
+        </a>
+        .
       </p>
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">Last reviewed</h2>

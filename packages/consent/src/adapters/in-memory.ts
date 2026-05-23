@@ -1,3 +1,10 @@
+// `server-only` blocks any client-component import path — the audit-
+// history Map is a process-scoped singleton + must never instantiate
+// in a client bundle. The /server barrel re-exports already carry
+// this guard; restating it at the adapter file is defense-in-depth
+// against a future direct-import bypass.
+import 'server-only';
+
 /**
  * In-memory `ConsentStore` adapter.
  *
@@ -12,8 +19,9 @@
  * structure only — the audit history is not exposed via the
  * `ConsentStore` port to keep test fakes simple.
  *
- * Edge-runtime safe: uses only the `Map` Web API + plain JS objects.
- * No Node-only `Buffer` / `fs` / etc.
+ * Edge-runtime safe (Map Web API + plain JS only); `server-only`
+ * blocks Client-Component imports but allows server + edge runtimes
+ * — the Node "no Client Component" semantic is what we want here.
  */
 
 import { mergeConsentSnapshots } from '../domain/migrate';
