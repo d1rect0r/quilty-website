@@ -28,6 +28,7 @@ function makeMockClientContainer(): ClientContainer {
     errorReporter: { captureException: captureExceptionSpy },
     analytics: { track: vi.fn() },
     featureFlags: { flag: featureFlagsEvalSpy, all: () => ({}) },
+    phiScrubber: { scrubSentryEvent: (event) => event },
   };
 }
 

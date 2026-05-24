@@ -1,3 +1,5 @@
+import { scrubValuePatterns } from './value-patterns';
+
 /**
  * PHI sanitizer (D67) — the load-bearing Cerebral-lesson primitive.
  *
@@ -14,6 +16,12 @@
  *   - Redact JWT-shaped strings (3 dot-separated base64url segments).
  *   - Replace user UUIDs with stable hashes (joinable for debug
  *     correlation; not reversible to the user identity).
+ *   - Value-pattern scrub (D67 extension, Commit 31): every string
+ *     leaf passes through `scrubValuePatterns()` to redact email-,
+ *     phone-, SSN-, Luhn-valid card-, DOB-, MRN-shaped substrings
+ *     in free-text fields the key-based denylist would miss
+ *     (a `message` value carrying "my email is x@y.com" is the
+ *     canonical failure mode).
  *   - Truncate free-text values over 200 chars.
  *
  * Performance: this runs on EVERY observability call. Keep it O(n) over
@@ -156,6 +164,52 @@ const PHI_KEY_DENYLIST: ReadonlySet<string> = new Set([
   'x_api_key',
   'x_forwarded_for',
   'cf_connecting_ip',
+  // Persistent device identifiers (Commit 31 — FTC Cerebral order's
+  // "Covered Information" explicitly includes persistent identifiers
+  // joined to clinical context).
+  'device_id',
+  'deviceid',
+  'advertising_id',
+  'advertisingid',
+  'idfa',
+  'gaid',
+  'idfv',
+  // Precise-location identifiers (Cerebral $7M + Monument lessons).
+  'geo_lat',
+  'geo_lng',
+  'precise_location',
+  'lat_lng',
+  'latitude',
+  'longitude',
+  // Provider / prescriber identifiers (HIPAA-covered when joined to
+  // patient context).
+  'npi',
+  'npi_number',
+  'dea_number',
+  'prescriber_id',
+  'provider_id',
+  // Clinical instruments (WA MHMDA explicitly names these; PHQ /
+  // GAD-7 / DAST / AUDIT / PROMIS / BDI / Columbia Suicide Severity
+  // Rating Scale are screening-instrument identifiers — joined to a
+  // user, they are clinical signal).
+  'phq2',
+  'audit_c',
+  'dast',
+  'dast_10',
+  'promis',
+  'bdi',
+  'cssrs',
+  // Biometric identifiers (HIPAA §164.514(b)(2)(R) + WA MHMDA).
+  'full_face_photo',
+  'face_print',
+  'voice_print',
+  'biometric_identifier',
+  'fingerprint',
+  // Insurance + claim identifiers (covered when joined to patient).
+  'claim_id',
+  'eob',
+  'prior_auth',
+  'prior_authorization',
 ]);
 
 const REDACTED = '[REDACTED]';
@@ -308,10 +362,18 @@ function isLikelyJwt(value: string): boolean {
 
 function sanitizeString(value: string): string {
   if (isLikelyJwt(value)) return REDACTED;
-  if (value.length > MAX_FREE_TEXT_LENGTH) {
-    return `${value.slice(0, MAX_FREE_TEXT_LENGTH)}…[truncated]`;
+  // Value-pattern regex pass — catches free-text PHI (email-shaped,
+  // phone-shaped, SSN-shaped, Luhn-valid card numbers, DOB-shaped
+  // strings, MRN-with-marker) that the key-based denylist misses
+  // (Commit 31 / D67 extension). Order matters: scrub patterns
+  // BEFORE truncation so a long message with a phone number at
+  // position 250 still gets that phone redacted (via the partial
+  // scrub running on the full string) before the tail is cut.
+  const scrubbed = scrubValuePatterns(value);
+  if (scrubbed.length > MAX_FREE_TEXT_LENGTH) {
+    return `${scrubbed.slice(0, MAX_FREE_TEXT_LENGTH)}…[truncated]`;
   }
-  return value;
+  return scrubbed;
 }
 
 /**
@@ -386,10 +448,16 @@ async function sanitizeAsyncImpl(value: unknown, depth = 0): Promise<unknown> {
   if (typeof value === 'string') {
     if (UUID_PATTERN.test(value)) return hashId(value);
     if (isLikelyJwt(value)) return REDACTED;
-    if (value.length > MAX_FREE_TEXT_LENGTH) {
-      return `${value.slice(0, MAX_FREE_TEXT_LENGTH)}…[truncated]`;
+    // Value-pattern regex pass MUST run before truncation parity-with
+    // the sync `sanitizeString()` path — without it, the async surface
+    // (CloudWatch audit pipeline, future server-action explicit scrubs)
+    // would emit raw email/phone/SSN/card/DOB/MRN strings while the
+    // sync surface scrubbed them. [D67 + D148]
+    const scrubbed = scrubValuePatterns(value);
+    if (scrubbed.length > MAX_FREE_TEXT_LENGTH) {
+      return `${scrubbed.slice(0, MAX_FREE_TEXT_LENGTH)}…[truncated]`;
     }
-    return value;
+    return scrubbed;
   }
   if (typeof value === 'number' || typeof value === 'boolean') return value;
   if (typeof value === 'bigint') return value.toString();

@@ -1,6 +1,8 @@
-import { makeSentryReplay, wrapReplay } from '@quilty/observability';
+import { makePhiScrubber, makeSentryReplay, wrapReplay } from '@quilty/observability';
 import { sanitize } from '@quilty/security';
 import * as Sentry from '@sentry/nextjs';
+
+const phiScrubber = makePhiScrubber();
 
 /**
  * Sentry client-side config per D42a + D68 + D67.
@@ -37,39 +39,12 @@ Sentry.init({
   replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 1.0,
 
-  // beforeSend — last line of defense. Any error payload that slipped
-  // past logError()'s sanitize() pass gets scrubbed here too.
+  // beforeSend — last line of defense. The PHIScrubber adapter
+  // (Commit 31) centralises the chokepoint logic that previously was
+  // duplicated across server / client / edge configs. See
+  // sentry.server.config.ts for the chokepoint rationale.
   beforeSend(event) {
-    if (event.extra) event.extra = sanitize(event.extra) as Record<string, unknown>;
-    if (event.contexts) event.contexts = sanitize(event.contexts) as typeof event.contexts;
-    if (event.tags) event.tags = sanitize(event.tags) as typeof event.tags;
-    // The exception message + top-level message strings are the path
-    // through which a Zod validation error or template-literal throw
-    // can carry user-typed free text — wrapErrorReporter sanitizes
-    // the context object but forwards the raw Error to the adapter,
-    // so the SDK serializes `error.message` straight into
-    // `exception.values[i].value`. Sanitize at the SDK boundary too
-    // (D67 belt-and-suspenders alongside the planned ESLint rule).
-    if (event.exception?.values) {
-      for (const ex of event.exception.values) {
-        if (typeof ex.value === 'string') ex.value = sanitize(ex.value);
-      }
-    }
-    if (typeof event.message === 'string') event.message = sanitize(event.message);
-    // event.request added per architecture lock HIPAA reviewer — Sentry browser SDK
-    // auto-populates request.url + request.headers + request.cookies on
-    // the client side. Even though D31 says URLs never carry PHI, that's
-    // design intent not enforcement; sanitize at the boundary too.
-    if (event.request) {
-      // Strip query string from request.url — defense-in-depth alongside
-      // the D31 design intent .
-      if (event.request.url) {
-        const qIdx = event.request.url.indexOf('?');
-        if (qIdx !== -1) event.request.url = event.request.url.slice(0, qIdx);
-      }
-      event.request = sanitize(event.request) as typeof event.request;
-    }
-    return event;
+    return phiScrubber.scrubSentryEvent(event) as typeof event | null;
   },
 
   beforeBreadcrumb(breadcrumb) {

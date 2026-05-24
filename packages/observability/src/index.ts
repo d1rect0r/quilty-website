@@ -27,8 +27,10 @@ export type {
   LogFields,
   LogLevel,
   Logger,
+  PHIScrubber,
   Replay,
   ReplayConfig,
+  SentryEventLike,
 } from './ports';
 
 export type {
@@ -71,6 +73,7 @@ export { makeAmplitudeAnalytics, type AmplitudeAnalyticsOptions } from './adapte
 export { makeBrowserLogger } from './adapters/browser-logger';
 export { makeCloudWatchLogger } from './adapters/cloudwatch-logger';
 export { makeEnvFlagEvaluator } from './adapters/env-flags';
+export { makePhiScrubber } from './adapters/phi-scrubber';
 export { makeSentryErrorReporter } from './adapters/sentry-error-reporter';
 export { makeSentryReplay } from './adapters/sentry-replay';
 

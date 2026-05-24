@@ -30,6 +30,7 @@ import {
   makeAmplitudeAnalytics,
   makeCloudWatchLogger,
   makeEnvFlagEvaluator,
+  makePhiScrubber,
   makeSentryErrorReporter,
   wrapAnalytics,
   wrapErrorReporter,
@@ -77,6 +78,7 @@ export function makeServerContainer(): ServerContainer {
       sanitizer,
     }),
     featureFlags: makeEnvFlagEvaluator(),
+    phiScrubber: makePhiScrubber(),
     // In-memory adapter is the production wiring today; the SES
     // adapter activates once the DMARC ramp + BAA inventory both list
     // SES as covered (see docs/runbook/*.md). The wrapper composes the

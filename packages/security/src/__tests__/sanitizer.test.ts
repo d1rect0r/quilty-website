@@ -171,6 +171,53 @@ describe('sanitize (sync)', () => {
     expect(sanitize(undefined)).toBe(undefined);
   });
 
+  // Value-pattern regex pass (D67 extension, Commit 31). The
+  // key-based denylist catches { email: "x@y.com" } but free-text
+  // fields like a "message" body can carry PHI-shaped substrings
+  // the key-based pass would miss. Every string leaf runs through
+  // `scrubValuePatterns()` to redact those substrings.
+  it('redacts email-shaped substrings inside free-text message fields', () => {
+    // The "message" key is NOT in the key denylist by default; the
+    // value-pattern pass is what catches the email here.
+    const out = sanitize({ greeting: 'reach me at user@example.com tomorrow' }) as {
+      greeting: string;
+    };
+    expect(out.greeting).not.toContain('user@example.com');
+    expect(out.greeting).toMatch(/reach me at \[EMAIL\] tomorrow/);
+  });
+
+  it('redacts phone-shaped substrings inside free-text fields', () => {
+    const out = sanitize({ body: 'call me at (555) 123-4567 please' }) as { body: string };
+    expect(out.body).not.toContain('(555) 123-4567');
+  });
+
+  it('does NOT redact innocuous numerics that the value-pattern pass excludes', () => {
+    const text = 'Order 1234567 shipped, ZIP 94103, version v1.2.3';
+    const out = sanitize(text) as string;
+    expect(out).toBe(text);
+  });
+
+  // Denylist expansion (Commit 31). Persistent device identifiers
+  // + clinical-instrument shorthand + biometric markers + claim IDs
+  // are now in the key-based denylist per the FTC Cerebral order's
+  // "Covered Information" scope + WA MHMDA's biometric clauses.
+  it('redacts the expanded denylist (device_id, advertising_id, npi, phq2, biometric_identifier, claim_id)', () => {
+    const out = sanitize({
+      device_id: 'abc123',
+      advertising_id: 'def456',
+      npi: '1234567890',
+      phq2: 4,
+      biometric_identifier: 'fingerprint-template',
+      claim_id: 'CLM-0001',
+    }) as Record<string, unknown>;
+    expect(out.device_id).toBe('[REDACTED]');
+    expect(out.advertising_id).toBe('[REDACTED]');
+    expect(out.npi).toBe('[REDACTED]');
+    expect(out.phq2).toBe('[REDACTED]');
+    expect(out.biometric_identifier).toBe('[REDACTED]');
+    expect(out.claim_id).toBe('[REDACTED]');
+  });
+
   it('caps recursion depth defensively', () => {
     // Build a 20-deep nested object — depth limit is 16.
     let leaf: unknown = { value: 'leaf' };
@@ -201,6 +248,30 @@ describe('sanitizeAsync', () => {
   it('redacts PHI keys at any depth (parity with sync)', async () => {
     const out = await sanitizeAsync({ email: 'x@y.z', route: '/safe' });
     expect(out).toMatchObject({ email: '[REDACTED]', route: '/safe' });
+  });
+
+  it('value-pattern regex pass: free-text email is redacted on the async path', async () => {
+    const out = await sanitizeAsync('Contact me at alice@example.com please');
+    expect(out).toContain('[EMAIL]');
+    expect(out).not.toContain('alice@example.com');
+  });
+
+  it('value-pattern regex pass: phone number is redacted on the async path', async () => {
+    const out = await sanitizeAsync('Call (555) 123-4567 ASAP');
+    expect(out).toContain('[PHONE]');
+    expect(out).not.toContain('555');
+  });
+
+  it('value-pattern regex pass: SSN is redacted on the async path', async () => {
+    const out = await sanitizeAsync('SSN: 123-45-6789 on file');
+    expect(out).toContain('[SSN]');
+    expect(out).not.toContain('123-45-6789');
+  });
+
+  it('value-pattern regex pass: Luhn-validated card number is redacted on the async path', async () => {
+    const out = await sanitizeAsync('Charged 4111-1111-1111-1111 today');
+    expect(out).toContain('[CARD]');
+    expect(out).not.toContain('4111-1111-1111-1111');
   });
 });
 

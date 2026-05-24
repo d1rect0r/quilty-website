@@ -65,4 +65,18 @@ module.exports = [
     limit: '100 KB',
     gzip: true,
   },
+  // Per-route landing-page chunk budget. The aggregate budget at line
+  // 27 catches global JS bloat but a regression that adds 20 KB to a
+  // single landing route's `'use client'` graph would not trip it
+  // until the full chunks dir crosses 260 KB. The (marketing) route
+  // group is the apex SEO surface — its chunk should stay lean.
+  // 60 KB is a generous ceiling that accommodates today's Banner +
+  // CopyReference Client Components + the locale prelude; tighten as
+  // M2 content lands.
+  {
+    name: '(marketing) route chunk (gzip)',
+    path: ['apps/web/.next/static/chunks/app/**/(marketing)/**/*.js'],
+    limit: '60 KB',
+    gzip: true,
+  },
 ];

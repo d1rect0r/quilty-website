@@ -1,11 +1,23 @@
 import { sanitize } from '@quilty/security';
+import { makePhiScrubber } from '@quilty/observability';
 import * as Sentry from '@sentry/nextjs';
 
 /**
  * Sentry server-side config per D42a + D67. Replay is client-only; the
  * server config is errors + traces (auto-consumed from OTel spans
  * emitted by instrumentation.ts).
+ *
+ * The `beforeSend` hook now delegates to the @quilty/observability
+ * `PHIScrubber` port adapter (Commit 31). The prior inline scrubbing
+ * was duplicated across server / client / edge configs; the adapter
+ * centralizes the chokepoint so a future Sentry SDK upgrade or a
+ * vendor swap (Datadog, Honeycomb) is a single-adapter change.
+ * The adapter is stateless — direct construction here (rather than
+ * via the container singleton) avoids a circular dependency between
+ * Sentry init (which runs at module load) and the composition root.
  */
+
+const phiScrubber = makePhiScrubber();
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -14,39 +26,11 @@ Sentry.init({
   tracesSampleRate: 0.1,
 
   beforeSend(event) {
-    if (event.extra) event.extra = sanitize(event.extra) as Record<string, unknown>;
-    if (event.contexts) event.contexts = sanitize(event.contexts) as typeof event.contexts;
-    if (event.tags) event.tags = sanitize(event.tags) as typeof event.tags;
-    // The exception message + top-level message strings are the path
-    // through which a Zod validation error or template-literal throw
-    // can carry user-typed free text — wrapErrorReporter sanitizes
-    // the context object but forwards the raw Error to the adapter,
-    // so the SDK serializes `error.message` straight into
-    // `exception.values[i].value`. Sanitize at the SDK boundary too
-    // (D67 belt-and-suspenders alongside the planned ESLint rule).
-    if (event.exception?.values) {
-      for (const ex of event.exception.values) {
-        if (typeof ex.value === 'string') ex.value = sanitize(ex.value);
-      }
-    }
-    if (typeof event.message === 'string') event.message = sanitize(event.message);
-    if (event.request) {
-      // The Sentry server SDK can auto-attach the parsed POST body to
-      // event.request.data when a Route Handler throws mid-request.
-      // Free text in a Route Handler body is the most direct PHI
-      // carrier path — null the field unconditionally before the
-      // sanitize() pass (the key-denylist sanitize won't catch a body
-      // field whose name is not on the denylist).
-      event.request.data = undefined;
-      // Strip query string from request.url — D31 forbids PHI in URLs,
-      // but defence-in-depth catches a future URL that drifts.
-      if (event.request.url) {
-        const qIdx = event.request.url.indexOf('?');
-        if (qIdx !== -1) event.request.url = event.request.url.slice(0, qIdx);
-      }
-      event.request = sanitize(event.request) as typeof event.request;
-    }
-    return event;
+    // The PHIScrubber returns a SentryEventLike subset of the SDK's
+    // event shape. Cast back to the SDK's `Event` type — the
+    // structural subset is preserved by `scrubSentryEvent`, which
+    // only mutates fields that exist on the SDK shape.
+    return phiScrubber.scrubSentryEvent(event) as typeof event | null;
   },
 
   // Strip PHI-shaped fields from breadcrumb data — parity with the

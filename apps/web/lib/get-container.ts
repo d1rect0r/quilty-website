@@ -35,7 +35,13 @@
 import type { CaptchaVerifier } from '@quilty/captcha';
 import type { ConsentStore } from '@quilty/consent';
 import type { EmailSender } from '@quilty/email';
-import type { Analytics, ErrorReporter, FeatureFlagEvaluator, Logger } from '@quilty/observability';
+import type {
+  Analytics,
+  ErrorReporter,
+  FeatureFlagEvaluator,
+  Logger,
+  PHIScrubber,
+} from '@quilty/observability';
 import type { RateLimiter } from '@quilty/rate-limit';
 import type { Sanitizer } from '@quilty/security';
 
@@ -55,6 +61,22 @@ interface BaseContainer {
   readonly errorReporter: ErrorReporter;
   readonly analytics: Analytics;
   readonly featureFlags: FeatureFlagEvaluator;
+  /**
+   * PHIScrubber port (D67 extension). The Sentry `beforeSend` hook in
+   * each runtime's config file delegates to a fresh adapter instance
+   * constructed inline (`makePhiScrubber()` at module load) — Sentry
+   * init runs before the composition root resolves, so the container
+   * cannot be reached from `sentry.*.config.ts`. The container-held
+   * instance is reserved for future non-Sentry consumers (server
+   * actions that need to scrub outbound payloads, audit-log emitters,
+   * etc.). Because the adapter is stateless today, the two-instance
+   * pattern is behaviorally identical; if the adapter ever becomes
+   * stateful (configurable denylist extension, sampling counter), the
+   * Sentry config sites would need to call back through the container
+   * — that migration is intentionally future work, not load-bearing
+   * for the current commit.
+   */
+  readonly phiScrubber: PHIScrubber;
 }
 
 /**

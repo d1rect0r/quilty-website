@@ -7,6 +7,7 @@ import {
   makeBrowserLogger,
   makeCloudWatchLogger,
   makeEnvFlagEvaluator,
+  makePhiScrubber,
   makeSentryErrorReporter,
   wrapAnalytics,
   wrapErrorReporter,
@@ -39,6 +40,7 @@ function makeTestServerContainer(): ServerContainer {
     }),
     errorReporter: wrapErrorReporter({ adapter: makeSentryErrorReporter(), sanitizer }),
     featureFlags: makeEnvFlagEvaluator(),
+    phiScrubber: makePhiScrubber(),
     emailSender: wrapEmailSender({ adapter: makeInMemoryEmailSender(), sanitizer }),
     captchaVerifier: makeInMemoryCaptchaVerifier(),
     rateLimiter: makeInMemoryRateLimiter(),
@@ -60,6 +62,7 @@ function makeTestClientContainer(): ClientContainer {
     }),
     errorReporter: wrapErrorReporter({ adapter: makeSentryErrorReporter(), sanitizer }),
     featureFlags: makeEnvFlagEvaluator(),
+    phiScrubber: makePhiScrubber(),
   };
 }
 
@@ -77,6 +80,7 @@ function makeTestEdgeContainer(): EdgeContainer {
     }),
     errorReporter: wrapErrorReporter({ adapter: makeSentryErrorReporter(), sanitizer }),
     featureFlags: makeEnvFlagEvaluator(),
+    phiScrubber: makePhiScrubber(),
     consentStore: makeInMemoryConsentStore(),
   };
 }

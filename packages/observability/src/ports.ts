@@ -164,3 +164,88 @@ export interface FeatureFlagEvaluator {
   readonly flag: <T>(name: string, defaultValue: T) => T;
   readonly all: () => Readonly<Record<string, unknown>>;
 }
+
+// ---------------------------------------------------------------------------
+// PHIScrubber port (D67 extension — Commit 31)
+// ---------------------------------------------------------------------------
+
+/**
+ * Sentry primitive type. Mirrors `@sentry/types` `Primitive` so the
+ * `tags` + `contexts` index signatures align structurally with
+ * Sentry's event shape (which permits undefined / null / boolean
+ * values per its own type definition).
+ */
+type SentryPrimitive = string | number | boolean | bigint | symbol | null | undefined;
+
+/**
+ * Minimal Sentry-event shape for the scrubber port. The full Sentry
+ * `Event` type carries dozens of vendor-specific fields the scrubber
+ * does not touch (`fingerprint`, `spans`, `measurements`,
+ * `sdkProcessingMetadata`, etc.); we narrow to the surfaces the
+ * chokepoint actually touches so the adapter stays testable without
+ * dragging the Sentry SDK into the port's type surface. Vendor-typed
+ * Sentry events satisfy this shape structurally, and the scrubber's
+ * `{...event}` spread preserves the un-touched fields at runtime —
+ * the cast at the `beforeSend` return site
+ * (`scrubSentryEvent(event) as typeof event | null`) is therefore
+ * runtime-safe even when Sentry adds new event fields in a future
+ * SDK minor.
+ */
+export interface SentryEventLike {
+  request?:
+    | {
+        url?: string | undefined;
+        headers?: Record<string, string | undefined> | undefined;
+        data?: unknown;
+      }
+    | undefined;
+  exception?:
+    | {
+        values?: {
+          value?: string | undefined;
+          type?: string | undefined;
+        }[];
+      }
+    | undefined;
+  message?: string | undefined;
+  breadcrumbs?:
+    | {
+        message?: string | undefined;
+        data?: Record<string, unknown> | undefined;
+      }[]
+    | undefined;
+  extra?: Record<string, unknown> | undefined;
+  tags?: Record<string, SentryPrimitive> | undefined;
+  contexts?: Record<string, Record<string, unknown> | undefined> | undefined;
+  user?:
+    | {
+        // Sentry's UserSchema accepts string | number | null for
+        // these fields (vendor convention). The scrubber preserves
+        // whatever the SDK collected — `quilty_sub` is always a
+        // string in practice, but typing matches the upstream shape
+        // so vendor-typed events satisfy SentryEventLike structurally.
+        id?: string | number | null | undefined;
+        email?: string | null | undefined;
+        ip_address?: string | null | undefined;
+        [key: string]: unknown;
+      }
+    | undefined;
+}
+
+/**
+ * PHIScrubber port. Single-chokepoint Sentry-event scrubber composed
+ * at the composition root (D77). Replaces the triplicated `beforeSend`
+ * hook previously inlined into sentry.{client,server,edge}.config.ts
+ * — each config now delegates to `container.phiScrubber.scrubSentryEvent`,
+ * which runs the @quilty/security sanitizer over the event shape +
+ * strips query strings + nulls out `request.data` (POST bodies).
+ *
+ * Returning `null` from `scrubSentryEvent` instructs the Sentry SDK to
+ * drop the event entirely — reserved for cases the scrubber decides
+ * the event cannot be safely transmitted. Today the implementation
+ * always returns a scrubbed event (never null); the nullable return
+ * preserves vendor parity for future use.
+ */
+export interface PHIScrubber {
+  readonly scrubSentryEvent: (event: SentryEventLike) => SentryEventLike | null;
+}

@@ -47,6 +47,76 @@ const VENDOR_SDK_IMPORTS = [
   },
 ];
 
+// D148 — PHI-denylist regex for identifier names that must never appear
+// inside thrown Error template literals, captureException calls, or
+// constructor `super(...)` invocations. Cerebral $7M settlement
+// precedent: PHI flowing into Sentry breadcrumbs + CloudWatch logs
+// through error-message interpolation is the precise failure mode the
+// FTC §5 deceptive-acts theory targeted. The list mirrors the sanitizer
+// denylist in packages/security/src/domain/sanitizer.ts but is
+// anchored + case-insensitive so the AST selector regex compares
+// identifier-name strings only (not free-text matches).
+//
+// Allowlisted by omission (safe to interpolate into error messages):
+//   quilty_sub, request_id, trace_id, route, error_code, flag_name,
+//   locale, version, digest, code, id, status, method, duration_ms
+const PHI_DENYLIST_REGEX =
+  '^(?:email|phone|phone_number|ssn|dob|date_of_birth|full_name|first_name|last_name|patient_name|patient_id|address|street_address|diagnosis|symptom|medication|prescription|condition|treatment|mrn|mrn_id|npi|npi_number|dea|dea_number|prescriber_id|provider_id|member_id|subscriber_id|claim_id|eob|prior_auth|prior_authorization|full_face_photo|face_print|voice_print|biometric_identifier|fingerprint|precise_location|lat_lng|geo_lat|geo_lng|latitude|longitude|phq2|phq9|audit_c|dast|dast_10|promis|bdi|cssrs|device_id|advertising_id|idfa|idfv|gaid)$';
+
+const PHI_ERROR_MESSAGE =
+  'PHI-denylisted identifier appears inside an Error / captureException / constructor super() / error.message assignment. Errors propagate to Sentry breadcrumbs + CloudWatch logs; PHI must never reach those sinks. Use a sanitized error code, HMAC-pseudonymised quilty_sub, or request_id instead. [D148]';
+
+// AST selectors that detect PHI-denylisted identifier names in the
+// five canonical error-construction code paths. Each selector is
+// scoped narrowly to its surrounding construct so the rule fires on
+// the construction site, not on every mention of the identifier name
+// in unrelated code.
+//
+// Selectors:
+//   1. `new Error(\`...${denylisted}...\`)` — any NewExpression
+//      bound to identifier `Error` with a TemplateLiteral whose
+//      interpolation references a denylisted Identifier.
+//   2. `new Error(denylisted)` — bare Identifier argument.
+//   3. `class extends Error { constructor() { super(\`...${denylisted}\`) } }` —
+//      custom error subclass propagating PHI through super().
+//   4. `errorReporter.captureException(...) / Sentry.captureMessage(\`...${denylisted}\`)` —
+//      observability-vendor call shapes that flow PHI to the sink.
+//   5. `error.message = \`...${denylisted}...\`` — direct mutation of
+//      the message field after construction.
+const PHI_IN_ERROR_SELECTORS = [
+  {
+    selector: `NewExpression[callee.name='Error'] TemplateLiteral Identifier[name=/${PHI_DENYLIST_REGEX}/i]`,
+    message: PHI_ERROR_MESSAGE,
+  },
+  {
+    selector: `NewExpression[callee.name='Error'] > Identifier[name=/${PHI_DENYLIST_REGEX}/i]`,
+    message: PHI_ERROR_MESSAGE,
+  },
+  {
+    selector: `MethodDefinition[kind='constructor'] CallExpression[callee.type='Super'] TemplateLiteral Identifier[name=/${PHI_DENYLIST_REGEX}/i]`,
+    message: PHI_ERROR_MESSAGE,
+  },
+  {
+    selector: `CallExpression[callee.property.name=/^(captureException|captureMessage)$/] TemplateLiteral Identifier[name=/${PHI_DENYLIST_REGEX}/i]`,
+    message: PHI_ERROR_MESSAGE,
+  },
+  {
+    selector: `AssignmentExpression[left.property.name='message'] TemplateLiteral Identifier[name=/${PHI_DENYLIST_REGEX}/i]`,
+    message: PHI_ERROR_MESSAGE,
+  },
+  // Structured-log field-name leak: `logger.error('msg', { email })` —
+  // the runtime sanitizer's key denylist catches this, but the
+  // author-time guard closes the gap so a logger call carrying a
+  // PHI-named field never compiles. Covers logger.{debug,info,warn,error}
+  // + container.logger.{...} property-chain shapes via the descendant
+  // ObjectExpression > Property selector.
+  {
+    selector: `CallExpression[callee.property.name=/^(debug|info|warn|error)$/] ObjectExpression > Property[key.name=/${PHI_DENYLIST_REGEX}/i]`,
+    message:
+      'PHI-denylisted identifier appears as a logger field-name. Structured-log fields are emitted to CloudWatch + Sentry breadcrumbs; PHI must never reach those sinks. Use a sanitized key (quilty_sub, request_id, trace_id, error_code) instead. [D148]',
+  },
+];
+
 export default tseslint.config(
   {
     ignores: [
@@ -179,6 +249,7 @@ export default tseslint.config(
           message:
             'Use "Privacy Lead" — never "DPO" as a self-applied title. Claiming a Data Protection Officer without GDPR Art 37 appointment is fineable (Austrian €5K + CJEU C-453/21 + Belgian €50K precedents). [D136]',
         },
+        ...PHI_IN_ERROR_SELECTORS,
       ],
 
       // jsx-a11y strict-tier additions (D22 + Round-5 reviewer):
@@ -325,6 +396,10 @@ export default tseslint.config(
         // disclosure requires the verbatim term. Drift to "DPO" as a
         // self-applied title is caught by Pass A reviewer discipline +
         // the privacy-policy.spec.ts negative-disclosure test.
+        //
+        // PHI-in-error-message ban (D148) RETAINED — legal pages must
+        // never throw PHI through Error / captureException either.
+        ...PHI_IN_ERROR_SELECTORS,
       ],
     },
   },

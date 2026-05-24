@@ -11,6 +11,19 @@
  *
  * Deep imports into `src/*` are forbidden by `.dependency-cruiser.cjs`
  * rule `cross-package-imports-must-use-barrel`.
+ *
+ * Boundary-debt note: the sanitizer + PHI-denylist + value-pattern
+ * regex set ships through this barrel into the client bundle whenever
+ * a client module imports `makeSanitizer` (composition.client.ts) or
+ * `sanitize` (sentry.client.config.ts). The runtime cost is small
+ * (~4-5 KB gzipped) and the defensive value is non-negative even in
+ * the browser, but architecturally the value-pattern regex pass and
+ * the PHI denylist exist to protect log/error sinks — sinks that only
+ * fire server- and edge-side. A future `@quilty/security/client`
+ * sub-export would carve the client-safe surface (`isSafeRedirect`,
+ * `buildMarketingCsp`, the forms-canonical helpers) from the
+ * server/edge surface (`sanitize`, `makeSanitizer`). Deferred to a
+ * dedicated boundary commit so the scope stays isolated.
  */
 
 import { assertNoPHI } from './domain/assert-no-phi';

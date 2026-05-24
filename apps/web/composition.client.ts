@@ -28,6 +28,7 @@ import {
   makeAmplitudeAnalytics,
   makeBrowserLogger,
   makeEnvFlagEvaluator,
+  makePhiScrubber,
   makeSentryErrorReporter,
   wrapAnalytics,
   wrapErrorReporter,
@@ -66,5 +67,6 @@ export function makeClientContainer(): ClientContainer {
       sanitizer,
     }),
     featureFlags: makeEnvFlagEvaluator(),
+    phiScrubber: makePhiScrubber(),
   };
 }

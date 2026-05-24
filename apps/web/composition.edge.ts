@@ -23,6 +23,7 @@ import {
   makeAmplitudeAnalytics,
   makeCloudWatchLogger,
   makeEnvFlagEvaluator,
+  makePhiScrubber,
   makeSentryErrorReporter,
   wrapAnalytics,
   wrapErrorReporter,
@@ -66,6 +67,7 @@ export function makeEdgeContainer(): EdgeContainer {
       sanitizer,
     }),
     featureFlags: makeEnvFlagEvaluator(),
+    phiScrubber: makePhiScrubber(),
     // In-memory ConsentStore on the Edge tier. The adapter uses only
     // the Map Web API + plain JS — Edge-runtime-safe. The DynamoDB
     // adapter is server-only (AWS SDK is Node-only); when it activates,
