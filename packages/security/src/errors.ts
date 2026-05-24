@@ -23,11 +23,27 @@ export interface HoneypotError {
   readonly fieldName: string;
 }
 
-export interface TimeTrapError {
-  readonly kind: 'time_too_fast';
-  readonly elapsedMs: number;
-  readonly minimumMs: number;
-}
+/**
+ * Time-trap discriminator. Three failure modes — too fast (bot
+ * signature), too slow (stale render — likely a forgotten tab), and
+ * malformed token. The split lets call sites surface distinct UX
+ * (silently 200-OK to bots vs "form expired, reload" to humans)
+ * without re-deriving thresholds from a single discriminator.
+ */
+export type TimeTrapError =
+  | {
+      readonly kind: 'time_too_fast';
+      readonly elapsedMs: number;
+      readonly minimumMs: number;
+    }
+  | {
+      readonly kind: 'time_too_slow';
+      readonly elapsedMs: number;
+      readonly maximumMs: number;
+    }
+  | {
+      readonly kind: 'malformed_token';
+    };
 
 /**
  * Standard Result envelope. Every port operation that can fail returns a

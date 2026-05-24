@@ -28,13 +28,22 @@
  * by construction. Mental-health clinical content (therapy notes,
  * symptom reports, AI conversation transcripts) is forbidden in this
  * channel; those flows do not use email.
+ *
+ * `contact_acknowledgement` echoes the user's submitted contact-form
+ * message back to them. The echo is the user-locked UX choice; the
+ * sanitizer chokepoint at the EmailSender wrapper applies the
+ * value-pattern regex pass so phone/SSN/credit-card/email/date
+ * shaped tokens are redacted before the message ships. A visible
+ * disclaimer on /contact instructs users not to include sensitive
+ * medical or personal information; the regex is the layered backstop.
  */
 export type EmailKind =
   | 'email_verification'
   | 'password_reset'
   | 'account_deletion_confirmation'
   | 'subscription_renewal_receipt'
-  | 'sign_in_from_new_device_alert';
+  | 'sign_in_from_new_device_alert'
+  | 'contact_acknowledgement';
 
 /**
  * Per-recipient send envelope. The adapter renders the subject + body

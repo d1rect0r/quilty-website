@@ -37,6 +37,31 @@ describe('buildMarketingCsp', () => {
     expect(buildMarketingCsp({ isDevelopment: false })).not.toContain('unsafe-eval');
     expect(buildMarketingCsp({ isDevelopment: true })).toContain(`'unsafe-eval'`);
   });
+
+  it('appends additionalScriptSrc origins to script-src', () => {
+    const csp = buildMarketingCsp({
+      additionalScriptSrc: ['https://challenges.cloudflare.com'],
+    });
+    expect(csp).toMatch(/script-src 'self'\s+https:\/\/challenges\.cloudflare\.com/);
+  });
+
+  it('appends additionalConnectSrc origins to connect-src (after Sentry ingest)', () => {
+    const csp = buildMarketingCsp({
+      additionalConnectSrc: ['https://challenges.cloudflare.com'],
+    });
+    expect(csp).toContain('https://challenges.cloudflare.com');
+    expect(csp).toMatch(
+      /connect-src 'self'\s+https:\/\/[^;]*sentry[^;]*\s+https:\/\/challenges\.cloudflare\.com/,
+    );
+  });
+
+  it('rejects malformed additionalScriptSrc entries (CSP injection guard)', () => {
+    const csp = buildMarketingCsp({
+      additionalScriptSrc: ['https://evil.com; default-src *'],
+    });
+    expect(csp).not.toContain('default-src *');
+    expect(csp).not.toContain('evil.com');
+  });
 });
 
 describe('buildPortalCsp', () => {

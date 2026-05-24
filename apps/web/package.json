@@ -20,6 +20,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@quilty/captcha": "workspace:*",
     "@quilty/consent": "workspace:*",
     "@quilty/content": "workspace:*",
@@ -37,9 +38,11 @@
     "next-intl": "4.12.0",
     "react": "^19.0.0",
     "react-dom": "19.0.0",
+    "react-hook-form": "^7.65.0",
     "server-only": "0.0.1",
     "tailwind-merge": "2.6.0",
-    "web-vitals": "4.2.4"
+    "web-vitals": "4.2.4",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.10.2",

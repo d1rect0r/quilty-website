@@ -157,11 +157,21 @@ describe('sanitize (sync)', () => {
     expect(sanitize(uuid)).toBe(out);
   });
 
-  it('truncates over-long free-text values', () => {
-    const longText = 'a'.repeat(500);
+  it('truncates over-long free-text values (above 2500-char ceiling)', () => {
+    // The 2500-char ceiling is calibrated for the longest legitimate
+    // carrier in the pipeline (the /contact form's 2000-char message
+    // field + headroom). Anything beyond that is bounded for log /
+    // observability safety.
+    const longText = 'a'.repeat(3000);
     const out = sanitize(longText) as string;
     expect(out.length).toBeLessThan(longText.length);
     expect(out).toContain('[truncated]');
+  });
+
+  it('preserves contact-form-length strings (2000 chars) intact', () => {
+    const payload = 'a'.repeat(2000);
+    const out = sanitize(payload);
+    expect(out).toBe(payload);
   });
 
   it('leaves numbers, booleans, and null untouched', () => {

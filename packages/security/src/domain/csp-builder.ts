@@ -47,6 +47,18 @@ const SENTRY_INGEST_HOST =
 const SENTRY_REPORT_URI = sanitizeCspValue(SENTRY_REPORT_URI_RAW);
 
 /**
+ * Per-route additional-origin sanitizer. Each entry MUST match an
+ * absolute https/http origin; any value with `;`, whitespace, or
+ * malformed scheme is silently dropped to prevent CSP injection.
+ * Returns a space-joined string ready for directive concatenation.
+ */
+function sanitizeAdditionalOrigins(origins: readonly string[] | undefined): string {
+  if (!origins || origins.length === 0) return '';
+  const cleaned = origins.map(sanitizeCspValue).filter((o) => o.length > 0);
+  return cleaned.length > 0 ? ` ${cleaned.join(' ')}` : '';
+}
+
+/**
  * Marketing-tier CSP — static, no nonce, suitable for CDN caching.
  *
  * Inline scripts forbidden (no `unsafe-inline`); only first-party scripts
@@ -54,16 +66,23 @@ const SENTRY_REPORT_URI = sanitizeCspValue(SENTRY_REPORT_URI_RAW);
  * rely on the static-CSP path being permissive enough for `<script
  * type="application/ld+json">` — these are exempt from CSP `script-src`
  * because they're not executable JavaScript per the CSP spec.
+ *
+ * Per-route extensions (D113): the /contact route extends `script-src`
+ * + `connect-src` with `https://challenges.cloudflare.com` to load the
+ * Turnstile challenge runtime. Pass via `additionalScriptSrc` /
+ * `additionalConnectSrc` rather than mutating the base directive.
  */
 export function buildMarketingCsp(opts: CspOptions = {}): string {
   const dev = opts.isDevelopment ?? false;
+  const extraScripts = sanitizeAdditionalOrigins(opts.additionalScriptSrc);
+  const extraConnects = sanitizeAdditionalOrigins(opts.additionalConnectSrc);
   const directives: string[] = [
     `default-src 'self'`,
-    `script-src 'self'${dev ? " 'unsafe-eval'" : ''}`,
+    `script-src 'self'${dev ? " 'unsafe-eval'" : ''}${extraScripts}`,
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data: blob:`,
     `font-src 'self' data:`,
-    `connect-src 'self' ${SENTRY_INGEST_HOST}`,
+    `connect-src 'self' ${SENTRY_INGEST_HOST}${extraConnects}`,
     `media-src 'self'`,
     `object-src 'none'`,
     `base-uri 'self'`,
@@ -92,13 +111,15 @@ export function buildMarketingCsp(opts: CspOptions = {}): string {
  */
 export function buildPortalCsp(nonce: string, opts: CspOptions = {}): string {
   const dev = opts.isDevelopment ?? false;
+  const extraScripts = sanitizeAdditionalOrigins(opts.additionalScriptSrc);
+  const extraConnects = sanitizeAdditionalOrigins(opts.additionalConnectSrc);
   const directives: string[] = [
     `default-src 'self'`,
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ''}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ''}${extraScripts}`,
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data: blob:`,
     `font-src 'self' data:`,
-    `connect-src 'self' ${SENTRY_INGEST_HOST}`,
+    `connect-src 'self' ${SENTRY_INGEST_HOST}${extraConnects}`,
     `media-src 'self'`,
     `object-src 'none'`,
     `base-uri 'self'`,

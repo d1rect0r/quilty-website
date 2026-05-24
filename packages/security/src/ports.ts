@@ -68,6 +68,26 @@ export interface RedirectValidator {
 export interface CspOptions {
   /** Toggle dev-time relaxations (e.g. `unsafe-eval` for Next.js dev server). */
   readonly isDevelopment?: boolean;
+  /**
+   * Per-route script-src additions (D113). The /contact form embeds the
+   * Cloudflare Turnstile widget which loads its challenge runtime from
+   * `https://challenges.cloudflare.com`. Each route that needs an extra
+   * script-src origin passes it here; the builder appends to the base
+   * `script-src 'self'` directive.
+   *
+   * Each entry MUST be an absolute origin (`https://host`). The builder
+   * validates against the same regex as the env-var sanitizer so a
+   * misconfigured caller cannot inject CSP directives via a `;` in the
+   * value.
+   */
+  readonly additionalScriptSrc?: readonly string[];
+  /**
+   * Per-route connect-src additions. Mirrors `additionalScriptSrc` for
+   * the connect-src directive — Turnstile additionally requires
+   * `https://challenges.cloudflare.com` in connect-src for its
+   * verification roundtrip.
+   */
+  readonly additionalConnectSrc?: readonly string[];
 }
 
 // ---------------------------------------------------------------------------

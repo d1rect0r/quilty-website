@@ -213,7 +213,19 @@ const PHI_KEY_DENYLIST: ReadonlySet<string> = new Set([
 ]);
 
 const REDACTED = '[REDACTED]';
-const MAX_FREE_TEXT_LENGTH = 200;
+/**
+ * Free-text truncation ceiling. Calibrated for the longest legitimate
+ * carrier in the pipeline:
+ *   - /contact form `message` field caps at 2000 chars (Zod schema).
+ *   - EmailSender `templateData.message` passes through this sanitizer
+ *     via wrapEmailSender; an aggressive 200-char floor would silently
+ *     truncate the echoed-message acknowledgement to ~10% of its
+ *     submitted length, breaking the user-locked echo UX.
+ *   - Log lines beyond 2500 chars are still capped — a 2KB lower
+ *     bound is restrictive enough to defend against unbounded log
+ *     bloat while preserving end-to-end email content.
+ */
+const MAX_FREE_TEXT_LENGTH = 2500;
 const MAX_DEPTH = 16;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
