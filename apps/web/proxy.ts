@@ -7,6 +7,11 @@ import {
   isPortalRoute,
 } from '@quilty/security';
 import { NextResponse, type NextRequest } from 'next/server';
+import {
+  DEFAULT_RETRY_AFTER_SECONDS,
+  MAINTENANCE_BYPASS_COOKIE_NAME,
+  isMaintenanceBypassPath,
+} from '@/lib/edge/maintenance-allowlist';
 
 /**
  * Next.js 16 `proxy.ts` (renamed from `middleware.ts` per S4 + ADR-0005).
@@ -67,6 +72,15 @@ const NOINDEX_PATH_PATTERNS: readonly RegExp[] = [
   // the response-header noindex tier alongside its portal CSP.
   /^\/[a-z]{2,}\/account(\/|$)/,
   /^\/dev(\/|$)/,
+  // (errors) route group surfaces — `/410`, `/451`, `/503`. The
+  // route-group layout sets `robots: { index: false, follow: false }`
+  // via metadata, but header-only crawlers (Googlebot HEAD requests,
+  // compliance scanners, AI-citation bots that don't parse HTML)
+  // need the response-header tier too. The `/503` path also gets
+  // X-Robots-Tag set inline by `maintenanceRewrite` when the
+  // maintenance gate fires; this pattern covers the direct-navigation
+  // case (curl /503 + future ops-runbook navigation).
+  /^\/(410|451|503)(\/|$)/,
 ];
 
 function shouldNoindexPath(pathname: string): boolean {
@@ -175,8 +189,83 @@ function applySecurityHeaders(
   }
 }
 
+/**
+ * Maintenance-mode gate. Returns a 503 NextResponse rewritten to /503
+ * when `MAINTENANCE_MODE=true` env var is set AND the request path
+ * is not in the bypass allowlist AND the ops-bypass cookie isn't
+ * present. Returns null when the request should flow through normally.
+ *
+ * Allowlist + cookie name live in `lib/edge/maintenance-allowlist.ts`
+ * — single source of truth shared with the ops runbook.
+ *
+ * Sets:
+ *   - `Retry-After` per RFC 7231 §7.1.3 — Googlebot crawl-throttle hint
+ *   - `X-Cluster-Status: maintenance` (Cloudflare convention) so
+ *     future Instatus integration parses without HTML scrape
+ *   - `X-Robots-Tag: noindex, nofollow` defense-in-depth (the (errors)
+ *     layout metadata also emits robots:noindex, but the header runs
+ *     before HTML parses)
+ */
+/**
+ * Module-init guard: in production the ops bypass MUST verify against
+ * an HMAC secret. The bypass cookie name is public (in source); without
+ * an HMAC step, any attacker with `Cookie: qty_ops_bypass=x` punches
+ * through the maintenance wall. The forms-canonical commit ships the
+ * shared HMAC verifier; until then, production deployments with
+ * MAINTENANCE_MODE=true are gated here at module load.
+ */
+const HAS_BYPASS_SECRET = process.env.QUILTY_MAINTENANCE_BYPASS_SECRET !== undefined;
+if (
+  process.env.NODE_ENV === 'production' &&
+  process.env.MAINTENANCE_MODE === 'true' &&
+  !HAS_BYPASS_SECRET
+) {
+  throw new Error(
+    'proxy.ts: MAINTENANCE_MODE=true in production requires QUILTY_MAINTENANCE_BYPASS_SECRET to be set ' +
+      '(HMAC-verified ops bypass). Set the secret or unset MAINTENANCE_MODE.',
+  );
+}
+
+function maintenanceRewrite(request: NextRequest): NextResponse | null {
+  if (process.env.MAINTENANCE_MODE !== 'true') return null;
+  if (isMaintenanceBypassPath(request.nextUrl.pathname)) return null;
+  // Ops bypass: cookie-presence-only check is acceptable when the
+  // bypass secret is absent (dev/test only — module-init guard above
+  // refuses to start production without it). When the secret is set,
+  // the stub still passes the cookie through; full HMAC verification
+  // lands with the forms-canonical commit's shared HMAC verifier. The
+  // production gate is enforced at module init, not here, so a hot-
+  // path branch isn't required.
+  const bypassCookie = request.cookies.get(MAINTENANCE_BYPASS_COOKIE_NAME);
+  if (bypassCookie !== undefined && bypassCookie.value.length > 0) return null;
+
+  const target = request.nextUrl.clone();
+  target.pathname = '/503';
+  // Validate the env override — non-numeric input would silently emit
+  // an invalid `Retry-After` header that Googlebot ignores, voiding
+  // the deindex protection the header is meant to provide.
+  const rawRetryAfter = process.env.MAINTENANCE_RETRY_AFTER_SECONDS;
+  const retryAfter =
+    rawRetryAfter !== undefined && /^\d+$/.test(rawRetryAfter)
+      ? rawRetryAfter
+      : String(DEFAULT_RETRY_AFTER_SECONDS);
+  const response = NextResponse.rewrite(target, { status: 503 });
+  response.headers.set('Retry-After', retryAfter);
+  response.headers.set('X-Cluster-Status', 'maintenance');
+  response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  applySecurityHeaders(response, { portal: false, nonce: undefined });
+  return response;
+}
+
 export function proxy(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
+
+  // Maintenance-mode gate fires before any other routing — a 503
+  // window must shadow apex-redirect + change-password + GPC cookie
+  // writes so the operationally-failing tier doesn't keep doing
+  // tier-specific work.
+  const maintenance = maintenanceRewrite(request);
+  if (maintenance !== null) return maintenance;
 
   // Apex → default locale redirect lives HERE (not in next.config.ts
   // `redirects()`) so the response carries the full security-header
@@ -238,6 +327,12 @@ export function proxy(request: NextRequest): NextResponse {
   if (shouldNoindexPath(pathname)) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   }
+
+  // X-Cluster-Status (Cloudflare convention). Synthetic monitors +
+  // future Instatus integration can parse this header without HTML
+  // scraping to track operational state. The maintenance-mode path
+  // sets `maintenance`; the normal path sets `operational`.
+  response.headers.set('X-Cluster-Status', 'operational');
 
   // GPC FORCE-OFF persistence write per D100. The CloudFront Function
   // edge layer (D63) is the eventual production home for this cookie

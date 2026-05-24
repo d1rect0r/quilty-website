@@ -166,6 +166,14 @@ const config: NextConfig = {
       '@quilty/security',
       '@quilty/seo',
     ],
+    // Next.js 16.2 introduced `forbidden()` + `unauthorized()` helpers
+    // (next/navigation). The flag enables the matching forbidden.tsx +
+    // unauthorized.tsx file conventions per route group. We ship the
+    // scaffolds at apps/web/app/[locale]/(account)/{forbidden,unauthorized}.tsx
+    // ready to activate at the auth-integration milestone (M6); flipping
+    // the flag now means the routes resolve correctly the moment the
+    // first portal Server Component calls the helper.
+    authInterrupts: true,
   },
   images: {
     formats: ['image/avif', 'image/webp'],
