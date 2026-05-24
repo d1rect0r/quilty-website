@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { makeClientContainer } from '@/composition.client';
+import { CopyReference } from '@/components/site/CopyReference';
 import { getClientContainer } from '@/lib/get-container';
 import { SUPPORT_MAILTO } from '@/lib/site-contacts';
 
@@ -83,6 +84,14 @@ export default function AccountError({ error, reset }: ErrorPageProps) {
       aria-labelledby="account-error-heading"
       className="mx-auto max-w-2xl px-6 py-16 text-center"
     >
+      {/*
+        (account) layout cascade already sets robots:noindex but the
+        overlay is defensive: if a future contributor accidentally
+        overrides robots at the page level (the layout comment warns
+        about this), this <meta> in the error tree still emits noindex
+        on the error fallback. React 19 hoists into <head>.
+      */}
+      <meta name="robots" content="noindex, nofollow" />
       <p className="text-danger-fg text-sm font-medium">Something went wrong</p>
       <h1
         id="account-error-heading"
@@ -96,15 +105,22 @@ export default function AccountError({ error, reset }: ErrorPageProps) {
       </h1>
       <div role="alert" aria-live="assertive" aria-atomic="true">
         {announcement ? <p className="text-fg-muted mt-4">{announcement}</p> : null}
-        {error.digest && announcement ? (
-          <p className="text-fg-muted mt-2 text-xs">
+      </div>
+      {/*
+        Digest + Copy button live OUTSIDE the role="alert" region —
+        ARIA 1.2 §6.6.5 nested-region rationale (see apex error.tsx).
+      */}
+      {error.digest && announcement ? (
+        <p className="text-fg-muted mt-2 inline-flex items-center text-xs">
+          <span>
             Reference:{' '}
             <code data-testid="account-error-digest" className="font-mono">
               {error.digest}
             </code>
-          </p>
-        ) : null}
-      </div>
+          </span>
+          <CopyReference value={error.digest} />
+        </p>
+      ) : null}
       <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
         {permanentFallback ? null : (
           <button

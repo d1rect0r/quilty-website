@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { makeClientContainer } from '@/composition.client';
+import { CopyReference } from '@/components/site/CopyReference';
 import { getClientContainer } from '@/lib/get-container';
 import { SUPPORT_MAILTO } from '@/lib/site-contacts';
 
@@ -103,6 +104,14 @@ export default function MarketingError({ error, reset }: ErrorPageProps) {
       aria-labelledby="marketing-error-heading"
       className="mx-auto max-w-2xl px-6 py-24 text-center"
     >
+      {/*
+        React 19 hoists <meta> tags rendered anywhere in the tree into
+        <head>. The failing page's metadata may have left robots:index
+        in place (marketing pages are indexable); this overlay
+        prevents Googlebot from indexing the error state if it crawls
+        the URL mid-fault. Defense-in-depth.
+      */}
+      <meta name="robots" content="noindex, nofollow" />
       <p className="text-danger-fg text-sm font-medium">Something went wrong</p>
       <h1
         id="marketing-error-heading"
@@ -120,20 +129,24 @@ export default function MarketingError({ error, reset }: ErrorPageProps) {
         {/*
           Live-region copy is injected post-mount (see useEffect above)
           so AT observes the content insertion as a status-message
-          event. The digest paragraph is also part of the announcement
-          atom — aria-atomic="true" tells AT to read the whole region
-          as one chunk on each mutation.
+          event. The digest paragraph is INTENTIONALLY OUTSIDE this
+          region — see apex error.tsx for the ARIA 1.2 §6.6.5 nested-
+          live-region rationale; the Copy button's own status live
+          region must fire independently of the alert announcement.
         */}
         {announcement ? <p className="text-fg-muted mt-4">{announcement}</p> : null}
-        {error.digest && announcement ? (
-          <p className="text-fg-muted mt-2 text-xs">
+      </div>
+      {error.digest && announcement ? (
+        <p className="text-fg-muted mt-2 inline-flex items-center text-xs">
+          <span>
             Reference:{' '}
             <code data-testid="marketing-error-digest" className="font-mono">
               {error.digest}
             </code>
-          </p>
-        ) : null}
-      </div>
+          </span>
+          <CopyReference value={error.digest} />
+        </p>
+      ) : null}
       <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
         {permanentFallback ? null : (
           <button

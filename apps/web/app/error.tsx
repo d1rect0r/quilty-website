@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { makeClientContainer } from '@/composition.client';
+import { CopyReference } from '@/components/site/CopyReference';
 import { getClientContainer } from '@/lib/get-container';
 import { SUPPORT_MAILTO } from '@/lib/site-contacts';
 
@@ -63,6 +64,15 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   // target per WCAG 2.4.1.
   return (
     <main id="main" tabIndex={-1}>
+      {/*
+        Defense-in-depth noindex on the error fallback. error.tsx is a
+        Client Component (can't export metadata) but React 19 hoists
+        <meta> tags rendered anywhere in the tree into <head>. The
+        failing page's metadata may have left robots:index in place,
+        so this overlay ensures Googlebot doesn't index the error
+        state if it happens to crawl the URL mid-fault.
+      */}
+      <meta name="robots" content="noindex, nofollow" />
       <section aria-labelledby="error-heading" className="mx-auto max-w-2xl px-6 py-24 text-center">
         <p className="text-danger-fg text-sm font-medium">Something went wrong</p>
         <h1
@@ -90,15 +100,30 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
               ? 'We could not recover from this error. Head back home or email support if it keeps happening.'
               : 'We’ve been notified. Try again, or head back home.'}
           </p>
-          {error.digest ? (
-            <p className="text-fg-muted mt-2 text-xs">
+        </div>
+        {/*
+          Digest + Copy button sit OUTSIDE the role="alert" region so
+          a click on Copy does not retrigger the parent's atomic
+          announcement. ARIA 1.2 §6.6.5: nested live regions are
+          implementation-dependent; NVDA + JAWS historically flatten
+          nested regions + the aria-atomic="true" parent re-reads the
+          entire error message on any descendant mutation — including
+          the Copy button's state flip. Placing CopyReference here
+          confines the live-region announcement to the error message
+          itself + lets the Copy button's own <output> live region
+          fire its "Reference copied" status independently.
+        */}
+        {error.digest ? (
+          <p className="text-fg-muted mt-2 inline-flex items-center text-xs">
+            <span>
               Reference:{' '}
               <code data-testid="error-digest" className="font-mono">
                 {error.digest}
               </code>
-            </p>
-          ) : null}
-        </div>
+            </span>
+            <CopyReference value={error.digest} />
+          </p>
+        ) : null}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           {permanentFallback ? null : (
             <button

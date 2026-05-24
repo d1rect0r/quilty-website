@@ -37,6 +37,40 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const lastResetAt = useRef<number | null>(null);
   const [permanentFallback, setPermanentFallback] = useState(false);
+  // Copy Reference state lives inline because the shared
+  // CopyReference Client Component depends on Tailwind classes that
+  // don't render here (root layout's globals.css load is the failure
+  // condition that triggered GlobalError in the first place). The JS
+  // state model is identical to CopyReference's; only the styling is
+  // duplicated inline.
+  const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCopy = () => {
+    if (error.digest === undefined) return;
+    const digest = error.digest;
+    navigator.clipboard
+      .writeText(digest)
+      .then(() => {
+        setCopied(true);
+        if (copyTimer.current !== null) clearTimeout(copyTimer.current);
+        copyTimer.current = setTimeout(() => setCopied(false), 1500);
+      })
+      .catch(() => {
+        // No-op — the digest remains visible in the page.
+      });
+  };
+
+  // Cleanup on unmount — clear the revert timer so setCopied(false)
+  // doesn't fire on an unmounted component if the user navigates
+  // away mid-revert (mirrors the CopyReference Client Component
+  // pattern but lives inline because global-error.tsx is
+  // CSS-pipeline-independent).
+  useEffect(() => {
+    return () => {
+      if (copyTimer.current !== null) clearTimeout(copyTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     const container = getClientContainer(makeClientContainer);
@@ -70,6 +104,18 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
 
   return (
     <html lang="en">
+      <head>
+        {/*
+          Inline <meta> in <head> — global-error.tsx owns its own
+          <html>+<body> because the root layout failed. Defense-in-
+          depth noindex so a crawler that hits the URL mid-failure
+          doesn't index the broken state. The X-Robots-Tag header
+          side requires proxy.ts to recognise this path (it doesn't
+          today because the apex `/` route doesn't match the noindex
+          patterns); the meta tier is the load-bearing defense.
+        */}
+        <meta name="robots" content="noindex, nofollow" />
+      </head>
       <body>
         {/* Minimal <style> block — the root layout (which loads
             globals.css) failed, so we inline the focus-visible
@@ -114,18 +160,72 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
                 ? 'We could not recover. Reload the page or email support if it keeps happening.'
                 : 'The page failed to load. Try again, or contact support if the problem persists.'}
             </p>
-            {error.digest ? (
-              <p
+          </div>
+          {/*
+            Digest + Copy button live OUTSIDE the role="alert" region —
+            ARIA 1.2 §6.6.5 nested-region rationale (NVDA + JAWS flatten
+            nested regions, and the aria-atomic="true" parent would
+            re-read the entire error message on every Copy click).
+          */}
+          {error.digest ? (
+            <p
+              style={{
+                marginTop: '0.5rem',
+                fontSize: '0.75rem',
+                color: FALLBACK_FG_MUTED,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <span>
+                Reference: <code data-testid="error-digest">{error.digest}</code>
+              </span>
+              <button
+                type="button"
+                onClick={handleCopy}
+                aria-label={`Copy reference ${error.digest} to clipboard`}
+                className="global-error-cta"
                 style={{
-                  marginTop: '0.5rem',
+                  // min 44×44 CSS px (WCAG 2.5.5 AA target size) — match
+                  // the sibling Try-again + Go-home + Email-support
+                  // buttons in this file for visual + a11y consistency.
+                  minHeight: '2.75rem',
+                  minWidth: '2.75rem',
+                  padding: '0.25rem 0.75rem',
+                  borderRadius: '0.25rem',
+                  // #767676 = 4.54:1 on white (WCAG 1.4.11 ≥ 3:1).
+                  border: '1px solid #767676',
+                  background: '#fff',
+                  cursor: 'pointer',
                   fontSize: '0.75rem',
-                  color: FALLBACK_FG_MUTED,
+                  color: '#1a1a1a',
                 }}
               >
-                Reference: <code data-testid="error-digest">{error.digest}</code>
-              </p>
-            ) : null}
-          </div>
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+              {/*
+                Visually-hidden status region — implicit role=status +
+                aria-live=polite via <output>; populated only after a
+                successful copy so AT announces the change event.
+              */}
+              <output
+                style={{
+                  position: 'absolute',
+                  width: '1px',
+                  height: '1px',
+                  padding: '0',
+                  margin: '-1px',
+                  overflow: 'hidden',
+                  clip: 'rect(0, 0, 0, 0)',
+                  whiteSpace: 'nowrap',
+                  border: '0',
+                }}
+              >
+                {copied ? 'Reference copied' : ''}
+              </output>
+            </p>
+          ) : null}
           <div
             style={{
               marginTop: '2rem',
@@ -174,7 +274,11 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
                 minWidth: '44px',
                 padding: '0.5rem 1.25rem',
                 borderRadius: '0.375rem',
-                border: '1px solid #ccc',
+                // #767676 = 4.54:1 on white (WCAG 1.4.11 ≥ 3:1). The
+                // earlier #ccc (1.61:1) was a fail flagged in code
+                // review alongside the Try-again button which already
+                // moved to #767676.
+                border: '1px solid #767676',
                 color: 'inherit',
                 textDecoration: 'none',
                 display: 'inline-flex',

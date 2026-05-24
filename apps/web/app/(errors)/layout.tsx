@@ -23,7 +23,18 @@ import type { Metadata } from 'next';
  * (set by proxy.ts on the same response) is the header-side
  * defense-in-depth.
  */
+/**
+ * Title + description are emitted even though robots:noindex blocks
+ * SERP display — AI-citation bots (Perplexity, Bing Copilot, Claude
+ * SearchBot) read the rendered title + description on direct URL
+ * hits even on noindexed pages. Descriptive metadata ensures any
+ * citation of a status page reads correctly rather than emitting a
+ * bare brand suffix from the root layout template.
+ */
 export const metadata: Metadata = {
+  title: 'Status',
+  description:
+    'Status surface for routes that intentionally return 410 Gone, 451 Unavailable For Legal Reasons, or 503 Service Unavailable.',
   robots: { index: false, follow: false },
 };
 
