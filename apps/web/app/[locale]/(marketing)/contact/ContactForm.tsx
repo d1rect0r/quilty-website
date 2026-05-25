@@ -76,7 +76,11 @@ export function ContactForm({
       csrf_token: csrfToken,
       time_token: timeToken,
       idempotency_key: idempotencyKey,
-      turnstile_token: 'inmem-pass',
+      // Placeholder token consumed by the in-memory CaptchaVerifier
+      // (default-pass) before the Turnstile widget activates. The
+      // value is intentionally non-descriptive so the client bundle
+      // does not document the pre-activation bypass.
+      turnstile_token: 'pending',
     },
   });
 
@@ -113,7 +117,11 @@ export function ContactForm({
           csrf_token: csrfToken,
           time_token: timeToken,
           idempotency_key: idempotencyKey,
-          turnstile_token: 'inmem-pass',
+          // Placeholder token consumed by the in-memory CaptchaVerifier
+          // (default-pass) before the Turnstile widget activates. The
+          // value is intentionally non-descriptive so the client bundle
+          // does not document the pre-activation bypass.
+          turnstile_token: 'pending',
         });
         return;
       }

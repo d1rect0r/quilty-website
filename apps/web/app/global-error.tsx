@@ -109,10 +109,24 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
           Inline <meta> in <head> — global-error.tsx owns its own
           <html>+<body> because the root layout failed. Defense-in-
           depth noindex so a crawler that hits the URL mid-failure
-          doesn't index the broken state. The X-Robots-Tag header
-          side requires proxy.ts to recognise this path (it doesn't
-          today because the apex `/` route doesn't match the noindex
-          patterns); the meta tier is the load-bearing defense.
+          doesn't index the broken state.
+
+          ARCHITECTURAL NOTE on the meta-only tier: global-error fires
+          on any URL (root-layout crash on /, /en/pricing, anywhere).
+          proxy.ts's `NOINDEX_PATH_PATTERNS` matches specific path
+          shapes (/account/*, /api/*, (errors)/*), NOT arbitrary
+          marketing routes — adding a `noindex` header to every
+          marketing route by default would break SEO for the indexable
+          surfaces. Next.js's middleware can't see "this response WILL
+          render global-error.tsx" because the proxy runs before
+          rendering. The meta tag IS the canonical mechanism Next.js
+          supports for global-error metadata (the file doesn't accept
+          `generateMetadata`). In 2026, every meaningful crawler
+          (Googlebot, Bingbot, DuckDuckBot, Yandex, the AI training
+          set) parses HTML and respects the meta tag. The X-Robots-Tag
+          header parity is a deliberate architectural deferral, not a
+          TODO — the right fix is a Next.js feature (error-state-aware
+          headers) that doesn't exist today.
         */}
         <meta name="robots" content="noindex, nofollow" />
       </head>

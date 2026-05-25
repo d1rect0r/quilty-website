@@ -80,7 +80,15 @@ const NOINDEX_PATH_PATTERNS: readonly RegExp[] = [
   // X-Robots-Tag set inline by `maintenanceRewrite` when the
   // maintenance gate fires; this pattern covers the direct-navigation
   // case (curl /503 + future ops-runbook navigation).
+  //
+  // Locale-prefixed variants (`/en/410`, `/zho/451`, etc.) are NOT
+  // reachable today — (errors) sits outside [locale] in the route
+  // tree — but the pattern covers them for future resilience if the
+  // route-group ever moves under [locale] (e.g., to localise the
+  // status-page copy). `{2,}` matches future 3-letter ISO 639-2
+  // prefixes alongside the current 2-letter set.
   /^\/(410|451|503)(\/|$)/,
+  /^\/[a-z]{2,}\/(410|451|503)(\/|$)/,
 ];
 
 function shouldNoindexPath(pathname: string): boolean {
@@ -122,17 +130,21 @@ function applyGpcForceOffCookie(request: NextRequest, response: NextResponse): v
   if (request.headers.get('sec-gpc') !== '1') return;
   if (request.cookies.has(CONSENT_COOKIE_NAME)) return;
 
-  // `gpc_detected` is included for type-shape completeness — the
-  // cookie reader re-derives it from the live header on every read,
-  // but writing it absent leaves the persisted object structurally
-  // partial against the ConsentSnapshot contract.
+  // `gpc_detected: true` is correct here — the function only runs
+  // when `Sec-GPC: 1` was present on the request (guarded above), so
+  // the persisted snapshot reflects what was actually seen. Writing
+  // `false` was a Wave-4-era bug: a future read of the cookie alone
+  // (without the live header) would inherit the false value and
+  // silently lie about the GPC signal's provenance. The cookie
+  // reader still consults the live header on every request; this
+  // field documents what was true at write time.
   const payload = JSON.stringify({
     essential: true,
     functional: true,
     analytics: false,
     marketing: false,
     personalization: false,
-    gpc_detected: false,
+    gpc_detected: true,
     gpc_honored: true,
     version: TAXONOMY_VERSION,
     updated_at: new Date().toISOString(),

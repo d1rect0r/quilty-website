@@ -67,6 +67,19 @@ function readClientIp(headerStore: Awaited<ReturnType<typeof headers>>): string 
   return headerStore.get('x-real-ip') ?? '0.0.0.0';
 }
 
+/**
+ * Type-safe pre-Zod idempotency-key extractor. Narrows `unknown` via
+ * an object + property + typeof chain so the return type is `string`
+ * without an unsafe cast. Returns the empty string when the field is
+ * missing or non-string — the call site treats empty-string as a
+ * fresh request (no lookup, fall through to Zod).
+ */
+function extractIdempotencyKey(raw: unknown): string {
+  if (raw === null || typeof raw !== 'object') return '';
+  const candidate = (raw as { idempotency_key?: unknown }).idempotency_key;
+  return typeof candidate === 'string' ? candidate : '';
+}
+
 export async function POST(request: Request): Promise<NextResponse> {
   const container = getServerContainer(makeServerContainer);
   const correlationId = mintCorrelationId();
@@ -89,12 +102,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   // email. The idempotency key shape is itself loosely validated
   // here (must be present + non-empty string) — strict UUID checking
   // still happens in the Zod parse step below for fresh submissions.
-  const idemKeyRaw =
-    body !== null &&
-    typeof body === 'object' &&
-    typeof (body as { idempotency_key?: unknown }).idempotency_key === 'string'
-      ? ((body as { idempotency_key: string }).idempotency_key as string)
-      : '';
+  const idemKeyRaw = extractIdempotencyKey(body);
   if (idemKeyRaw.length > 0) {
     const cached = claimIdempotent<ContactFormResult>(`contact:${idemKeyRaw}`);
     if (cached) {
