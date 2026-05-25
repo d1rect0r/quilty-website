@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateCsrfToken, makeRenderTimestamp } from '@quilty/security';
 import { __resetIdempotencyForTesting } from '@/lib/idempotency';
+import type { SentryEventLike } from '@quilty/observability';
 
 /**
  * /api/contact Route Handler integration tests.
@@ -42,7 +43,7 @@ function makeFakeContainer(opts: FakeContainerOptions = {}) {
     errorReporter: { captureException: vi.fn() },
     analytics: { track: vi.fn() },
     featureFlags: { flag: vi.fn(), all: () => ({}) },
-    phiScrubber: { scrubSentryEvent: (e: unknown) => e },
+    phiScrubber: { scrubSentryEvent: (e: SentryEventLike): SentryEventLike | null => e },
     emailSender: {
       send: vi
         .fn()
@@ -259,7 +260,7 @@ describe('/api/contact POST', () => {
     const body = await makeValidBody();
     const { POST } = await import('../route');
     const res = await POST(makeRequest(body));
-    expect(res.headers.get('x-robots-tag')).toBe('noindex');
+    expect(res.headers.get('x-robots-tag')).toBe('noindex, nofollow');
     expect(res.headers.get('cache-control')).toBe('no-store');
   });
 });

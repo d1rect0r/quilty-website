@@ -48,7 +48,7 @@ function jsonResult(envelope: ContactFormResult, status: number): NextResponse {
   return NextResponse.json(envelope, {
     status,
     headers: {
-      'x-robots-tag': 'noindex',
+      'x-robots-tag': 'noindex, nofollow',
       'cache-control': 'no-store',
     },
   });
@@ -162,9 +162,14 @@ export async function POST(request: Request): Promise<NextResponse> {
     // an email. The user-facing copy never knows.
     const envelope: ContactFormResult = { ok: true, digest: correlationId };
     storeIdempotent(idemKey, envelope);
+    // Log a numeric tally (length of the tripped field name) rather
+    // than the field name itself — the honeypot rotation pool includes
+    // PHI-adjacent names like `address_line_3` and logging the name
+    // verbatim would surface a PHI-shaped key in CloudWatch. The
+    // tally is sufficient signal for the abuse-trend dashboard.
     container.logger.warn('contact_form_honeypot_tripped', {
       route: '/api/contact',
-      field_name: honeypotFilled,
+      field_name_length: honeypotFilled.length,
       request_id: correlationId,
     });
     return jsonResult(envelope, 200);
@@ -234,17 +239,18 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (!sendResult.ok) {
     const envelope: ContactFormResult = { ok: false, reason: 'send_failed' };
     storeIdempotent(idemKey, envelope);
-    // Surface the adapter's `message` field too — SES may echo the
-    // recipient address in error detail, but the Logger wrapper runs
-    // every emitted field through the sanitizer (D67 chokepoint) +
-    // value-pattern regex pass (D67 + D148), so the recipient address
-    // is automatically redacted to `[EMAIL]` before reaching
-    // CloudWatch. Logging the adapter message lifts the operational
-    // blind spot that swallowing it would create.
+    // Log only the coarse reason classifier (transient / permanent).
+    // The adapter's `message` field is intentionally NOT forwarded —
+    // SES error strings can echo the recipient address, and while the
+    // logger wrapper would scrub email-shaped substrings via the
+    // value-pattern regex, the broader set of SES-emitted detail
+    // strings is unbounded. The reason classifier carries enough
+    // operational signal for the alert/dashboard surface; deeper
+    // diagnostic detail flows to Sentry (which already wraps every
+    // event through the PHIScrubber chokepoint).
     container.logger.warn('contact_form_email_send_failed', {
       route: '/api/contact',
       reason: sendResult.reason,
-      error_message: sendResult.message,
       request_id: correlationId,
     });
     return jsonResult(envelope, 502);

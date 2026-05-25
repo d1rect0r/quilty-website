@@ -75,13 +75,18 @@ export type ContactFormValues = z.infer<typeof contactFormSchema>;
  * observability (rate-limit, captcha, csrf, etc.); it MUST NOT carry
  * any user-supplied content (the message body never appears here).
  */
+// Note: no `'honeypot'` discriminator in the failure union. The
+// honeypot trip path deliberately returns `{ ok: true, digest }` to
+// the client (silent 200) so a bot maintainer cannot distinguish
+// the honeypot signal from a real success. Surfacing `honeypot` in
+// the type would leak the bot-detection semantics if the type ever
+// flows into an OpenAPI codegen target.
 export type ContactFormResult =
   | { readonly ok: true; readonly digest: string }
   | {
       readonly ok: false;
       readonly reason:
         | 'csrf'
-        | 'honeypot'
         | 'time_trap'
         | 'captcha'
         | 'validation'

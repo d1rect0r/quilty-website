@@ -30,6 +30,7 @@ const ACCESSIBILITY_PAGE_DATE = '2026-05-22';
 const SUBPROCESSORS_PAGE_DATE = '2026-05-22';
 const TRUST_PAGE_DATE = '2026-05-22';
 const PRIVACY_CHOICES_PAGE_DATE = '2026-05-22';
+const CONTACT_PAGE_DATE = '2026-05-24';
 const CONSUMER_HEALTH_DATA_PRIVACY_PAGE_DATE = '2026-05-22';
 
 interface MarketingRoute {
@@ -47,7 +48,7 @@ const MARKETING_ROUTES: readonly MarketingRoute[] = [
   { path: '/features', lastModified: SCAFFOLD_DATE, changeFrequency: 'monthly', priority: 0.7 },
   { path: '/pricing', lastModified: SCAFFOLD_DATE, changeFrequency: 'monthly', priority: 0.7 },
   { path: '/about', lastModified: SCAFFOLD_DATE, changeFrequency: 'monthly', priority: 0.7 },
-  { path: '/contact', lastModified: SCAFFOLD_DATE, changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/contact', lastModified: CONTACT_PAGE_DATE, changeFrequency: 'monthly', priority: 0.7 },
   { path: '/science', lastModified: SCAFFOLD_DATE, changeFrequency: 'monthly', priority: 0.7 },
   { path: '/for-business', lastModified: SCAFFOLD_DATE, changeFrequency: 'monthly', priority: 0.7 },
   { path: '/customers', lastModified: SCAFFOLD_DATE, changeFrequency: 'monthly', priority: 0.7 },

@@ -5,8 +5,8 @@ import type { Metadata } from 'next';
  * 410 Gone (RFC 7231 §6.5.9).
  *
  * Rendered when proxy.ts rewrites a request to `/410` because the
- * URL is in the 410 allowlist (sunset content; reserved for M3+
- * content lifecycle work — empty allowlist at M1.5 scaffold). HTTP
+ * URL is in the 410 allowlist (sunset content; reserved for the
+ * content lifecycle work — empty allowlist today). HTTP
  * status 410 is the right code (vs 404) because:
  *   - Search engines drop 410 URLs from the index faster than 404
  *     (Google's John Mueller confirmation; independent SEO tests).

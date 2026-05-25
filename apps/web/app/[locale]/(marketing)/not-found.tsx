@@ -20,6 +20,11 @@ import type { Metadata } from 'next';
  */
 export const metadata: Metadata = {
   title: 'Page not found',
+  // Explicit `robots` declaration rather than relying on the Next.js
+  // not-found.tsx auto-emit of the noindex meta — the auto-emit is
+  // documented framework behaviour, not a metadata-cascade guarantee.
+  // The explicit declaration matches the (errors) layout discipline.
+  robots: { index: false, follow: false },
 };
 
 export default function MarketingNotFound() {

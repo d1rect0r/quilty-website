@@ -16,7 +16,7 @@ import { scrubValuePatterns } from './value-patterns';
  *   - Redact JWT-shaped strings (3 dot-separated base64url segments).
  *   - Replace user UUIDs with stable hashes (joinable for debug
  *     correlation; not reversible to the user identity).
- *   - Value-pattern scrub (D67 extension, Commit 31): every string
+ *   - Value-pattern scrub (D67 + D148 extension): every string
  *     leaf passes through `scrubValuePatterns()` to redact email-,
  *     phone-, SSN-, Luhn-valid card-, DOB-, MRN-shaped substrings
  *     in free-text fields the key-based denylist would miss
@@ -164,7 +164,7 @@ const PHI_KEY_DENYLIST: ReadonlySet<string> = new Set([
   'x_api_key',
   'x_forwarded_for',
   'cf_connecting_ip',
-  // Persistent device identifiers (Commit 31 — FTC Cerebral order's
+  // Persistent device identifiers (D67 + D148 — FTC Cerebral order's
   // "Covered Information" explicitly includes persistent identifiers
   // joined to clinical context).
   'device_id',
@@ -377,7 +377,7 @@ function sanitizeString(value: string): string {
   // Value-pattern regex pass — catches free-text PHI (email-shaped,
   // phone-shaped, SSN-shaped, Luhn-valid card numbers, DOB-shaped
   // strings, MRN-with-marker) that the key-based denylist misses
-  // (Commit 31 / D67 extension). Order matters: scrub patterns
+  // (D67 + D148 extension). Order matters: scrub patterns
   // BEFORE truncation so a long message with a phone number at
   // position 250 still gets that phone redacted (via the partial
   // scrub running on the full string) before the tail is cut.

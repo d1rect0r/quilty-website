@@ -328,11 +328,33 @@ export function proxy(request: NextRequest): NextResponse {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   }
 
-  // X-Cluster-Status (Cloudflare convention). Synthetic monitors +
-  // future Instatus integration can parse this header without HTML
-  // scraping to track operational state. The maintenance-mode path
-  // sets `maintenance`; the normal path sets `operational`.
-  response.headers.set('X-Cluster-Status', 'operational');
+  // 451 RFC 7725 §3 — the response MUST carry a `Link: <...>; rel="blocked-by"`
+  // header pointing at the ENTITY IMPLEMENTING THE BLOCK (us / our CDN), NOT
+  // the legal authority mandating it. The takedown-policy URL is the user-
+  // facing appeal surface. Per the IETF 99 hackathon finding, the RFC's own
+  // example (`spqr.example.org`) misleads implementers into pointing at the
+  // authority — that's wrong; the blocking entity is named here, the
+  // mandating authority is named in the rendered page body.
+  if (pathname === '/451') {
+    response.headers.set('Link', '<https://my-quilty.com/legal/takedown-policy>; rel="blocked-by"');
+  }
+
+  // Direct navigation to /503 (operator runbook, smoke test) must
+  // also carry Retry-After + X-Cluster-Status: maintenance per
+  // RFC 7231 §7.1.3 — the maintenanceRewrite path sets these only
+  // when MAINTENANCE_MODE is on. Direct nav with operational mode
+  // still classifies the response as a maintenance surface.
+  if (pathname === '/503') {
+    const retryAfter = process.env.MAINTENANCE_RETRY_AFTER_SECONDS ?? '3600';
+    response.headers.set('Retry-After', retryAfter);
+    response.headers.set('X-Cluster-Status', 'maintenance');
+  } else {
+    // X-Cluster-Status (Cloudflare convention). Synthetic monitors +
+    // future Instatus integration can parse this header without HTML
+    // scraping to track operational state. The maintenance-mode path
+    // sets `maintenance`; the normal path sets `operational`.
+    response.headers.set('X-Cluster-Status', 'operational');
+  }
 
   // GPC FORCE-OFF persistence write per D100. The CloudFront Function
   // edge layer (D63) is the eventual production home for this cookie

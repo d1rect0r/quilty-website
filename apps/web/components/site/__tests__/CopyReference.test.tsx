@@ -29,7 +29,12 @@ describe('CopyReference', () => {
 
   it('renders the Copy button with a descriptive aria-label', () => {
     render(<CopyReference value="abc123" />);
-    const btn = screen.getByRole('button', { name: /copy reference abc123 to clipboard/i });
+    // The aria-label is intentionally generic (does NOT embed the
+    // value) so AT session logs + AT cloud-upload features don't
+    // surface the correlation token in their accessibility-tree
+    // capture. The visible digest text adjacent to the button is
+    // the user-visible reference.
+    const btn = screen.getByRole('button', { name: /copy reference to clipboard/i });
     expect(btn).toBeInTheDocument();
     expect(btn).toHaveTextContent('Copy');
   });
@@ -44,23 +49,19 @@ describe('CopyReference', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Reference copied');
   });
 
-  it('value-prop variations flip the label independently of digest content', async () => {
-    // The "Copied" state-flip on click is the user-visible contract.
-    // Direct introspection of navigator.clipboard.writeText calls is
-    // brittle under jsdom + vitest spy descriptor caching; the
-    // observable behavior is what matters.
+  it('the value prop does NOT leak into the aria-label (AT-log defense)', async () => {
+    // The aria-label is intentionally value-free to keep correlation
+    // tokens out of AT session logs and accessibility-tree captures.
+    // The "Copied" state-flip on click remains the user-visible
+    // contract.
     const user = userEvent.setup();
     render(<CopyReference value="differentValue" />);
-    await user.click(screen.getByRole('button'));
+    const btn = screen.getByRole('button');
+    expect(btn.getAttribute('aria-label')).not.toContain('differentValue');
+    await user.click(btn);
     await waitFor(() => {
       expect(screen.getByRole('button')).toHaveTextContent('Copied');
     });
-    // The aria-label still names the underlying value — the only
-    // way value reaches the user is through that attribute, which
-    // we already cover in the first test for "abc123".
-    expect(
-      screen.getByRole('button', { name: /copy reference differentValue/i }),
-    ).toBeInTheDocument();
   });
 
   it('reverts to "Copy" + clears the live region after 1.5s', async () => {

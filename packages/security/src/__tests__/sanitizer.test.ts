@@ -181,7 +181,7 @@ describe('sanitize (sync)', () => {
     expect(sanitize(undefined)).toBe(undefined);
   });
 
-  // Value-pattern regex pass (D67 extension, Commit 31). The
+  // Value-pattern regex pass (D67 + D148 extension). The
   // key-based denylist catches { email: "x@y.com" } but free-text
   // fields like a "message" body can carry PHI-shaped substrings
   // the key-based pass would miss. Every string leaf runs through
@@ -207,7 +207,7 @@ describe('sanitize (sync)', () => {
     expect(out).toBe(text);
   });
 
-  // Denylist expansion (Commit 31). Persistent device identifiers
+  // Denylist expansion (D67 + D148). Persistent device identifiers
   // + clinical-instrument shorthand + biometric markers + claim IDs
   // are now in the key-based denylist per the FTC Cerebral order's
   // "Covered Information" scope + WA MHMDA's biometric clauses.

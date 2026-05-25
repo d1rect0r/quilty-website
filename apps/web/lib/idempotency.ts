@@ -10,9 +10,9 @@
  * patterns across an active session.
  *
  * Today's wiring: per-Lambda in-memory Map. The DynamoDB activation
- * (M5+) replaces this with a TTL'd item per key — same shape, same
- * Result envelope contract. The Lambda-warm-cycle scope is acceptable
- * for /contact (single-tier proxy + low traffic).
+ * milestone replaces this with a TTL'd item per key — same shape,
+ * same Result envelope contract. The Lambda-warm-cycle scope is
+ * acceptable for /contact (single-tier proxy + low traffic).
  *
  * Type design: `IdempotencyResult` is generic over the cached Result
  * shape so the same store serves any Server Action without leaking
@@ -37,8 +37,9 @@ const store = new Map<string, IdempotencyEntry<unknown>>();
  * to record the result.
  *
  * Pruning: each call sweeps expired entries opportunistically. The
- * cost is O(n) on the active key set; for the M1.5 traffic profile
- * this is negligible. Promote to a TTL-indexed structure if hot.
+ * cost is O(n) on the active key set; for the current traffic
+ * profile this is negligible. Promote to a TTL-indexed structure
+ * if hot.
  */
 export function claimIdempotent<T>(key: string): T | null {
   const now = Date.now();

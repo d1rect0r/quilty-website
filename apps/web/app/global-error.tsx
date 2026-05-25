@@ -184,7 +184,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               <button
                 type="button"
                 onClick={handleCopy}
-                aria-label={`Copy reference ${error.digest} to clipboard`}
+                aria-label="Copy error reference to clipboard"
                 className="global-error-cta"
                 style={{
                   // min 44×44 CSS px (WCAG 2.5.5 AA target size) — match

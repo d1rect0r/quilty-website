@@ -93,8 +93,13 @@ describe('makeTurnstileCaptchaVerifier', () => {
     const verifier = makeTurnstileCaptchaVerifier({ secretKey: 'sek', fetchImpl });
     await verifier.verify('tok', CTX);
     const init = fetchImpl.mock.calls[0]?.[1];
+    // Instance check BEFORE the cast — if the adapter ever switches
+    // to JSON / FormData, the cast would silently still pass and the
+    // .get() assertions would produce `undefined` rather than a
+    // shape-shift failure. The instanceof check forces a clean test
+    // failure if the body shape changes.
+    expect(init?.body).toBeInstanceOf(URLSearchParams);
     const params = init?.body as URLSearchParams;
-    expect(params).toBeDefined();
     expect(params.get('secret')).toBe('sek');
     expect(params.get('response')).toBe('tok');
     expect(params.get('remoteip')).toBe('203.0.113.42');

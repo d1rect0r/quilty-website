@@ -85,7 +85,12 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
           // normal rendering; HCM users see the recolored ring. The
           // element is programmatically focused on mount + not
           // tab-reachable, so this fires only on the mount focus.
-          className="text-fg-default focus-visible:outline-border-focus mt-2 text-4xl font-semibold outline-2 outline-offset-2 outline-transparent"
+          // Use `focus:` (NOT `focus-visible:`): Chromium 117+ and
+          // Safari 17+ suppress `:focus-visible` on programmatic
+          // `.focus()` calls, leaving AT users with no visible focus
+          // indicator on mount-focus. WCAG 2.4.7. The per-route-group
+          // error.tsx files mirror this discipline.
+          className="text-fg-default focus:outline-border-focus mt-2 text-4xl font-semibold outline-2 outline-offset-2 outline-transparent"
         >
           Unexpected error
         </h1>

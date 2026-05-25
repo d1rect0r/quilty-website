@@ -39,14 +39,6 @@ import { contactFormSchema, type ContactFormResult, type ContactFormValues } fro
  *     visually offscreen (offscreen pattern, not display:none).
  */
 
-const CSRF_COOKIE_NAME = '__Host-quilty_csrf';
-
-function readCsrfCookie(): string {
-  if (typeof document === 'undefined') return '';
-  const match = document.cookie.match(new RegExp(`(?:^|; )${CSRF_COOKIE_NAME}=([^;]*)`));
-  return match?.[1] ? decodeURIComponent(match[1]) : '';
-}
-
 export interface ContactFormProps {
   readonly csrfToken: string;
   readonly timeToken: string;
@@ -91,12 +83,22 @@ export function ContactForm({
   async function onSubmit(values: ContactFormValues): Promise<void> {
     setFormStatus({ kind: 'idle' });
     try {
-      const cookieToken = readCsrfCookie();
+      // Header source: forward the form-state CSRF token (the one
+      // embedded at render time and persisted in form state), NOT a
+      // late `document.cookie` read. The cookie may rotate between
+      // mount and submit (a sibling tab opening /contact rewrites the
+      // cookie); reading it at submit time would diverge from the
+      // hidden-input body token and trip verifyCsrf's mismatch branch.
+      // The server compares cookie + body + header — all three must
+      // match. Sourcing both body and header from `values.csrf_token`
+      // keeps them aligned; cookie drift surfaces as a clean
+      // origin_mismatch / token_invalid error rather than a silent
+      // submit failure across tabs.
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-quilty-csrf': cookieToken,
+          'x-quilty-csrf': values.csrf_token,
         },
         body: JSON.stringify(values),
       });
@@ -133,9 +135,7 @@ export function ContactForm({
                 ? 'We could not send the acknowledgement email. Please try again shortly.'
                 : envelope.reason === 'validation'
                   ? 'Please review the highlighted fields.'
-                  : envelope.reason === 'honeypot'
-                    ? 'Your submission was filtered. If this is a mistake, please email support directly.'
-                    : 'Something went wrong. Please try again.';
+                  : 'Something went wrong. Please try again.';
       setFormStatus({ kind: 'error', message: userMessage });
     } catch {
       setFormStatus({
@@ -274,21 +274,38 @@ export function ContactForm({
           submitted, so assertive announce takes precedence over polite
           AT activity. The success branch stays polite per WCAG 4.1.3
           Status Messages convention. */}
+      {/* Live regions: success (polite) + error (assertive). The
+          inner <span> is keyed on the message text so React removes
+          and re-inserts the node when the message changes — JAWS 2024
+          and NVDA 2024.1 require populated-to-empty-to-populated
+          (NOT populated-to-populated) to re-fire announcements on
+          successive submissions. WCAG SC 4.1.3 Status Messages. */}
       <output
         id={`${statusId}-success`}
-        role="status"
+        aria-label="Form status"
         aria-live="polite"
         className="block min-h-[1.5rem]"
       >
         {formStatus.kind === 'success' && (
-          <span className="text-success-fg text-sm font-medium">
+          <span
+            key={`success-${formStatus.digest}`}
+            className="text-success-fg text-sm font-medium"
+          >
             Thanks — we&apos;ve received your message. Reference: <code>{formStatus.digest}</code>.
           </span>
         )}
       </output>
-      <output id={`${statusId}-error`} role="alert" aria-live="assertive" className="block">
+      <output
+        id={`${statusId}-error`}
+        aria-label="Form error"
+        role="alert"
+        aria-live="assertive"
+        className="block"
+      >
         {formStatus.kind === 'error' && (
-          <span className="text-danger-fg text-sm font-medium">{formStatus.message}</span>
+          <span key={`error-${formStatus.message}`} className="text-danger-fg text-sm font-medium">
+            {formStatus.message}
+          </span>
         )}
       </output>
 

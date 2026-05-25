@@ -45,6 +45,16 @@ const VENDOR_SDK_IMPORTS = [
     message:
       'Import analytics via @quilty/observability (Analytics port). Direct Amplitude imports bypass the consent gate + PHI sanitizer per D35 + D67.',
   },
+  {
+    name: 'posthog-js',
+    message:
+      'Import analytics via @quilty/observability (Analytics port). Direct PostHog imports bypass the consent gate + PHI sanitizer per D35 + D67. (Gate set ahead of any posthog-js install to close the FTC capability + configuration gap from day one.)',
+  },
+  {
+    name: 'posthog-node',
+    message:
+      'Import analytics via @quilty/observability (Analytics port). Direct PostHog imports bypass the consent gate + PHI sanitizer per D35 + D67.',
+  },
 ];
 
 // D148 — PHI-denylist regex for identifier names that must never appear

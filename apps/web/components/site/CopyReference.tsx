@@ -70,7 +70,7 @@ export function CopyReference({ value }: CopyReferenceProps) {
       <button
         type="button"
         onClick={handleClick}
-        aria-label={`Copy reference ${value} to clipboard`}
+        aria-label="Copy reference to clipboard"
         // min-h-11 + min-w-11 (44×44 CSS px) — WCAG 2.5.5 AA target
         // size. The button sits inline with body text but the inline
         // siblings are not interactive, so the spacing exception

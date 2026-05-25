@@ -166,7 +166,7 @@ export interface FeatureFlagEvaluator {
 }
 
 // ---------------------------------------------------------------------------
-// PHIScrubber port (D67 extension — Commit 31)
+// PHIScrubber port (D67 + D148 extension)
 // ---------------------------------------------------------------------------
 
 /**

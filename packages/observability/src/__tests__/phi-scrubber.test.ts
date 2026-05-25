@@ -128,4 +128,35 @@ describe('makePhiScrubber', () => {
     expect(scrubber.scrubSentryEvent({})).not.toBeNull();
     expect(scrubber.scrubSentryEvent({ message: 'plain' })).not.toBeNull();
   });
+
+  it('preserves un-touched vendor-specific Sentry event fields via spread', () => {
+    // The scrubber spreads `{...event}` before mutating the fields it
+    // owns. Future-Sentry-SDK fields (`fingerprint`, `spans`,
+    // `measurements`, `sdkProcessingMetadata`, etc.) must round-trip
+    // intact — they're not in SentryEventLike but live on the runtime
+    // event object via the SentryEventLike-to-Event cast at the
+    // beforeSend call site. If a future refactor drops the spread,
+    // this test fails loudly rather than silently dropping the
+    // vendor-extension fields at the chokepoint.
+    const passthroughFields = {
+      fingerprint: ['my-group'],
+      release: '1.2.3',
+      environment: 'production',
+      // SentryEventLike's user.email + user.ip_address are typed for
+      // structural compatibility; here we mix one known field (user)
+      // with extension fields that aren't in our port.
+    } as const;
+    const evt = {
+      message: 'hello user@example.com',
+      ...passthroughFields,
+    } as SentryEventLike & typeof passthroughFields;
+    const out = scrubber.scrubSentryEvent(evt) as
+      | (SentryEventLike & typeof passthroughFields)
+      | null;
+    expect(out?.fingerprint).toEqual(['my-group']);
+    expect(out?.release).toBe('1.2.3');
+    expect(out?.environment).toBe('production');
+    // And the message field IS scrubbed:
+    expect(out?.message).toMatch(/\[EMAIL\]/);
+  });
 });

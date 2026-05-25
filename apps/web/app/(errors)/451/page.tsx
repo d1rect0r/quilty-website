@@ -8,8 +8,8 @@ import type { Metadata } from 'next';
  * Rendered when proxy.ts rewrites a request to `/451` because the
  * resource matches the 451 allowlist (geographic legal blocks,
  * DMCA takedowns, GDPR-mandated regional content removal, court
- * orders). Empty allowlist at M1.5 scaffold; reserved for first
- * jurisdiction-specific block at M3+.
+ * orders). Allowlist is empty today; reserved for the first
+ * jurisdiction-specific block.
  *
  * RFC 7725 §3 specifies a `Link: <...>; rel="blocked-by"` header
  * pointing at the ENTITY IMPLEMENTING THE BLOCK (us / our CDN),

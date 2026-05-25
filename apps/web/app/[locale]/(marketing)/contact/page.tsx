@@ -40,8 +40,9 @@ import type { Metadata } from 'next';
  */
 
 export const metadata: Metadata = {
-  title: 'Contact',
-  description: 'Get in touch with the Quilty team.',
+  title: 'Contact Quilty — get in touch with our team',
+  description:
+    'Have a question about Quilty? Send our team a note and we will respond within two business days. For clinical questions, please contact your provider directly.',
   alternates: {
     canonical: '/en/contact',
     languages: { en: '/en/contact', 'x-default': '/en/contact' },
@@ -51,32 +52,43 @@ export const metadata: Metadata = {
 const CSRF_COOKIE_NAME = '__Host-quilty_csrf';
 
 export default async function ContactPage() {
-  const csrfToken = generateCsrfToken();
+  const cookieStore = await cookies();
   const timeToken = makeRenderTimestamp();
   const honeypot = makeHoneypotField();
 
-  const cookieStore = await cookies();
-  // SECURITY: `httpOnly: false` is load-bearing for the OWASP canonical
-  // double-submit pattern (D10 + D53) — the Client Component reads the
-  // token from `document.cookie` to forward it in the `X-Quilty-CSRF`
-  // header. Flipping to `httpOnly: true` would break the third layer
-  // of the triple-defense. The residual risk is stored XSS: an XSS
-  // payload on the page can read the cookie + forge a same-origin
-  // POST, collapsing the triple-defense to one layer (Origin/Referer).
-  // Mitigations: the strict CSP (no `unsafe-inline`, no third-party
-  // script-src on this route today), Trusted Types (D57), and the
-  // HMAC-signed token (a same-site oversight that wrote a cookie
-  // cannot mint a valid signature without the server-held secret).
-  // Do NOT flip this flag thinking httpOnly is strictly better; CSP
-  // + Trusted Types + the HMAC signature are the layered defense.
-  cookieStore.set({
-    name: CSRF_COOKIE_NAME,
-    value: csrfToken,
-    httpOnly: false,
-    secure: true,
-    sameSite: 'lax',
-    path: '/',
-  });
+  // Reuse the existing CSRF cookie when present so a user with
+  // multiple /contact tabs open doesn't have tab 1's hidden-input
+  // token invalidated by tab 2's render. Mint a fresh token only
+  // when the cookie is absent (first visit or post-expiry). The
+  // cookie's HMAC signature + the time-trap window are the
+  // freshness controls; the cookie itself is durable for the session.
+  const existingCookie = cookieStore.get(CSRF_COOKIE_NAME)?.value ?? null;
+  const csrfToken = existingCookie ?? generateCsrfToken();
+
+  if (existingCookie === null) {
+    // SECURITY: `httpOnly: false` is load-bearing for the OWASP
+    // canonical double-submit pattern (D10 + D53) — the Client
+    // Component reads the token from `document.cookie` to forward
+    // it in the `X-Quilty-CSRF` header. Flipping to `httpOnly: true`
+    // would break the third layer of the triple-defense. The
+    // residual risk is stored XSS: an XSS payload on the page can
+    // read the cookie + forge a same-origin POST, collapsing the
+    // triple-defense to one layer (Origin/Referer). Mitigations:
+    // the strict CSP (no `unsafe-inline`, no third-party script-src
+    // on this route today), Trusted Types (D57), and the HMAC-signed
+    // token (a same-site oversight that wrote a cookie cannot mint
+    // a valid signature without the server-held secret). Do NOT
+    // flip this flag thinking httpOnly is strictly better; CSP +
+    // Trusted Types + the HMAC signature are the layered defense.
+    cookieStore.set({
+      name: CSRF_COOKIE_NAME,
+      value: csrfToken,
+      httpOnly: false,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+    });
+  }
 
   return (
     <section className="mx-auto max-w-2xl px-6 py-24">
@@ -94,7 +106,8 @@ export default async function ContactPage() {
           rotor. `aria-label` names the region. WCAG 1.3.6. */}
       <aside
         aria-label="Privacy disclaimer"
-        className="border-l-warning-500 bg-bg-elevated text-fg-default mb-8 rounded-r border-l-4 p-4 text-sm shadow-sm"
+        className="bg-bg-elevated text-fg-default mb-8 rounded-r border-l-4 p-4 text-sm shadow-sm"
+        style={{ borderLeftColor: 'var(--color-warning-500)' }}
       >
         <p>
           <strong className="font-semibold">A note on privacy: </strong>
