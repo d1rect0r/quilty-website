@@ -3,6 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useId, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { FieldErrorRegion, Input, Label, Textarea } from '@/components/app/Form';
 import { contactFormSchema, type ContactFormResult, type ContactFormValues } from './schema';
 
 /**
@@ -187,93 +188,53 @@ export function ContactForm({
       </div>
 
       <div>
-        <label
-          htmlFor={`${baseId}-name`}
-          className="text-fg-default mb-1 block text-sm font-medium"
-        >
-          Name
-        </label>
-        <input
+        <Label htmlFor={`${baseId}-name`}>Name</Label>
+        <Input
           id={`${baseId}-name`}
           type="text"
           autoComplete="name"
-          aria-describedby={errors.name ? nameErrId : undefined}
+          aria-describedby={nameErrId}
           aria-invalid={errors.name ? true : undefined}
           {...register('name')}
-          className="border-border-default focus-visible:border-border-strong focus-visible:ring-ring bg-bg-elevated text-fg-default block min-h-[44px] w-full rounded border px-3 py-2 outline-none focus-visible:ring-2"
         />
-        {errors.name && (
-          <p id={nameErrId} role="alert" className="text-danger-fg mt-1 text-sm font-medium">
-            {errors.name.message}
-          </p>
-        )}
+        <FieldErrorRegion id={nameErrId} message={errors.name?.message} fieldKey="name" />
       </div>
 
       <div>
-        <label
-          htmlFor={`${baseId}-email`}
-          className="text-fg-default mb-1 block text-sm font-medium"
-        >
-          Email
-        </label>
-        <input
+        <Label htmlFor={`${baseId}-email`}>Email</Label>
+        <Input
           id={`${baseId}-email`}
           type="email"
           autoComplete="email"
-          aria-describedby={errors.email ? emailErrId : undefined}
+          aria-describedby={emailErrId}
           aria-invalid={errors.email ? true : undefined}
           {...register('email')}
-          className="border-border-default focus-visible:border-border-strong focus-visible:ring-ring bg-bg-elevated text-fg-default block min-h-[44px] w-full rounded border px-3 py-2 outline-none focus-visible:ring-2"
         />
-        {errors.email && (
-          <p id={emailErrId} role="alert" className="text-danger-fg mt-1 text-sm font-medium">
-            {errors.email.message}
-          </p>
-        )}
+        <FieldErrorRegion id={emailErrId} message={errors.email?.message} fieldKey="email" />
       </div>
 
       <div>
-        <label
-          htmlFor={`${baseId}-subject`}
-          className="text-fg-default mb-1 block text-sm font-medium"
-        >
-          Subject
-        </label>
-        <input
+        <Label htmlFor={`${baseId}-subject`}>Subject</Label>
+        <Input
           id={`${baseId}-subject`}
           type="text"
-          aria-describedby={errors.subject ? subjectErrId : undefined}
+          aria-describedby={subjectErrId}
           aria-invalid={errors.subject ? true : undefined}
           {...register('subject')}
-          className="border-border-default focus-visible:border-border-strong focus-visible:ring-ring bg-bg-elevated text-fg-default block min-h-[44px] w-full rounded border px-3 py-2 outline-none focus-visible:ring-2"
         />
-        {errors.subject && (
-          <p id={subjectErrId} role="alert" className="text-danger-fg mt-1 text-sm font-medium">
-            {errors.subject.message}
-          </p>
-        )}
+        <FieldErrorRegion id={subjectErrId} message={errors.subject?.message} fieldKey="subject" />
       </div>
 
       <div>
-        <label
-          htmlFor={`${baseId}-message`}
-          className="text-fg-default mb-1 block text-sm font-medium"
-        >
-          Message
-        </label>
-        <textarea
+        <Label htmlFor={`${baseId}-message`}>Message</Label>
+        <Textarea
           id={`${baseId}-message`}
           rows={6}
-          aria-describedby={errors.message ? messageErrId : undefined}
+          aria-describedby={messageErrId}
           aria-invalid={errors.message ? true : undefined}
           {...register('message')}
-          className="border-border-default focus-visible:border-border-strong focus-visible:ring-ring bg-bg-elevated text-fg-default block min-h-[44px] w-full rounded border px-3 py-2 outline-none focus-visible:ring-2"
         />
-        {errors.message && (
-          <p id={messageErrId} role="alert" className="text-danger-fg mt-1 text-sm font-medium">
-            {errors.message.message}
-          </p>
-        )}
+        <FieldErrorRegion id={messageErrId} message={errors.message?.message} fieldKey="message" />
       </div>
 
       {/* Form-level live regions: success (polite) + error (assertive).

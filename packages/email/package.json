@@ -17,11 +17,17 @@
   },
   "dependencies": {
     "@quilty/security": "workspace:*",
+    "@react-email/components": "^0.5.7",
+    "@react-email/render": "^1.4.0",
+    "react": "^19.0.0",
     "server-only": "0.0.1"
   },
   "devDependencies": {
     "@types/node": "22.10.2",
+    "@types/react": "19.0.2",
+    "@vitejs/plugin-react": "4.3.4",
     "@vitest/coverage-v8": "2.1.8",
+    "jsdom": "25.0.1",
     "typescript": "^5.7.2",
     "vitest": "2.1.8"
   },

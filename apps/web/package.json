@@ -29,6 +29,7 @@
     "@quilty/rate-limit": "workspace:*",
     "@quilty/security": "workspace:*",
     "@quilty/seo": "workspace:*",
+    "@radix-ui/react-label": "^2.1.7",
     "@sentry/nextjs": "10.53.1",
     "@vercel/otel": "2.1.2",
     "class-variance-authority": "0.7.1",

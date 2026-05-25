@@ -24,3 +24,8 @@ export {
 } from './adapters/in-memory';
 
 export { makeSesEmailSender, type SesAdapterOptions } from './adapters/ses';
+
+export {
+  ContactAcknowledgementEmail,
+  type ContactAcknowledgementProps,
+} from './templates/contact-acknowledgement';

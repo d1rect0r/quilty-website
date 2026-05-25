@@ -1,7 +1,30 @@
 import { cookies } from 'next/headers';
+import dynamic from 'next/dynamic';
 import { generateCsrfToken, makeHoneypotField, makeRenderTimestamp } from '@quilty/security';
-import { ContactForm } from './ContactForm';
 import type { Metadata } from 'next';
+
+/**
+ * ContactForm is dynamically imported so the RHF + Zod + zodResolver
+ * payload (~35-40 KB gz) does not ship synchronously on first paint
+ * of the /contact route. Critical for keeping the (marketing) route
+ * chunk under the 60 KB ceiling once Turnstile activates
+ * (+18-22 KB gz). The `ssr: true` (default) preserves no-JS form
+ * rendering and SEO. The skeleton fallback below reserves the form's
+ * vertical space to avoid CLS while the chunk loads.
+ */
+const ContactForm = dynamic(
+  () => import('./ContactForm').then((mod) => ({ default: mod.ContactForm })),
+  {
+    loading: () => (
+      <div className="space-y-6" aria-busy="true" aria-label="Loading contact form">
+        <div className="bg-bg-elevated min-h-[44px] w-full rounded border" />
+        <div className="bg-bg-elevated min-h-[44px] w-full rounded border" />
+        <div className="bg-bg-elevated min-h-[44px] w-full rounded border" />
+        <div className="bg-bg-elevated min-h-[150px] w-full rounded border" />
+      </div>
+    ),
+  },
+);
 
 /**
  * /contact route.
