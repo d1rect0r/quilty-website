@@ -49,6 +49,12 @@ export type {
 
 export type { AccountDeleteReason } from './domain/account-delete-reason';
 export { ACCOUNT_DELETE_REASONS } from './domain/account-delete-reason';
+export type { AccountState, AccountStateTuple, ClinicalRecordsState } from './domain/account-state';
+export {
+  ACCOUNT_DELETION_GRACE_PERIOD_MS,
+  deriveAccountStateFromReason,
+  deriveStatesFromReason,
+} from './domain/account-state';
 export {
   CLINICAL_PROTECTED_CLASSES,
   REPLAY_BLOCK_CLASS,
