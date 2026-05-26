@@ -20,6 +20,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@testing-library/react": "16.1.0",
     "@types/node": "22.10.2",
     "@types/react": "19.0.2",
     "@types/react-dom": "19.0.2",
@@ -41,6 +42,10 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./testing": {
+      "types": "./src/testing/index.ts",
+      "default": "./src/testing/index.ts"
     },
     "./velite-config": {
       "types": "./src/velite-config.ts",

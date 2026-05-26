@@ -18,11 +18,31 @@ import { z } from 'zod';
  * TypeScript catches missing steps at compile time.
  */
 
-/** Hero — top-of-page headline + supporting copy + optional CTA pair. */
+/** Image descriptor — re-used across Hero / TestimonialQuote / future
+ * blocks. `alt` is REQUIRED at the schema layer mirroring the
+ * ImagePipeline port's compile-time contract: every author-supplied
+ * image MUST provide non-text-content per WCAG 1.1.1. Decorative
+ * images pass `alt: ""` (the explicit author decision).
+ */
+export const ImageDescriptorSchema = z.object({
+  src: z.string().min(1),
+  alt: z.string(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+});
+export type ImageDescriptor = z.infer<typeof ImageDescriptorSchema>;
+
+/** Hero — top-of-page headline + supporting copy + optional CTA pair
+ * + optional hero image. The hero image renders through OptimizedImage
+ * (the ImagePipeline-backed seam); authors supply alt text inline so
+ * the rendered <h1>-anchored section never ships a decorative image
+ * without an accessibility opt-in.
+ */
 export const HeroBlockSchema = z.object({
   type: z.literal('Hero'),
   heading: z.string().min(1).max(200),
   subheading: z.string().min(1).max(400).optional(),
+  image: ImageDescriptorSchema.optional(),
   primaryCta: z
     .object({
       label: z.string().min(1).max(50),
@@ -47,6 +67,39 @@ export const ValuePropBlockSchema = z.object({
 });
 export type ValuePropBlock = z.infer<typeof ValuePropBlockSchema>;
 
+/** Icon descriptor — discriminated union of the two icon-source roles.
+ *
+ *   - `lucide`: a Lucide React icon name (D19). Renderer maps the
+ *     string to a Lucide component at runtime; unknown names fall
+ *     back to no-render with a development-tier warning.
+ *   - `image`: a URL-shaped icon (typically a brand logo or
+ *     non-Lucide pictogram). Routed through OptimizedImage so the
+ *     ImagePipeline applies; alt is REQUIRED per WCAG 1.1.1.
+ *
+ * The discriminator is `kind` rather than `type` to avoid collision
+ * with the parent block's `type` discriminator at the union level.
+ */
+export const IconDescriptorSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('lucide'),
+    name: z.string().min(1).max(80),
+  }),
+  z.object({
+    kind: z.literal('image'),
+    src: z.string().min(1),
+    alt: z.string(),
+    // REQUIRED for image-kind icons: an icon-image without explicit
+    // dimensions cannot render through the sized OptimizedImage variant
+    // (the fill variant is not appropriate for an inline grid cell).
+    // Authors who don't know the intrinsic dimensions should use the
+    // `lucide` kind or supply matching width/height (typically 24 / 32 /
+    // 40 for icon-sized assets).
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }),
+]);
+export type IconDescriptor = z.infer<typeof IconDescriptorSchema>;
+
 /** FeatureGrid — 2-3-4 column grid of named features.
  *
  * `heading` is REQUIRED (not optional) — without it, the per-item `<h3>`
@@ -64,7 +117,7 @@ export const FeatureGridBlockSchema = z.object({
       z.object({
         heading: z.string().min(1).max(120),
         body: z.string().min(1).max(400),
-        icon: z.string().optional(),
+        icon: IconDescriptorSchema.optional(),
       }),
     )
     .min(1)
@@ -88,13 +141,17 @@ export const FAQBlockSchema = z.object({
 });
 export type FAQBlock = z.infer<typeof FAQBlockSchema>;
 
-/** TestimonialQuote — customer testimonial. */
+/** TestimonialQuote — customer testimonial. The optional `avatar`
+ * descriptor renders through OptimizedImage when present (unlocked by
+ * the ImagePipeline + alt-required contract). Authors who omit it
+ * render a text-only attribution.
+ */
 export const TestimonialQuoteBlockSchema = z.object({
   type: z.literal('TestimonialQuote'),
   quote: z.string().min(1).max(800),
   attribution: z.string().min(1).max(120),
   role: z.string().min(1).max(120).optional(),
-  avatarUrl: z.string().min(1).optional(),
+  avatar: ImageDescriptorSchema.optional(),
 });
 export type TestimonialQuoteBlock = z.infer<typeof TestimonialQuoteBlockSchema>;
 

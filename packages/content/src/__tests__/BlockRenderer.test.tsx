@@ -113,6 +113,105 @@ describe('BlockSchema discriminated union', () => {
     expect(() => BlockSchema.parse(input)).not.toThrow();
   });
 
+  it('accepts a Hero block with an optional image descriptor', () => {
+    const input: Block = {
+      type: 'Hero',
+      heading: 'Welcome',
+      image: { src: '/static/hero.jpg', alt: 'Person journaling on a couch', width: 1200 },
+    };
+    expect(() => BlockSchema.parse(input)).not.toThrow();
+  });
+
+  it('rejects a Hero image descriptor that omits alt (WCAG 1.1.1)', () => {
+    expect(() =>
+      BlockSchema.parse({
+        type: 'Hero',
+        heading: 'Welcome',
+        // `alt` is required on the descriptor (decorative images pass "");
+        // an omitted alt is rejected by Zod.
+        image: { src: '/static/hero.jpg' },
+      }),
+    ).toThrow();
+  });
+
+  it('accepts a FeatureGrid item with a Lucide icon discriminator', () => {
+    const input: Block = {
+      type: 'FeatureGrid',
+      heading: 'What you get',
+      items: [
+        {
+          heading: 'Private',
+          body: 'End-to-end.',
+          icon: { kind: 'lucide', name: 'Shield' },
+        },
+      ],
+    };
+    expect(() => BlockSchema.parse(input)).not.toThrow();
+  });
+
+  it('accepts a FeatureGrid item with an image icon discriminator', () => {
+    const input: Block = {
+      type: 'FeatureGrid',
+      heading: 'What you get',
+      items: [
+        {
+          heading: 'Private',
+          body: 'End-to-end.',
+          icon: {
+            kind: 'image',
+            src: '/static/icons/lock.png',
+            alt: 'Lock',
+            width: 32,
+            height: 32,
+          },
+        },
+      ],
+    };
+    expect(() => BlockSchema.parse(input)).not.toThrow();
+  });
+
+  it('rejects an image-kind icon descriptor without width/height', () => {
+    // Image icons render through the sized OptimizedImage variant
+    // which requires positive dimensions — the schema mirrors that
+    // requirement so MDX authoring catches it.
+    expect(() =>
+      BlockSchema.parse({
+        type: 'FeatureGrid',
+        heading: 'What you get',
+        items: [
+          {
+            heading: 'Private',
+            body: 'End-to-end.',
+            icon: { kind: 'image', src: '/static/icons/lock.png', alt: 'Lock' },
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it('rejects a FeatureGrid item with a non-discriminated icon (legacy string shape)', () => {
+    // The pre-B.6 schema accepted `icon: string`; the new schema
+    // requires a discriminated descriptor. This guard catches a future
+    // regression that would silently accept the legacy form.
+    expect(() =>
+      BlockSchema.parse({
+        type: 'FeatureGrid',
+        heading: 'What you get',
+        items: [{ heading: 'Private', body: 'End-to-end.', icon: 'Shield' }],
+      }),
+    ).toThrow();
+  });
+
+  it('accepts a TestimonialQuote with an avatar descriptor', () => {
+    const input: Block = {
+      type: 'TestimonialQuote',
+      quote: 'Quilty changed my approach.',
+      attribution: 'Jane D.',
+      avatar: { src: '/static/avatars/jane.jpg', alt: 'Jane D.', width: 80, height: 80 },
+    };
+    expect(() => BlockSchema.parse(input)).not.toThrow();
+  });
+
   it('rejects blocks with missing required fields', () => {
     expect(() =>
       BlockSchema.parse({

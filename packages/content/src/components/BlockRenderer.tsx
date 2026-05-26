@@ -6,6 +6,7 @@ import { TestimonialQuote } from './TestimonialQuote';
 import { ValueProp } from './ValueProp';
 import type React from 'react';
 import type { Block } from '../schemas';
+import type { ImagePipeline } from '../ports/image-pipeline';
 
 /**
  * Single dispatch point for every typed block. Exhaustive switch on the
@@ -32,24 +33,34 @@ export interface BlockRendererProps {
    * blocks may need it too).
    */
   pageUrl: string;
+  /**
+   * Optional ImagePipeline threaded into image-bearing blocks (Hero,
+   * FeatureGrid, TestimonialQuote). Pages compose their composition
+   * root's pipeline once and let BlockRenderer fan it out per block.
+   */
+  imagePipeline?: ImagePipeline;
 }
 
 export function BlockRenderer({
   block,
   instanceId,
   pageUrl,
+  imagePipeline,
 }: BlockRendererProps): React.JSX.Element {
+  // exactOptionalPropertyTypes: true requires conditional spread of
+  // optional fields (passing `prop={undefined}` is rejected).
+  const pipelineProps = imagePipeline !== undefined ? { imagePipeline } : {};
   switch (block.type) {
     case 'Hero':
-      return <Hero block={block} instanceId={instanceId} />;
+      return <Hero block={block} instanceId={instanceId} {...pipelineProps} />;
     case 'ValueProp':
       return <ValueProp block={block} instanceId={instanceId} />;
     case 'FeatureGrid':
-      return <FeatureGrid block={block} instanceId={instanceId} />;
+      return <FeatureGrid block={block} instanceId={instanceId} {...pipelineProps} />;
     case 'FAQ':
       return <FAQ block={block} instanceId={instanceId} pageUrl={pageUrl} />;
     case 'TestimonialQuote':
-      return <TestimonialQuote block={block} instanceId={instanceId} />;
+      return <TestimonialQuote block={block} instanceId={instanceId} {...pipelineProps} />;
     case 'CTABanner':
       return <CTABanner block={block} instanceId={instanceId} />;
     default: {
@@ -83,19 +94,36 @@ export interface BlocksRendererProps {
    * `NEXT_PUBLIC_SITE_URL` + its own path.
    */
   pageUrl: string;
+  /**
+   * Optional ImagePipeline threaded into image-bearing blocks. The page
+   * route composes the production pipeline (next-image-backed) at the
+   * composition root and passes it once; BlocksRenderer fans it out.
+   */
+  imagePipeline?: ImagePipeline;
 }
 
-export function BlocksRenderer({ blocks, pageUrl }: BlocksRendererProps): React.ReactNode {
+export function BlocksRenderer({
+  blocks,
+  pageUrl,
+  imagePipeline,
+}: BlocksRendererProps): React.ReactNode {
   // React keys derive from the (block type, position) tuple — stable
   // across content edits and unique within a page. Positional index is
   // the documented Velite + typed-block contract: array order is the
   // page's contract.
+  const pipelineProps = imagePipeline !== undefined ? { imagePipeline } : {};
   return (
     <>
       {blocks.map((block, idx) => {
         const instanceId = `block-${idx}-${block.type.toLowerCase()}`;
         return (
-          <BlockRenderer key={instanceId} block={block} instanceId={instanceId} pageUrl={pageUrl} />
+          <BlockRenderer
+            key={instanceId}
+            block={block}
+            instanceId={instanceId}
+            pageUrl={pageUrl}
+            {...pipelineProps}
+          />
         );
       })}
     </>

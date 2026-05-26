@@ -1,15 +1,37 @@
 import Link from 'next/link';
+import { OptimizedImage } from './OptimizedImage';
 import type { HeroBlock } from '../schemas';
+import type { ImagePipeline } from '../ports/image-pipeline';
 
 export interface HeroProps {
   block: HeroBlock;
   instanceId: string;
+  /**
+   * Optional ImagePipeline. When omitted, the hero renders without
+   * the image even if the block has one — keeps existing call sites
+   * compositional. When present, `preload: true` flows to the
+   * underlying renderer because hero images are always above-the-fold
+   * (LCP candidate).
+   */
+  imagePipeline?: ImagePipeline;
 }
 
-export function Hero({ block, instanceId }: HeroProps) {
+export function Hero({ block, instanceId, imagePipeline }: HeroProps) {
   const headingId = `${instanceId}-heading`;
   return (
     <section aria-labelledby={headingId} className="mx-auto max-w-4xl px-6 py-24 text-center">
+      {block.image && imagePipeline ? (
+        <div className="mb-10 flex justify-center">
+          <OptimizedImage
+            pipeline={imagePipeline}
+            src={block.image.src}
+            alt={block.image.alt}
+            width={block.image.width ?? 800}
+            height={block.image.height ?? 450}
+            preload
+          />
+        </div>
+      ) : null}
       <h1
         id={headingId}
         className="text-fg-default text-balance text-5xl font-semibold tracking-tight"

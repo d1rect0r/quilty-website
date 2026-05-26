@@ -18,6 +18,8 @@ export {
   FAQBlockSchema,
   FeatureGridBlockSchema,
   HeroBlockSchema,
+  IconDescriptorSchema,
+  ImageDescriptorSchema,
   PageContentSchema,
   TestimonialQuoteBlockSchema,
   ValuePropBlockSchema,
@@ -29,10 +31,24 @@ export type {
   FAQBlock,
   FeatureGridBlock,
   HeroBlock,
+  IconDescriptor,
+  ImageDescriptor,
   PageContent,
   TestimonialQuoteBlock,
   ValuePropBlock,
 } from './schemas';
+
+// ImagePipeline port + adapters (ADR-0014 Rule 5). The in-memory
+// fake lives on the `@quilty/content/testing` subpath so it cannot
+// reach a production import path.
+export type { ImageInput, ImagePipeline, ResolvedImage } from './ports/image-pipeline';
+export {
+  makeNextImagePipeline,
+  type NextImagePipelineOptions,
+} from './adapters/next-image-pipeline';
+
+export { OptimizedImage } from './components/OptimizedImage';
+export type { OptimizedImageProps } from './components/OptimizedImage';
 
 export { BlockRenderer, BlocksRenderer } from './components/BlockRenderer';
 export type { BlockRendererProps, BlocksRendererProps } from './components/BlockRenderer';
