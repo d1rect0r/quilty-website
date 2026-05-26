@@ -1,0 +1,40 @@
+{
+  "name": "@quilty/api-client",
+  "version": "0.1.0",
+  "description": "Typed HTTP client + retry + circuit-breaker + RFC 9457 Problem Details parser + W3C traceparent injection. Composed at the website BFF composition roots (server + edge) for every outbound Rust-backend call.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25.0.0",
+    "pnpm": ">=10.0.0 <11.0.0"
+  },
+  "scripts": {
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "uuid": "^11.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@types/uuid": "^10.0.0",
+    "@vitest/coverage-v8": "2.1.8",
+    "typescript": "^5.7.2",
+    "vitest": "2.1.8"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./testing": {
+      "types": "./src/testing/index.ts",
+      "default": "./src/testing/index.ts"
+    }
+  },
+  "sideEffects": false
+}

@@ -140,6 +140,7 @@ const config: NextConfig = {
   // Matches the Cal.com / Vercel-monorepo convention for JIT
   // internal packages with `moduleResolution: "bundler"`.
   transpilePackages: [
+    '@quilty/api-client',
     '@quilty/captcha',
     '@quilty/consent',
     '@quilty/content',
@@ -157,6 +158,7 @@ const config: NextConfig = {
   // barrel-bundle-bloat pattern documented at Vercel #27401 + Hagemeister.
   experimental: {
     optimizePackageImports: [
+      '@quilty/api-client',
       '@quilty/captcha',
       '@quilty/consent',
       '@quilty/content',

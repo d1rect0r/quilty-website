@@ -32,6 +32,7 @@
  *   `ServerContainer`; no cast required, no runtime tag check.
  */
 
+import type { ApiClient } from '@quilty/api-client';
 import type { CaptchaVerifier } from '@quilty/captcha';
 import type { ConsentStore } from '@quilty/consent';
 import type { EmailSender } from '@quilty/email';
@@ -103,6 +104,16 @@ export interface ServerContainer extends BaseContainer {
    * `__Host-quilty_consent` cookie directly.
    */
   readonly consentStore: ConsentStore;
+  /**
+   * ApiClient port (ADR-0017) — outbound HTTP transport composing
+   * retry + circuit-breaker + W3C `traceparent` injection + RFC 9457
+   * Problem Details parsing. Used by Server Components + Route
+   * Handlers + server actions calling the Rust backend through API
+   * Gateway. The Client runtime does NOT receive ApiClient — browser
+   * mutations go through Server Actions, never direct API calls
+   * (per ADR-0017 Decision H + D5 BFF pattern).
+   */
+  readonly apiClient: ApiClient;
 }
 
 /**
@@ -135,6 +146,14 @@ export interface EdgeContainer extends BaseContainer {
    * here while the Node tier uses the AWS SDK adapter.
    */
   readonly consentStore: ConsentStore;
+  /**
+   * ApiClient at the Edge tier (ADR-0017). Same shape as the server
+   * container's; the Edge runtime can call out to the Rust backend
+   * for cheap header/cookie-driven decisions when proxy.ts needs
+   * structured upstream data. The shared `ApiClient` port surface
+   * means the adapter is identical across runtimes.
+   */
+  readonly apiClient: ApiClient;
 }
 
 /**

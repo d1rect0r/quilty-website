@@ -32,7 +32,8 @@
       "test-results",
       "__tests__",
       "tests",
-      "research"
+      "research",
+      "generated"
     ],
     "exclude_filename_regex": "\\.(test|spec)\\.(ts|tsx|js|jsx|mjs|cjs)$",
     "scan_extensions": [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]

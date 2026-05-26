@@ -9,3 +9,9 @@
 # Public elliptic curve identifier (NIST P-256) used by AWS Cognito ACM keys.
 # Not a secret — published algorithm name in the AWS Cognito public API.
 docs/research/round_6_foundation_audit/_raw/11-quilty-aws-auth-verification.md:generic-api-key:180
+
+# UUIDv7 test-fixture string passed to api-client retry + idempotency tests.
+# Not a secret — synthetic identifier consumed by Vitest assertions.
+packages/api-client/__tests__/retry.test.ts:generic-api-key:27
+packages/api-client/__tests__/api-client.contract.test.ts:generic-api-key:113
+packages/api-client/__tests__/api-client.contract.test.ts:generic-api-key:210

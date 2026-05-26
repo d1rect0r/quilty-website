@@ -15,6 +15,7 @@ test-results/
 pnpm-lock.yaml
 *.tsbuildinfo
 packages/shared-types/src/generated/
+packages/shared-types/spec/
 
 # Auto-formatted by other tools (or intentionally hand-crafted)
 *.svg

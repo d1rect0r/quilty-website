@@ -6,6 +6,7 @@ import {
   buildWebSiteJsonLd,
   JsonLd,
 } from '@quilty/seo';
+import { Providers } from '@/components/app/Providers';
 import { Spotlight } from '@/components/dev/Spotlight';
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
@@ -97,7 +98,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             gates internally on NODE_ENV; the production minifier
             tree-shakes the dynamic import body out of the prod bundle. */}
         <Spotlight />
-        {children}
+        {/* Providers wraps client-side TanStack Query (ADR-0017
+            Decision H) + Toast surface (ADR-0017 Decision I).
+            Server Components above remain unaffected; this provider
+            bounds the client-tree below. */}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

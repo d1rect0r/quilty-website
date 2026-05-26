@@ -1,0 +1,507 @@
+openapi: 3.1.0
+info:
+  title: Quilty Sync API
+  version: "1.0.0"
+  description: |
+    Quilty's offline-first sync API for the vaping cessation mobile app.
+    Three endpoints: sync-push (write), sync-pull (read), and access-export
+    (§164.524 right-of-access one-shot data export).
+
+    All endpoints require JWT authentication via the custom Lambda authorizer.
+    The API is consumed exclusively by the native Flutter mobile client —
+    CORS is disabled (Audit M24).
+
+    **Phase 5 (2026-04-11)**: sync-pull + access-export shipped end-to-end.
+  contact:
+    name: Quilty Platform Engineering
+    email: support@quilty.app
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Quilty-Proprietary
+
+servers:
+  - url: https://api.quilty.app/v1
+    description: Production (via CloudFront → API Gateway)
+
+security:
+  - bearerAuth: []
+
+paths:
+  /sync/push:
+    post:
+      operationId: syncPush
+      summary: Push mutations to the server
+      description: |
+        Accepts a batch of mutations (upsert/delete/tx_group), writes them
+        atomically to DynamoDB with idempotency dedup, and returns per-mutation
+        results. Every accepted mutation includes a `cursor_after_push` field
+        in the response envelope so the client can advance its local cursor
+        and guarantee read-your-writes on the next sync-pull (Phase 5 L6).
+      tags: [sync]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushEnvelope'
+      responses:
+        '200':
+          description: All mutations accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushResponse'
+        '207':
+          description: Mixed outcomes — some mutations accepted, some rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushResponse'
+        '400':
+          description: Envelope validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid authorization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sync/pull:
+    post:
+      operationId: syncPull
+      summary: Pull changes since a cursor
+      description: |
+        Returns entity changes since the client's cursor position. When
+        `cursor` is null, returns a full-sync response with `full_sync=true`
+        and `complete=true` on the final page — the client should stage-and-swap
+        its local database atomically.
+
+        The 304-equivalent short-circuit (Phase 5 L10): when the server's
+        per-user watermark shows no changes since the cursor, the response
+        is an empty `changes` array with the same cursor. This skips the
+        GSI query entirely — the common case ("app opened, nothing new")
+        costs one DynamoDB GetItem instead of a Query.
+
+        Page size is server-controlled at 200 items (Phase 5 L18), NOT
+        client-configurable. When `has_more=true`, the client should
+        immediately call sync-pull again with the new cursor.
+      tags: [sync]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PullEnvelope'
+      responses:
+        '200':
+          description: Changes returned (may be empty if nothing changed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PullResponse'
+        '400':
+          description: Envelope validation failed or cursor invalid/tampered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing or invalid authorization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '410':
+          description: Cursor expired — client must retry with cursor=null for full resync
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorExpiredResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /access/export:
+    post:
+      operationId: accessExport
+      summary: Export user data (§164.524 right of access)
+      description: |
+        Generates a one-shot JSON bundle of the authenticated user's complete
+        designated record set, uploads it to a KMS-encrypted S3 bucket, and
+        returns a signed URL with a 1-hour expiry.
+
+        This endpoint satisfies HIPAA §164.524 right of access. The bundle
+        includes all entity types (profile, puffs, urge logs, moods, etc.)
+        in machine-readable JSON format per HHS FAQ 2056. CSV and PDF formats
+        are planned for a future release.
+
+        The signed URL is a bearer token equivalent — treat it with the same
+        care as a JWT. Do not log it server-side (the audit log records the
+        S3 object key, not the signed URL).
+      tags: [compliance]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format:
+                  type: string
+                  enum: [json]
+                  default: json
+                  description: Export format. Currently only `json` is supported.
+      responses:
+        '200':
+          description: Export bundle generated and signed URL returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+        '401':
+          description: Missing or invalid authorization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error during export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase JWT with `sub` claim mapped to internal user ulid
+
+  schemas:
+    # ---- Push ----
+
+    PushEnvelope:
+      type: object
+      required: [envelope_version, device_id, mutations]
+      properties:
+        envelope_version:
+          type: integer
+          minimum: 1
+          description: Protocol version. Server rejects versions below AppConfig `sync.min_envelope_version`.
+        device_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Opaque device identifier for tracking and debugging.
+        mutations:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Mutation'
+
+    Mutation:
+      type: object
+      required: [op, mutation_id, type, type_version, client_ts, client_seq, correlation_id]
+      properties:
+        op:
+          type: string
+          enum: [upsert, delete, tx_group]
+        mutation_id:
+          type: string
+          format: uuid
+          description: UUIDv7 — client-generated, globally unique.
+        type:
+          type: string
+          description: Entity type name (e.g., `test_widget`, `urge_log`).
+        type_version:
+          type: integer
+          minimum: 1
+        entity_id:
+          type: string
+          format: uuid
+          description: UUIDv7 of the entity (required for upsert/delete, absent for tx_group).
+        version:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: |
+            Optimistic concurrency version.
+            - `0` = create new entity
+            - `N > 0` = update entity at version N
+            - `null` = blind delete (for op=delete only)
+        client_ts:
+          type: string
+          format: date-time
+        client_seq:
+          type: integer
+          minimum: 0
+        correlation_id:
+          type: string
+        payload:
+          type: object
+          nullable: true
+          description: Entity payload (required for upsert, null for delete).
+
+    PushResponse:
+      type: object
+      required: [results, server_ts]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/MutationResult'
+        cursor_after_push:
+          type: string
+          description: |
+            Signed opaque cursor pointing past the highest item this batch
+            wrote. The client should use this as its new local cursor floor
+            so the next sync-pull includes the items it just pushed
+            (Phase 5 L6 read-your-writes).
+            Absent when the batch wrote nothing (all rejected/skipped).
+        server_ts:
+          type: string
+          format: date-time
+
+    MutationResult:
+      type: object
+      required: [index, mutation_id, status]
+      properties:
+        index:
+          type: integer
+        mutation_id:
+          type: string
+        status:
+          type: string
+          enum: [accepted, rejected, skipped]
+        entity_id:
+          type: string
+        version:
+          type: integer
+        canonical_item:
+          type: object
+          description: Server-stamped canonical entity state (write-through for client reconciliation).
+        error:
+          $ref: '#/components/schemas/MutationError'
+
+    MutationError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Error code from the 21-code sync API taxonomy.
+        message:
+          type: string
+        current_version:
+          type: integer
+          description: Present on ERR_VERSION_CONFLICT — the current server version.
+        details:
+          type: object
+        retry_after_ms:
+          type: integer
+        retryable:
+          type: boolean
+
+    # ---- Pull ----
+
+    PullEnvelope:
+      type: object
+      required: [envelope_version, device_id]
+      properties:
+        envelope_version:
+          type: integer
+          minimum: 1
+        device_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        cursor:
+          type: string
+          nullable: true
+          description: |
+            Opaque cursor from a previous pull response. `null` or absent
+            requests a full sync. The client must never parse or modify this
+            token — it's HMAC-signed and tamper-detected server-side.
+
+    PullResponse:
+      type: object
+      required: [protocol_version, changes, cursor, has_more, full_sync, server_ts]
+      properties:
+        protocol_version:
+          type: integer
+          const: 1
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuiltyItem'
+          description: |
+            Entity items changed since the cursor. Empty when the watermark
+            short-circuit fires (nothing changed) or the user has zero items.
+        cursor:
+          type: string
+          description: |
+            Opaque signed cursor for the next pull. The client stores this
+            and sends it back in the next pull request. When `has_more=true`,
+            the client should immediately call sync-pull again with this cursor.
+        has_more:
+          type: boolean
+          description: |
+            `true` when the server has more items to return in subsequent pages.
+            The client should keep calling sync-pull with the new cursor until
+            `has_more=false`.
+        full_sync:
+          type: boolean
+          description: |
+            `true` when the response is a full-sync (cursor was null or expired).
+            The client must stage-and-swap its local database atomically —
+            the response carries the COMPLETE designated record set, not a delta.
+        complete:
+          type: boolean
+          description: |
+            `true` ONLY when `full_sync=true AND has_more=false` — marks the
+            FINAL page of a full sync. The client uses this as the trigger to
+            atomically swap from its staging table into the primary local store.
+            Absent on delta-sync responses.
+        server_ts:
+          type: string
+          format: date-time
+
+    QuiltyItem:
+      type: object
+      description: |
+        A DynamoDB entity item from the quilty_main table. Includes sync
+        metadata (version, updated_at, is_deleted) and the entity-specific
+        payload. The `version` field is the optimistic concurrency version
+        the client must send back on the next push for this entity.
+      properties:
+        pk:
+          type: string
+        sk:
+          type: string
+        type:
+          type: string
+        type_version:
+          type: integer
+        version:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+        is_deleted:
+          type: boolean
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+        mutation_id:
+          type: string
+        payload:
+          type: object
+
+    CursorExpiredResponse:
+      type: object
+      required: [error, server_ts]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              const: ERR_CURSOR_EXPIRED
+            message:
+              type: string
+            details:
+              type: object
+              properties:
+                retry_with_cursor:
+                  type: 'null'
+                  description: |
+                    Always `null`. The client must retry sync-pull with
+                    `cursor: null` to trigger a full resync.
+        server_ts:
+          type: string
+          format: date-time
+
+    # ---- Access Export ----
+
+    ExportResponse:
+      type: object
+      required: [protocol_version, export_at, item_count, signed_url, signed_url_expires_at, compliance, server_ts]
+      properties:
+        protocol_version:
+          type: integer
+          const: 1
+        export_at:
+          type: string
+          format: date-time
+        item_count:
+          type: integer
+          minimum: 0
+        signed_url:
+          type: string
+          format: uri
+          description: |
+            Pre-signed S3 URL for downloading the JSON export bundle.
+            Valid for 1 hour. Treat as a bearer token — do not log or share
+            beyond the requesting user.
+        signed_url_expires_at:
+          type: string
+          format: date-time
+        compliance:
+          type: object
+          properties:
+            statute:
+              type: string
+              const: "HIPAA §164.524"
+            right:
+              type: string
+              const: "Right of access"
+        server_ts:
+          type: string
+          format: date-time
+
+    # ---- Common ----
+
+    ErrorResponse:
+      type: object
+      required: [error, server_ts]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: |
+                Error code from the sync API taxonomy. See
+                `lambdas/packages/shared/src/error-codes.ts` for the full list.
+            message:
+              type: string
+            details:
+              type: object
+        server_ts:
+          type: string
+          format: date-time
+
+tags:
+  - name: sync
+    description: Offline-first sync protocol (push + pull)
+  - name: compliance
+    description: HIPAA compliance endpoints (§164.524 right of access)

@@ -1,0 +1,1904 @@
+openapi: 3.1.0
+info:
+  title: Quilty Auth API
+  description: Quilty auth v2 — Cognito + DynamoDB single-table backend.
+  contact:
+    name: Quilty Engineering
+    email: engineering@my-quilty.app
+  license:
+    name: Proprietary
+    url: https://my-quilty.app/legal/terms
+  version: 0.1.0-phase1
+servers:
+- url: https://api.my-quilty.app
+  description: Production
+- url: https://api.dev.my-quilty.app
+  description: Development
+paths:
+  /.well-known/jwks.json:
+    get:
+      tags:
+      - discovery
+      summary: '`GET /.well-known/jwks.json`'
+      description: 'RFC 7517 JSON Web Key Set. Dual-source: (a) Cognito-issued access-token signing keys (UUIDv4 `kid` shape), (b) the Quilty-side deep-link signing JWK (KMS-backed, `kid` ends in `-public`) for password-reset / email-verify token verification. Clients filtering by `kid` MUST handle both sources. ETag-revalidated; Cache-Control: `public, max-age=3600`.'
+      operationId: auth_discovery_jwks
+      responses:
+        '200':
+          description: JWKS document with all currently-active signing keys
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JwksResponse'
+        '304':
+          description: ETag matched — body unchanged
+        '503':
+          description: JWKS cache empty (KMS GetPublicKey + env-var fallback both failed)
+          content:
+            application/problem+json: {}
+  /.well-known/oauth-authorization-server:
+    get:
+      tags:
+      - discovery
+      summary: |-
+        `GET /.well-known/oauth-authorization-server` — RFC 8414 OAuth 2.0
+        Authorization Server metadata.
+      description: 'RFC 8414 OAuth 2.0 Authorization Server metadata. Static-per-deploy, ETag-revalidated, Cache-Control: `public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400`. Distinct from OIDC Discovery at `/.well-known/openid-configuration` — this surface is the pure-OAuth metadata that 3rd-party OAuth client libraries (react-native-app-auth, AppAuth-iOS, MCP discovery clients) consume. `registration_endpoint` + `introspection_endpoint` are OMITTED (not null) per ADR 0042. ([RFC 8414](https://datatracker.ietf.org/doc/html/rfc8414))'
+      operationId: auth_public_oauth_as_metadata
+      responses:
+        '200':
+          description: Authorization Server metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OauthAsMetadataResponse'
+        '304':
+          description: If-None-Match weak ETag matched
+  /.well-known/openid-configuration:
+    get:
+      tags:
+      - discovery
+      summary: '`GET /.well-known/openid-configuration`'
+      description: 'OpenID Connect Discovery 1.0 metadata. Static-per-deploy body proxied from Cognito + ETag-revalidated. Cache-Control: `public, max-age=3600`.'
+      operationId: auth_discovery_oidc
+      responses:
+        '200':
+          description: OIDC discovery document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OidcDiscoveryResponse'
+        '304':
+          description: ETag matched — body unchanged
+        '503':
+          description: OIDC cache is in degraded fallback state
+          content:
+            application/problem+json: {}
+  /healthz/live:
+    get:
+      tags:
+      - healthz
+      operationId: auth_healthz_live
+      responses:
+        '200':
+          description: Lambda process is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiveResponse'
+  /healthz/ready:
+    get:
+      tags:
+      - healthz
+      description: Tier-based deep readiness probe. 5 concurrent probes (Cognito + DDB + AppConfig Tier-1; SES + KMS Tier-2). All ok ⇒ 200 `pass`; Tier-2 fail with Tier-1 ok ⇒ 200 `warn`; Tier-1 fail ⇒ 503 `fail`. Public body intentionally omits per-probe detail — operators use `/healthz/ready/detail` (SigV4-gated).
+      operationId: auth_healthz_ready
+      parameters:
+      - name: detail
+        in: query
+        description: Set to `1` to opt into the SigV4-gated rich detail response. Unauthenticated callers with `?detail=1` get 401. Strict-singleton parser — `?detail=0&detail=1` (HPP attack vector) is rejected.
+        required: false
+        schema:
+          type: integer
+          format: int32
+          minimum: 0
+        example: 1
+      responses:
+        '200':
+          description: All probes ok (status=pass) or Tier-2 warn (status=warn)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadyResponse'
+        '401':
+          description: '`?detail=1` requested without AWS SigV4 Authorization'
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+              description: Always `AWS4-HMAC-SHA256` — RFC 7235 §4.1.
+          content:
+            application/problem+json: {}
+        '503':
+          description: Tier-1 probe (DDB / Cognito / AppConfig) degraded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadyResponse'
+  /healthz/ready/detail:
+    get:
+      tags:
+      - healthz
+      summary: |-
+        `GET /healthz/ready/detail` (W2-B.3 Phase H) — IAM-auth-gated rich
+        health response. API Gateway enforces SigV4 at the edge
+        (authorization=AWS_IAM in TF); this handler treats the path
+        invocation as detail-mode unconditionally. Equivalent to
+        `GET /healthz/ready?detail=1` with the same auth requirement, but
+        the API-GW-side gate makes the detail surface cryptographically
+        reachable only by IAM principals.
+      description: 'SigV4-gated rich health response (RFC application/health+json). API Gateway enforces IAM auth at the edge; the Lambda also performs a layer-2 Authorization-scheme check. Unauthenticated callers receive 401 with `WWW-Authenticate: AWS4-HMAC-SHA256`.'
+      operationId: auth_healthz_ready_detail
+      responses:
+        '200':
+          description: All probes ok or Tier-2 warn (operationally up)
+          content:
+            application/health+json:
+              schema:
+                $ref: '#/components/schemas/ReadyDetailResponse'
+        '401':
+          description: Missing or invalid AWS SigV4 Authorization header
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+              description: Always `AWS4-HMAC-SHA256` — RFC 7235 §4.1 advertisement of the required auth scheme.
+          content:
+            application/problem+json: {}
+        '503':
+          description: Tier-1 probe (DDB / Cognito / AppConfig) degraded
+          content:
+            application/health+json:
+              schema:
+                $ref: '#/components/schemas/ReadyDetailResponse'
+  /v1/admin/recovery/identity-review/{case_id}/decision:
+    post:
+      tags:
+      - admin.recovery
+      description: Open a Tier-3 KYC identity-review decision for 4-eyes Pattern B confirmation (H-RECOVERY-008, Plan §B.5.3 leg 1). EAP-gated (Cognito admin group + Emergency Access Procedure) + StepUp High (MFA-TOTP max_age=300s). Reads IDENTITY_REVIEW_CASE, validates status ∈ {submitted, under_review}, writes ADMIN_APPROVAL pending_4eyes row + KMS-signed S3 Object Lock decision-pending bundle, emits IdentityReviewDecisionRequested audit. Returns 202 — the case row stays in its pre-decision state until the second approver confirms via Slack-callback (H-ADMIN-028).
+      operationId: auth_admin_identity_review_decision
+      parameters:
+      - name: case_id
+        in: path
+        description: ULID of the IDENTITY_REVIEW_CASE to open a decision against.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        description: '`{ target_sub, decision, reviewer_notes, decision_evidence? }`.'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentityReviewDecisionRequest'
+        required: true
+      responses:
+        '202':
+          description: Decision opened in pending_4eyes — `{ case_id, approval_id, status, requested_decision }`. Awaits Slack confirm.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionPending4eyesResponse'
+        '400':
+          description: Malformed body / oversize notes / oversize evidence.
+          content:
+            application/problem+json: {}
+        '401':
+          description: Missing/invalid bearer token.
+          content:
+            application/problem+json: {}
+        '403':
+          description: Operator lacks required Cognito admin group / EAP.
+          content:
+            application/problem+json: {}
+        '404':
+          description: IDENTITY_REVIEW_CASE row does not exist.
+          content:
+            application/problem+json: {}
+        '409':
+          description: Case is not in a decidable state (must be `submitted` or `under_review`).
+          content:
+            application/problem+json: {}
+        '503':
+          description: DDB / KMS / S3 outage during decision open.
+          content:
+            application/problem+json: {}
+      security:
+      - bearer_jwt: []
+  /v1/admin/recovery/identity-review/{case_id}/decision/{approval_id}/retract:
+    post:
+      tags:
+      - admin.recovery
+      description: V3-QA P1.15 — original requester withdraws a pending_4eyes ADMIN_APPROVAL row before the Slack-callback fires. EAP + StepUp High + condition `requested_by_hmac == hmac_sub(operator.sub)` (only the original requester can retract). Flips ADMIN_APPROVAL.status -> retracted_by_requester. The IDENTITY_REVIEW_CASE row is unchanged.
+      operationId: auth_admin_identity_review_decision_retract
+      parameters:
+      - name: case_id
+        in: path
+        description: ULID of the IDENTITY_REVIEW_CASE the retracted approval was opened against.
+        required: true
+        schema:
+          type: string
+      - name: approval_id
+        in: path
+        description: ULID of the ADMIN_APPROVAL row to retract.
+        required: true
+        schema:
+          type: string
+      requestBody:
+        description: '`{ reason: String (1..=256 chars) }` — free-text rationale.'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentityReviewDecisionRetractRequest'
+        required: true
+      responses:
+        '200':
+          description: 'Retracted — `{ case_id, approval_id, status: "retracted_by_requester" }`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetractAppliedResponse'
+        '400':
+          description: Empty body / malformed JSON / empty or oversize reason.
+          content:
+            application/problem+json: {}
+        '401':
+          description: Missing/invalid bearer token.
+          content:
+            application/problem+json: {}
+        '403':
+          description: Operator lacks required Cognito admin group / EAP, OR is not the original requester.
+          content:
+            application/problem+json: {}
+        '404':
+          description: ADMIN_APPROVAL row does not exist (already retracted/applied/TTL'd).
+          content:
+            application/problem+json: {}
+        '409':
+          description: ADMIN_APPROVAL row is not in pending_4eyes state.
+          content:
+            application/problem+json: {}
+        '503':
+          description: DDB outage during retract apply.
+          content:
+            application/problem+json: {}
+      security:
+      - bearer_jwt: []
+  /v1/admin/slack/interaction:
+    post:
+      tags:
+      - admin.recovery
+      description: 'DEF-6 / H-ADMIN-028 — 4-eyes Pattern B Slack interactive-button callback (Plan §B.5.3 Q-LOCKED-22). Slack sends application/x-www-form-urlencoded body with payload=<json>. Auth: X-Slack-Signature HMAC-SHA256(SLACK_SIGNING_SECRET, ''v0:{timestamp}:{body}'') + 5min replay window. Enforces second-approver != requester (cannot self-approve). Atomically flips ADMIN_APPROVAL pending_4eyes -> applied + IDENTITY_REVIEW_CASE status + emits IdentityReviewDecisionApplied audit.'
+      operationId: auth_admin_slack_callback
+      responses:
+        '200':
+          description: Decision applied. Slack-friendly response_action=clear acknowledgement.
+          content:
+            application/json: {}
+        '400':
+          description: Malformed body / missing payload / invalid action value.
+          content:
+            application/json: {}
+        '401':
+          description: Slack signature verify failed OR timestamp outside 5min window.
+          content:
+            application/json: {}
+        '409':
+          description: Self-approve attempt OR approval already applied.
+          content:
+            application/json: {}
+        '503':
+          description: DDB outage.
+          content:
+            application/json: {}
+  /v1/auth/account/lock-from-notification:
+    post:
+      tags:
+      - auth.account
+      description: 'Lock-then-recover entry point (H-RECOVERY-014 / Q-LOCKED-36): user clicks a lock-link in a security-alert email. Verifies a KMS-RS256 lock-bearer JWT (purpose=LockFromNotification, 7d TTL), cascades through `revoke_all_sessions` (AUTH_META.revoked_before bump + Cognito AdminUserGlobalSignOut + AdminDisableUser + notify-email), and auto-arms a Tier-3 IDENTITY_REVIEW_CASE (45d MHMDA SLA). Authentication is via the link-bearer JWT in the request body — no session token required.'
+      operationId: auth_public_lock_from_notification
+      requestBody:
+        description: '`{ token }` — lock-bearer JWT minted by the security-alert pipeline.'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LockFromNotificationRequest'
+        required: true
+      responses:
+        '200':
+          description: 'Account locked + recovery case armed — `{ status: "locked", recovery_case_id, sla_due_at }`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LockedResponse'
+        '400':
+          description: ERR_LINK_INVALID — malformed / expired / wrong purpose / replay.
+          content:
+            application/problem+json: {}
+        '503':
+          description: DDB / Cognito outage.
+          content:
+            application/problem+json: {}
+  /v1/auth/account/unlock:
+    post:
+      tags:
+      - auth.account
+      description: Self-service account unlock (W3-B.5.5 / H-RECOVERY-015) — exchanges proof of completed recovery for re-enabled Cognito user pool entry + cleared `account_locked` + `force_password_reset` flags. Bearer-protected with step-up MFA-TOTP (max_age=300s). 403 ERR_NOT_UNLOCK_ELIGIBLE when no completed recovery path / no approved identity-review case / ATO cooldown still active. Audit emit AccountReenabled.
+      operationId: auth_user_account_unlock
+      responses:
+        '200':
+          description: 'Account unlocked — `{ status: "unlocked" }`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnlockedResponse'
+        '401':
+          description: Missing/invalid bearer token.
+          content:
+            application/problem+json: {}
+        '403':
+          description: Not eligible for self-unlock — client should route to identity-review submit.
+          content:
+            application/problem+json: {}
+        '503':
+          description: DDB / Cognito outage.
+          content:
+            application/problem+json: {}
+      security:
+      - bearer_jwt: []
+  /v1/auth/account/verification-status:
+    get:
+      tags:
+      - auth.account
+      description: Poll endpoint for the deep-link verification flow (signup confirmation / email-change / password-reset). Returns `pending` until the user clicks the email link, then `verified`. Token is HMAC-signed via the AE14 pepper; constant-time comparison defeats timing oracles.
+      operationId: auth_public_verification_status
+      parameters:
+      - name: poll_token
+        in: query
+        description: 'Server-issued opaque token returned at the originating handler. Format: HMAC(pepper, sub|exp|jti).'
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Current verification status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationStatusResponse'
+        '400':
+          description: Missing or malformed `poll_token` query param
+          content:
+            application/problem+json: {}
+        '401':
+          description: '`poll_token` HMAC verification failed'
+          content:
+            application/problem+json: {}
+        '503':
+          description: DynamoDB unreachable
+          content:
+            application/problem+json: {}
+  /v1/auth/captcha/challenge:
+    get:
+      tags:
+      - auth.captcha
+      description: 'ADR 0042 composite-scoring Cloudflare Turnstile challenge issuer. Pre-launch ships with `captcha.mode=off` (503); operator flips to `shadow` (telemetry-only) then `enforce` at launch. Both branches emit the IDENTICAL field set (anti-enumeration constant shape); the `challenge_required` boolean is the only behavioral discriminator. Response is per-call (`Cache-Control: no-store, private`); 350ms+100ms anti-fingerprint timing pad.'
+      operationId: auth_public_captcha_challenge
+      parameters:
+      - name: flow_hint
+        in: query
+        description: Optional flow context — one of `signup`/`signin`/`password-reset`/`magic-link`. Threaded into Turnstile `action` data-attribute for cross-flow substitution defense.
+        required: false
+        schema:
+          type: string
+        example: signup
+      responses:
+        '200':
+          description: Constant-shape challenge response (challenge_required true OR false)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChallengeResponse'
+        '400':
+          description: Invalid `flow_hint` value
+          content:
+            application/problem+json: {}
+        '429':
+          description: Rate limit (`CaptchaChallengePerIp`) exhausted
+          headers:
+            RateLimit-Limit:
+              schema:
+                type: integer
+                format: int32
+                minimum: 0
+              description: Window cap per IETF draft-ietf-httpapi-ratelimit-headers.
+            RateLimit-Remaining:
+              schema:
+                type: integer
+                format: int32
+                minimum: 0
+              description: Requests remaining in current window (0 on this 429).
+            RateLimit-Reset:
+              schema:
+                type: integer
+                format: int32
+                minimum: 0
+              description: Seconds until window reset.
+            Retry-After:
+              schema:
+                type: integer
+                format: int32
+                minimum: 0
+              description: Seconds until retry (RFC 6585 §4).
+          content:
+            application/problem+json: {}
+        '503':
+          description: Site-key placeholder OR captcha.mode=off OR AppConfig unreachable
+          content:
+            application/problem+json: {}
+  /v1/auth/consents/reaccept:
+    post:
+      tags:
+      - auth.consents
+      description: 'Kantara CRv1.1 consent-receipt issuer for ToS/Privacy reaccept on material version bump (W3-A.8 / H-SESSION-010). Bearer-protected (Tier-0); LongRunning 24h idempotency. Atomic TWI: CONSENT_RECEIPT PUT + AUTH_META state_version bump + OUTBOX_EVENT. Cosmetic version bumps surface as silent banner; material bumps hard-gate via this endpoint. See spec card §H-SESSION-010.'
+      operationId: auth_user_consents_reaccept
+      requestBody:
+        description: '`{ tos_version_accepted, privacy_version_accepted }` — both fields semver per AppConfig public ToS/Privacy versions.'
+        content:
+          application/json: {}
+      responses:
+        '200':
+          description: 'Receipt issued — `{ receipt_id, accepted_at, tos_version, privacy_version }`. May carry `Idempotent-Replayed: true` if a cached row was returned.'
+          content:
+            application/json: {}
+        '400':
+          description: Malformed body or missing `Idempotency-Key` header.
+          content:
+            application/problem+json: {}
+        '401':
+          description: Missing/invalid bearer token.
+          content:
+            application/problem+json: {}
+        '409':
+          description: No-op accept (versions match current AUTH_META).
+          content:
+            application/problem+json: {}
+        '422':
+          description: Stale ToS or Privacy version vs AppConfig current.
+          content:
+            application/problem+json: {}
+        '429':
+          description: '`ConsentsReacceptPerUser` 10/h CLOSED bucket exhausted.'
+          content:
+            application/problem+json: {}
+        '503':
+          description: DDB outage during TransactWriteItems.
+          content:
+            application/problem+json: {}
+  /v1/auth/consents/withdraw:
+    post:
+      tags:
+      - auth.consents
+      description: 'GDPR Art 7(3) consent withdrawal — Kantara CRv1.1 withdrawal-extension envelope. 3-scope closed enum: `marketing_only` (W-017 fleet-push suppression / cascade_status=queued), `full_processing_consent` (7-day grace → H-PRIVACY-007 account-delete / cascade_status=pending_account_delete), `mhmda_health_data` (RCW 19.373.040(1)(c)(ii) sub-processor revocation via W-018 / cascade_status=sub_processor_pending). Bearer-protected; LongRunning 24h idempotency; 5/h CLOSED per-user-only rate limit (T-49: adversary IPs cannot DoS the user''s withdrawal right). Atomic TWI matches reaccept sibling for Art 7(3) symmetry. See spec card §H-SESSION-011.'
+      operationId: auth_user_consents_withdraw
+      requestBody:
+        description: '`{ scope, reason_code?, original_receipt_id? }`. `scope` is the 3-value closed enum.'
+        content:
+          application/json: {}
+      responses:
+        '200':
+          description: Withdrawal landed — `{ receipt_id, withdrawn_at, scope, cascade_status }`.
+          content:
+            application/json: {}
+        '400':
+          description: Malformed body, unknown scope, or missing `Idempotency-Key`.
+          content:
+            application/problem+json: {}
+        '401':
+          description: Missing/invalid bearer token.
+          content:
+            application/problem+json: {}
+        '409':
+          description: Scope already withdrawn (no-op).
+          content:
+            application/problem+json: {}
+        '422':
+          description: Idempotency-Key reused with a different request body.
+          content:
+            application/problem+json: {}
+        '429':
+          description: '`ConsentsWithdrawPerUser` 5/h CLOSED bucket exhausted.'
+          content:
+            application/problem+json: {}
+        '503':
+          description: DDB outage during TransactWriteItems.
+          content:
+            application/problem+json: {}
+  /v1/auth/recovery/magic-link/consume:
+    post:
+      tags:
+      - auth.recovery
+      description: 'Verify a magic-link deep-link JWT and mint a 60s `session_bind_token` (H-RECOVERY-006). Anti-Probe Posture: UNIFORM 400 ERR_LINK_INVALID envelope across 4 failure modes (sig-fail / expired / already-consumed / device-bind-mismatch). RS256 + kid pin (RFC 8725 §3.1). Atomic TWI: MAGIC_LINK conditional UpdateItem, AUTH_META revoke cascade, SESSION_BIND PUT, OUTBOX push event, AUDIT MagicLinkConsumed.'
+      operationId: auth_public_magic_link_consume
+      requestBody:
+        description: '`{ token, captcha_token?, captcha_response? }`.'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MagicLinkConsumeRequest'
+        required: true
+      responses:
+        '200':
+          description: 'Magic-link consumed — `{ session_bind_token, expires_in: 60 }`. Client must redeem via POST /v1/auth/signin/recovery-bind within 60s.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MagicLinkConsumeResponse'
+        '400':
+          description: ERR_LINK_INVALID — uniform envelope across sig-fail / expired / already-consumed / device-bind-mismatch.
+          content:
+            application/problem+json: {}
+        '429':
+          description: Per-IP / per-JTI / per-IP-verify-fail rate-limit exhausted.
+          content:
+            application/problem+json: {}
+        '503':
+          description: DDB outage on a CLOSED rate-limit class.
+          content:
+            application/problem+json: {}
+  /v1/auth/recovery/magic-link/start:
+    post:
+      tags:
+      - auth.recovery
+      description: 'Mint a magic-link recovery deep-link JWT (H-RECOVERY-005). Anti-enum unified-202: registered/unknown/unconfirmed users all collapse to the same 202 wire shape; `Idempotency-Key` header required (16-256 chars, IETF draft-07 §3.1). 1h TTL deep-link; coarse device-bind (IPv4 /24 / IPv6 /48 net-prefix + mobile/desktop/other/unknown class). Captcha gate is predicate-triggered + master-OFF at launch; fail-OPEN on Cloudflare outage.'
+      operationId: auth_public_magic_link_start
+      requestBody:
+        description: '`{ email, captcha_token?, captcha_response? }` — strict JSON; deny_unknown_fields.'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MagicLinkStartRequest'
+        required: true
+      responses:
+        '202':
+          description: 'Anti-enum unified-pending acknowledgement — `{ status: "pending_magic_link" }`. Returned for all success branches AND shadowed branches (unknown user / unconfirmed / upstream throttled / SES fail). May carry `Idempotent-Replayed: true` for cached replays.'
+          content:
+            application/json: {}
+        '400':
+          description: Missing/invalid `Idempotency-Key` header.
+          content:
+            application/problem+json: {}
+        '429':
+          description: Per-ASN / per-IP / per-email rate-limit exhausted.
+          content:
+            application/problem+json: {}
+        '503':
+          description: DDB outage on a CLOSED rate-limit class (MagicLinkPerEmail / MagicLinkPerIp).
+          content:
+            application/problem+json: {}
+  /v1/auth/risk/feedback:
+    post:
+      tags:
+      - auth.risk
+      description: User-confirmed risk-feedback ingest for adaptive-auth signals (W3-B.4.1). Authentication is via a KMS-RS256 link-bearer JWT in the request body (purpose=RiskFeedback, 72h TTL, aud-pinned). On `confirmed_not_me` the handler cascades `revoke_all_sessions` (security-critical) + raises risk score; on `confirmed_me` it mutes future scoring on the same fingerprint for a cooldown window. JTI replay → idempotent 200.
+      operationId: auth_public_risk_feedback
+      requestBody:
+        description: '`{ token, action? }` — `action` defaults to `confirmed_not_me` (security-conservative).'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RiskFeedbackRequest'
+        required: true
+      responses:
+        '200':
+          description: 'Feedback acknowledged — `{ status: "feedback_acknowledged" }`. Replay of a previously-consumed JTI lands on the same 200 (idempotent).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskFeedbackAckResponse'
+        '400':
+          description: Malformed body / link invalid / wrong purpose / expired.
+          content:
+            application/problem+json: {}
+        '503':
+          description: Feedback processing temporarily unavailable.
+          content:
+            application/problem+json: {}
+  /v1/auth/sessions/status:
+    get:
+      tags:
+      - auth.sessions
+      description: Lightweight polling endpoint for cross-device revoke propagation (W3-A.7 / H-SESSION-007). Bearer-protected; DDB-only (no cache substrate yet). Reads AUTH_META `revoked_before` + `account_deletion_state` + Tier-2a REVOKED row + Tier-2b REVOKED_SESSION row. Cache-Control `private, max-age=30, must-revalidate` + ETag (weak hash); 304 short-circuit on `If-None-Match` match. Designed for client poll cadence ~30-60s — `RevokeReason` surfaces to the client so the UX layer can show appropriate logout messaging. p99 < 200ms target. See spec card §H-SESSION-007.
+      operationId: auth_user_sessions_status
+      responses:
+        '200':
+          description: Either `{revoked:false, account_standing, account_deletion_state, polled_at}` or `{revoked:true, reason, polled_at}` depending on session state.
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Weak hash for `If-None-Match` short-circuit.
+          content:
+            application/json: {}
+        '304':
+          description: ETag matched — no state change since the last poll.
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Echo of the request's `If-None-Match` value.
+        '401':
+          description: Missing/invalid bearer token.
+          content:
+            application/problem+json: {}
+        '429':
+          description: Per-IP polling rate-limit exhausted.
+          content:
+            application/problem+json: {}
+        '503':
+          description: DDB outage on the AUTH_META read.
+          content:
+            application/problem+json: {}
+  /v1/auth/signin/recovery-bind:
+    post:
+      tags:
+      - auth.recovery
+      description: 'Exchange a 60s `session_bind_token` for fresh Cognito access/refresh/id tokens (H-RECOVERY-006-COMPANION). Closes the magic-link recovery loop. Anti-Probe Posture parity with H-RECOVERY-006: UNIFORM 400 ERR_BIND_INVALID across 4 failure modes (row missing / expired / status≠pending / binding-verify-fail). Atomic TWI: SESSION_BIND single-use DELETE + AUDIT RecoveryBindCompleted PUT.'
+      operationId: auth_public_recovery_bind
+      requestBody:
+        description: '`{ session_bind_token }`.'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecoveryBindRequest'
+        required: true
+      responses:
+        '200':
+          description: Fresh Cognito tokens minted — mirrors AuthenticationResult shape.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecoveryBindResponse'
+        '400':
+          description: ERR_BIND_INVALID — uniform envelope across 4 failure modes.
+          content:
+            application/problem+json: {}
+        '429':
+          description: Per-IP / per-IP-verify-fail rate-limit exhausted.
+          content:
+            application/problem+json: {}
+        '503':
+          description: DDB outage on CLOSED class OR Cognito AdminInitiateAuth failure.
+          content:
+            application/problem+json: {}
+  /v1/auth/token/introspect:
+    post:
+      tags:
+      - auth.token
+      description: 'RFC 7662 OAuth 2.0 token introspection. Anonymous-callable (Tier-0); rate-limited by IP. BasicAuth client credential gate per RFC 7662 §2.1. Anti-leak invariant per RFC 7662 §2.2: any non-good token returns `200 {"active": false}` constant-time; only fully-verified tokens return the active claim set. JTI / SECURITY_VERSION cascade gate + REVOKED + REVOKED_SESSION + D101 idle-timeout all checked before `active: true`.'
+      operationId: auth_public_token_introspect
+      requestBody:
+        description: form-encoded `token` + optional `token_type_hint`. RFC 7662 §2.1.
+        content:
+          application/x-www-form-urlencoded: {}
+      responses:
+        '200':
+          description: 'Either `{"active": true, ...claims}` for verified tokens OR `{"active": false}` for any non-good token (RFC 7662 §2.2 anti-leak).'
+          content:
+            application/json: {}
+        '401':
+          description: Missing or invalid BasicAuth client credentials.
+          content:
+            application/problem+json: {}
+        '429':
+          description: Rate limit (`IntrospectAnonPerIp` 200/h OR `IntrospectPerClient` 5000/h) exhausted.
+          content:
+            application/problem+json: {}
+        '503':
+          description: JWKS cache empty or Cognito verifier unavailable.
+          content:
+            application/problem+json: {}
+  /v1/config:
+    get:
+      tags:
+      - config
+      description: Public client-config snapshot — mobile clients read at app launch for input-validation floors + per-jurisdiction ToS/Privacy version pointers. ETag-revalidated; CloudFront 5min cache.
+      operationId: auth_public_public_config
+      responses:
+        '200':
+          description: Client configuration snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicConfigResponse'
+        '304':
+          description: If-None-Match ETag matched
+        '503':
+          description: AppConfig unreachable + LKG exhausted
+          content:
+            application/problem+json: {}
+  /v1/privacy-policy/version:
+    get:
+      tags:
+      - legal
+      summary: |-
+        `GET /v1/privacy-policy/version` handler. Delegates to
+        [`super::legal_version::serve`] with `LegalDocKind::Privacy`.
+      description: Per-jurisdiction Privacy Policy version metadata (ADR 0043). Same shape + resolution semantics as `/v1/tos/version`.
+      operationId: auth_public_privacy_version
+      parameters:
+      - name: X-Quilty-Jurisdiction
+        in: header
+        description: Explicit operator-supplied jurisdiction (e.g. `US`, `EU`, `US-WA`).
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+        example: EU
+      - name: CloudFront-Viewer-Country
+        in: header
+        description: GeoIP-resolved ISO 3166-1 alpha-2 country code (CloudFront-injected). Fallback when `X-Quilty-Jurisdiction` is absent.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+        example: DE
+      - name: If-None-Match
+        in: header
+        description: Weak ETag for conditional GET revalidation (RFC 7232).
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      responses:
+        '200':
+          description: Current Privacy Policy metadata for the resolved jurisdiction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalVersionResponse'
+        '304':
+          description: If-None-Match weak ETag matched
+        '503':
+          description: AppConfig unreachable + LKG empty, OR `global` key missing
+          content:
+            application/problem+json: {}
+  /v1/recovery/identity-review/cases:
+    post:
+      tags:
+      - auth.recovery
+      description: Submit a Tier-3 KYC identity-review case (H-RECOVERY-007) — for users who CAN'T step up because they've lost factors (lost MFA + lost backup codes / locked from security alert / suspected ATO). Bearer-protected (no step-up). Enforces per-user 3/day CLOSED + per-IP 10/day OPEN rate-limit. Evidence S3 keys must start with the caller's sub prefix (BOLA defense per R4). PUTs IDENTITY_REVIEW_CASE row with status=submitted + 45d MHMDA SLA and arms the W-005 path-2 scheduler (SLA-warning at sla_due_at - 7d).
+      operationId: auth_user_identity_review_submit
+      requestBody:
+        description: '`{ case_type, narrative, evidence_s3_keys }`.'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentityReviewSubmitRequest'
+        required: true
+      responses:
+        '202':
+          description: 'Case submitted — `{ case_id, sla_due_at, status: "submitted" }`. May carry `Idempotent-Replayed: true` for cached replays.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmittedResponse'
+        '400':
+          description: Malformed body / oversize narrative / too many evidence keys.
+          content:
+            application/problem+json: {}
+        '401':
+          description: Missing/invalid bearer token.
+          content:
+            application/problem+json: {}
+        '403':
+          description: Evidence S3 key ownership check failed (BOLA defense).
+          content:
+            application/problem+json: {}
+        '429':
+          description: Per-user 3/day or per-IP 10/day rate-limit exhausted.
+          content:
+            application/problem+json: {}
+        '503':
+          description: DDB outage during case PUT.
+          content:
+            application/problem+json: {}
+      security:
+      - bearer_jwt: []
+  /v1/tos/version:
+    get:
+      tags:
+      - legal
+      summary: |-
+        `GET /v1/tos/version` handler. Delegates to
+        [`super::legal_version::serve`] with `LegalDocKind::Tos`.
+      description: 'Per-jurisdiction Terms-of-Service version metadata (ADR 0043). Kantara CRv1.1 + ISO/IEC TS 27560:2023 aligned body. Drives the Q-LOCKED-7 reaccept UX gate. Jurisdiction resolution order: `X-Quilty-Jurisdiction` header > `CloudFront-Viewer-Country` GeoIP > `US` default. CloudFront 5min edge cache; `Vary: X-Quilty-Jurisdiction, CloudFront-Viewer-Country`.'
+      operationId: auth_public_tos_version
+      parameters:
+      - name: X-Quilty-Jurisdiction
+        in: header
+        description: 'Explicit operator-supplied jurisdiction (e.g. `US`, `EU`, `US-WA`). Schema-validated regex: `^(global|[A-Z]{2}(-[A-Z]{1,3})?)$`. Malformed values silently fall through.'
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+        example: EU
+      - name: CloudFront-Viewer-Country
+        in: header
+        description: GeoIP-resolved ISO 3166-1 alpha-2 country code. Auto-injected by CloudFront when forwarding-headers includes the name. Used as fallback when `X-Quilty-Jurisdiction` is absent.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+        example: DE
+      - name: If-None-Match
+        in: header
+        description: Weak ETag for conditional GET revalidation (RFC 7232).
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      responses:
+        '200':
+          description: Current ToS metadata for the resolved jurisdiction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalVersionResponse'
+        '304':
+          description: If-None-Match weak ETag matched
+        '503':
+          description: AppConfig unreachable + LKG empty, OR `global` key missing
+          content:
+            application/problem+json: {}
+components:
+  schemas:
+    CaptchaPublicConfig:
+      type: object
+      required:
+      - required
+      - provider
+      properties:
+        provider:
+          type: string
+          description: Always `"cloudflare_turnstile"`.
+          example: cloudflare_turnstile
+          pattern: ^cloudflare_turnstile$
+        required:
+          type: boolean
+          description: |-
+            Kill-switch readback. `true` ⇒ clients should pre-fetch
+            `/v1/auth/captcha/challenge`. `false` ⇒ captcha is disabled
+            (mode=off pre-launch).
+    CaseType:
+      type: string
+      description: Case-type enum mirroring the Tier-3 scoping in DATA_MODEL §7.32.
+      enum:
+      - lost_mfa_lost_backup_codes
+      - locked_from_security_alert
+      - ato_reclaim
+    ChallengeResponse:
+      type: object
+      description: |-
+        Wire success body. Field names are externally visible — DO NOT
+        rename without a coordinated client release.
+
+        **W2-B.3 Phase C** (composite-scoring rewrite, ADR 0042): emits
+        a CONSTANT field-set regardless of whether a challenge is actually
+        required. The handler's tier evaluation collapses to one of two
+        pre-shaped responses; on the no-challenge branch, `site_key`,
+        `challenge_token`, and `challenge_id` are emitted as empty strings,
+        and `expires_at` is the no-challenge TTL window expiry. This is
+        the anti-enumeration property called out in the plan: a network
+        observer can NOT distinguish a "would have challenged you but
+        you're trusted" response from a "we always shadow-mode now"
+        response by field shape, only by `challenge_required`.
+
+        Combined with the 200ms ± jitter timing floor in the handler, an
+        attacker can not iterate the captcha-challenge endpoint to probe
+        the signal-scoring model.
+      required:
+      - challenge_required
+      - provider
+      - site_key
+      - mode
+      - action
+      - cdata
+      - challenge_id
+      - expected_hostname
+      - provider_widget_url
+      - challenge_token
+      - expires_at
+      - ttl_seconds
+      - widget_config
+      properties:
+        action:
+          type: string
+          description: |-
+            Cloudflare Turnstile `action` data-attribute. Set to one of
+            the four `FlowHint` values (`signup`/`signin`/`password-reset`/
+            `magic-link`). Consume-side handlers MUST verify
+            `siteverify_response.action == this.action` per Cloudflare's
+            "Validate the action and hostname" requirement. (CRITICAL
+            W2-B.3 Phase C QA C1.) `"none"` on the no-challenge branch.
+        cdata:
+          type: string
+          description: |-
+            Cloudflare Turnstile `cData` data-attribute — the
+            `challenge_id` (UUIDv7) so the solved Turnstile token is
+            bound 1:1 to this server-side JWT. Consume-side handlers MUST
+            verify `siteverify_response.cdata == this.cdata`. Defends
+            cross-session token-harvest replay. (CRITICAL W2-B.3 Phase C
+            QA C2.) EMPTY on the no-challenge branch.
+        challenge_id:
+          type: string
+          description: |-
+            Server-generated UUIDv7 binding the challenge to the per-request
+            risk snapshot at issuance time. Identical to `cdata` (named
+            twice on the wire so client-side widget config + consume-side
+            `idempotency_key` semantics are unambiguous). Pass this as
+            `idempotency_key` to siteverify per Cloudflare's documented
+            retry semantics. (W2-B.3 Phase C QA H3.) EMPTY on the
+            no-challenge branch.
+        challenge_required:
+          type: boolean
+          description: |-
+            True ⇒ client MUST render the Turnstile widget + carry the
+            returned `challenge_token` in `X-Captcha-Token` on the next
+            signup/signin attempt. False ⇒ no widget needed.
+        challenge_token:
+          type: string
+          description: |-
+            Issued (challenge) JWT. The signed `op=captcha` nonce that
+            signup/signin consume-side handlers cross-verify against the
+            Turnstile token + DDB JTI write. EMPTY on the no-challenge
+            branch.
+        expected_hostname:
+          type: string
+          description: |-
+            Hostname pinned at issuance for cross-host replay defense.
+            Consume-side handlers MUST verify
+            `siteverify_response.hostname == this.expected_hostname` per
+            Cloudflare's hostname-validation requirement. (HIGH W2-B.3
+            Phase C QA H1.) EMPTY on the no-challenge branch.
+        expires_at:
+          type: string
+          description: |-
+            RFC 3339 ISO timestamp. On the challenge branch, equals the
+            JWT `exp` claim. On the no-challenge branch, equals
+            `now + ttl_seconds` for clients that pre-fetch the endpoint
+            at app launch and want to know when to refresh.
+        mode:
+          type: string
+          description: |-
+            Widget render mode (`"invisible"` / `"managed"` per Turnstile's
+            `appearance` API). Driven by the composite-scoring tier:
+            `Invisible` tier → `"invisible"` widget; `Managed` tier →
+            `"managed"` visible widget. `"none"` on the no-challenge branch.
+            (W2-B.3 Phase C QA H2 — closes the dead `CAPTCHA_MODE_MANAGED`
+            constant by wiring the tier→mode mapping.)
+        provider:
+          type: string
+          description: |-
+            Always `"cloudflare_turnstile"` in this iteration. The field
+            exists so the protocol can pivot to hCaptcha or an alternative
+            without a v1→v2 break. `"none"` on the no-challenge branch
+            (explicit sentinel rather than empty-string — W2-B.3 Phase C
+            QA H4: old clients that don't branch on `challenge_required`
+            see a recognizable "no provider" value rather than an
+            ambiguous empty string they might pass to the widget renderer).
+        provider_widget_url:
+          type: string
+          description: |-
+            JS asset URL the client uses to render the widget. Fixed for
+            the Cloudflare Turnstile provider. ALWAYS present (even on the
+            no-challenge branch) — anti-enumeration constant shape.
+        site_key:
+          type: string
+          description: |-
+            Site-key for the chosen provider. Public; ends up embedded in
+            mobile/web clients. Read from the Lambda env at startup
+            (`TURNSTILE_SITE_KEY`); rotated via `auth/secrets_turnstile.tf`.
+            EMPTY string on the no-challenge branch.
+        ttl_seconds:
+          type: integer
+          format: int64
+          description: |-
+            Seconds the no-challenge verdict is good for. Allows clients to
+            cache + skip the re-call inside the window. 300s on both branches.
+        widget_config:
+          $ref: '#/components/schemas/WidgetConfig'
+          description: |-
+            Turnstile widget render hints — `appearance` / `theme` / `size` /
+            `refresh_expired`. Server-driven so a single client implementation
+            adapts. (W2-B.3 Phase C QA M2.) Empty-defaulted on the
+            no-challenge branch.
+    Decision:
+      type: string
+      description: Decision outcomes per spec card §6.1. Wire form `snake_case`.
+      enum:
+      - approve
+      - deny
+      - request_more_info
+    DecisionPending4eyesResponse:
+      type: object
+      required:
+      - case_id
+      - approval_id
+      - status
+      - requested_decision
+      properties:
+        approval_id:
+          type: string
+          description: |-
+            ULID of the new ADMIN_APPROVAL row carrying the pending
+            decision. Used by Slack-callback (H-ADMIN-028) to address
+            the row.
+          example: 01J0APPROVAL2345678901234
+        case_id:
+          type: string
+          description: |-
+            ULID of the targeted IDENTITY_REVIEW_CASE (unchanged on this
+            call — it stays in `submitted` / `under_review` until the
+            second approver confirms via Slack).
+          example: 01J0CASE12345678901234567
+        requested_decision:
+          type: string
+          description: Requested decision — `approve` / `deny` / `request_more_info`.
+          example: approve
+        status:
+          type: string
+          description: Row status — `pending_4eyes`.
+          example: pending_4eyes
+    EmailPolicy:
+      type: object
+      required:
+      - max_length
+      - gmail_normalization
+      properties:
+        gmail_normalization:
+          type: boolean
+          description: |-
+            `true` — Gmail-strip + googlemail-fold normalization is applied
+            server-side at signup/signin; clients SHOULD do the same to keep
+            rate-limit buckets aligned.
+        max_length:
+          type: integer
+          example: 254
+          minimum: 0
+    IdentityReviewDecisionRequest:
+      type: object
+      required:
+      - target_sub
+      - decision
+      - reviewer_notes
+      properties:
+        decision:
+          $ref: '#/components/schemas/Decision'
+        decision_evidence:
+          type:
+          - string
+          - 'null'
+          description: |-
+            Optional decision-evidence bundle (max 8192 chars). For
+            4-eyes Pattern B this carries the second-reviewer corroboration.
+        reviewer_notes:
+          type: string
+          description: Reviewer's free-text notes (max 4096 chars).
+          example: Documents verified against MHMDA evidence standard; identity confirmed.
+        target_sub:
+          type: string
+          description: |-
+            User's Cognito sub whose IDENTITY_REVIEW_CASE row this
+            decision targets (path param has the case_id; sub is
+            needed for the user_pk lookup since cases live under
+            `USER#{sub} / IDENTITY_REVIEW_CASE#{case_id}`).
+          example: 01234567-89ab-cdef-0123-456789abcdef
+      additionalProperties: false
+    IdentityReviewDecisionRetractRequest:
+      type: object
+      description: |-
+        Retract-request body — operator-supplied free-text rationale.
+        Pinned to ≤256 chars so audit-row writes stay bounded.
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          description: |-
+            Free-text reason — typed by the operator in the admin UI (or
+            posted by ops scripts). Required: empty body → 400. Pinned to
+            256 chars to bound the audit-row size.
+          example: Opened decision against the wrong case_id by mistake; retracting before second approver acts.
+          maxLength: 256
+      additionalProperties: false
+    IdentityReviewSubmitRequest:
+      type: object
+      required:
+      - case_type
+      - narrative
+      - evidence_s3_keys
+      properties:
+        case_type:
+          $ref: '#/components/schemas/CaseType'
+        evidence_s3_keys:
+          type: array
+          items:
+            type: string
+          description: |-
+            S3 keys for uploaded evidence (max 5 keys, max 1024 chars
+            each). Each key MUST start with the caller's sub prefix
+            (BOLA defense per R4 risk register).
+        narrative:
+          type: string
+          description: Free-text narrative describing the case (max 4096 chars).
+          example: Lost my phone with the authenticator app + my backup codes were in the same notebook that I cannot find.
+      additionalProperties: false
+    Jwk:
+      type: object
+      description: |-
+        W2-B.3 Phase E — proper RFC 7517 JWK schema (closes Phase E QA M3 +
+        DEFERRED_FOLLOWUPS D-W2B3-JWK-STRUCT). Covers the field surface for
+        both signing-key sources Quilty serves: (a) Cognito-issued
+        access-token verification keys (RS256 over RSA-2048), (b) the
+        Quilty deep-link signing JWK backed by KMS (also RS256 / RSA-2048).
+        `kty=RSA` + `alg=RS256` are the only combinations we currently emit;
+        the struct keeps the wider RFC 7517 vocabulary as String so future
+        EC / OKP additions don't require a schema rev.
+      required:
+      - kty
+      - kid
+      - use
+      - alg
+      properties:
+        alg:
+          type: string
+          description: RFC 7518 §3 algorithm (`"RS256"` for all Quilty keys today).
+          example: RS256
+        e:
+          type:
+          - string
+          - 'null'
+          description: RFC 7518 §6.3.1.2 — RSA public exponent (base64url-encoded).
+        key_ops:
+          type:
+          - array
+          - 'null'
+          items:
+            type: string
+          description: |-
+            RFC 7517 §4.3 — operations the key is intended for
+            (e.g. `["verify"]`). Optional; not all sources populate it.
+        kid:
+          type: string
+          description: |-
+            RFC 7517 §4.5 — key id. Cognito format = UUIDv4; Quilty deep-link
+            signer format ends in `-public`. Clients filtering keys by `kid`
+            MUST handle both shapes (see `discovery` description).
+        kty:
+          type: string
+          description: RFC 7517 §4.1 — key type (`"RSA"` for all Quilty keys today).
+          example: RSA
+          pattern: ^(RSA|EC|OKP|oct)$
+        n:
+          type:
+          - string
+          - 'null'
+          description: RFC 7518 §6.3.1.1 — RSA modulus (base64url-encoded).
+        use:
+          type: string
+          description: |-
+            RFC 7517 §4.2 — `"sig"` | `"enc"`. Quilty only emits signing keys.
+            Field name is `use_` in Rust because `use` is a keyword; serde
+            renames it on the wire.
+          example: sig
+          pattern: ^(sig|enc)$
+    JwksResponse:
+      type: object
+      description: |-
+        W2-B.3 Phase E — OpenAPI schema for the JWKS response. RFC 7517 §5
+        shape `{"keys": [JWK]}`.
+      required:
+      - keys
+      properties:
+        keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/Jwk'
+          description: |-
+            RFC 7517 §5 — array of JWK objects. Quilty emits one entry per
+            signing-key source (Cognito + deep-link). Mobile clients
+            `find(k => k.kid === token.kid)` against this list.
+    LegalVersionResponse:
+      type: object
+      description: |-
+        W2-B.3 Phase E — OpenAPI schema for the per-jurisdiction legal-
+        version response body. 11 Kantara CRv1.1 + ISO/IEC TS 27560:2023
+        aligned fields per ADR 0043.
+      required:
+      - document
+      - version
+      - version_class
+      - blocking_modal
+      - effective_at
+      - url
+      - url_canonical
+      - jurisdiction
+      - locale
+      - consent_receipt_schema_version
+      - schema_uri
+      properties:
+        blocking_modal:
+          type: boolean
+          description: |-
+            Whether the mobile app should hard-block the user until they
+            re-accept.
+          example: true
+        consent_receipt_schema_version:
+          type: integer
+          format: int32
+          description: Kantara CRv1.1 schema version for consent receipt records.
+          example: 1
+          minimum: 0
+        document:
+          type: string
+          description: '`tos` | `privacy` — discriminator for the two endpoints.'
+          example: tos
+        effective_at:
+          type: string
+          description: RFC 3339 datetime when this version became effective.
+          example: 2026-04-20T00:00:00Z
+        jurisdiction:
+          type: string
+          description: |-
+            Resolved jurisdiction (per ADR 0043 resolver order: header,
+            then GeoIP, then `"US"` default). May differ from the served
+            doc's locale if the resolver fell back to `global`.
+          example: EU
+        locale:
+          type: string
+          description: BCP 47 locale of the served document text.
+          example: en-US
+        schema_uri:
+          type: string
+          description: URI of the wire schema (sister-spec to this OpenAPI document).
+        url:
+          type: string
+          description: Localized HTML URL (jurisdiction × locale specific).
+        url_canonical:
+          type: string
+          description: Canonical (jurisdiction-agnostic) HTML URL.
+        version:
+          type: string
+          description: |-
+            Operator-assigned version string (no fixed format — `YYYY.MM.DD`
+            is the current convention but not enforced).
+          example: 2026.04.20
+        version_class:
+          type: string
+          description: |-
+            `material` (drives reaccept-blocking-modal UX) | `cosmetic`
+            (non-blocking notification card).
+          example: material
+    LiveResponse:
+      type: object
+      description: |-
+        W2-B.3 Phase E — OpenAPI schema for the static `/healthz/live` body.
+        Pin the literal `"ok"` value via `example` so spec readers see the
+        exact wire form without round-tripping a runtime response.
+
+        `#[allow(dead_code)]` — utoipa's `#[utoipa::path(body = LiveResponse)]`
+        reference resolves via the `ToSchema` derive's `schema()` trait
+        method at spec-generation time; the struct itself is never
+        instantiated by handler code (the literal LIVE_BODY string is what
+        gets sent on the wire). All `*Response` schema types in this
+        crate share the same pattern.
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          description: |-
+            Always the literal `"ok"`. Kubernetes-style liveness contract:
+            any 200 is "alive"; the body is a courtesy for hand-curl
+            debugging + content-match LB probes.
+          example: ok
+          pattern: ^ok$
+    LockFromNotificationRequest:
+      type: object
+      required:
+      - token
+      properties:
+        token:
+          type: string
+          description: |-
+            KMS-RS256 lock-bearer JWT (purpose=LockFromNotification, 7d TTL),
+            minted by the security-alert email pipeline.
+          example: eyJhbGciOiJSUzI1NiJ9.<claims>.<sig>
+      additionalProperties: false
+    LockedResponse:
+      type: object
+      required:
+      - status
+      - recovery_case_id
+      - sla_due_at
+      properties:
+        recovery_case_id:
+          type: string
+          description: ULID of the auto-armed Tier-3 IDENTITY_REVIEW_CASE.
+          example: 01J0CASE12345678901234567
+        sla_due_at:
+          type: string
+          description: RFC 3339 UTC `Z` — 45 days from lock event (MHMDA SLA).
+          example: 2026-07-07T00:00:00Z
+        status:
+          type: string
+          description: Literal `"locked"`.
+          example: locked
+    MagicLinkConsumeRequest:
+      type: object
+      description: |-
+        Strict-deserialization wire payload.
+
+        W3-B closeout (2026-05-24): added optional `captcha_token` +
+        `captcha_response` to support the W3-A.10 captcha gate per
+        Plan §5 B.2.3 step 3. Both stay `Option<String>` so legacy
+        clients (no captcha enabled) still parse cleanly. The gate
+        short-circuits to `NotRequired` when the master flag is OFF
+        (Q-LOCKED-3 launch-day flip).
+      required:
+      - token
+      properties:
+        captcha_response:
+          type:
+          - string
+          - 'null'
+        captcha_token:
+          type:
+          - string
+          - 'null'
+        token:
+          type: string
+          example: eyJhbGciOiJSUzI1NiJ9.<claims>.<sig>
+      additionalProperties: false
+    MagicLinkConsumeResponse:
+      type: object
+      description: |-
+        Wire-shape of the success response. `session_bind_token` is a
+        32-byte URL-safe base64 string; client immediately exchanges it
+        at `POST /v1/auth/signin/recovery-bind` (H-RECOVERY-006-COMPANION)
+        for fresh Cognito tokens within the 60s window.
+      required:
+      - session_bind_token
+      - expires_in
+      properties:
+        expires_in:
+          type: integer
+          format: int32
+          description: Seconds until `session_bind_token` is no longer redeemable.
+          example: 60
+          minimum: 0
+        session_bind_token:
+          type: string
+          description: 32-byte URL-safe-base64 (43 chars no-pad).
+          example: AbCdEfGhIjKlMnOpQrStUvWxYz0123456789AbCdEfG
+    MagicLinkStartRequest:
+      type: object
+      description: |-
+        Strict-deserialization wire payload. `deny_unknown_fields`
+        prevents accidental leakage of password / token / etc. through
+        a misnamed extra field on the wire.
+      required:
+      - email
+      properties:
+        captcha_response:
+          type:
+          - string
+          - 'null'
+          description: W3-A.10 Cloudflare Turnstile widget solution.
+        captcha_token:
+          type:
+          - string
+          - 'null'
+          description: |-
+            W3-A.10 captcha challenge JWT — minted by `GET
+            /v1/auth/captcha/challenge` with `flow_hint=magic-link-recovery`.
+            Absent + predicate fires → 403 ERR_CAPTCHA_REQUIRED.
+        email:
+          type: string
+          example: user@example.com
+      additionalProperties: false
+    OauthAsMetadataResponse:
+      type: object
+      description: |-
+        W2-B.3 Phase E — OpenAPI schema for the RFC 8414 OAuth Authorization
+        Server metadata response. 13 RFC-blessed fields + 2 Quilty
+        additions (`op_tos_uri` + `op_policy_uri` per ADR 0042). Static-
+        per-deploy.
+      required:
+      - issuer
+      - authorization_endpoint
+      - token_endpoint
+      - jwks_uri
+      - revocation_endpoint
+      - revocation_endpoint_auth_methods_supported
+      - end_session_endpoint
+      - response_types_supported
+      - response_modes_supported
+      - grant_types_supported
+      - token_endpoint_auth_methods_supported
+      - code_challenge_methods_supported
+      - scopes_supported
+      - service_documentation
+      - ui_locales_supported
+      - op_tos_uri
+      - op_policy_uri
+      properties:
+        authorization_endpoint:
+          type: string
+          description: Cognito hosted UI authorization endpoint.
+        code_challenge_methods_supported:
+          type: array
+          items:
+            type: string
+          description: '`["S256"]` — SHA-256 PKCE only.'
+        end_session_endpoint:
+          type: string
+          description: |-
+            Cognito hosted UI end-session endpoint. OpenID Connect Session
+            Management 1.0 §5 — clients use this for `/logout` flows.
+        grant_types_supported:
+          type: array
+          items:
+            type: string
+          description: '`["authorization_code", "refresh_token"]`.'
+        issuer:
+          type: string
+          description: RFC 8414 §2 — issuer identifier (Quilty issuer URL).
+        jwks_uri:
+          type: string
+          description: JWKS URI for token verification.
+        op_policy_uri:
+          type: string
+          description: ADR 0042 — canonical Privacy landing page.
+        op_tos_uri:
+          type: string
+          description: ADR 0042 — canonical ToS landing page.
+        response_modes_supported:
+          type: array
+          items:
+            type: string
+          description: '`["query"]` — Cognito hosted UI does NOT serve `form_post`.'
+        response_types_supported:
+          type: array
+          items:
+            type: string
+          description: '`["code"]` — authorization-code flow only.'
+        revocation_endpoint:
+          type: string
+          description: Quilty revocation endpoint (RFC 7009 — `/v1/auth/token/revoke`).
+        revocation_endpoint_auth_methods_supported:
+          type: array
+          items:
+            type: string
+          description: '`["none"]` — revocation auth methods. Public PKCE clients.'
+        scopes_supported:
+          type: array
+          items:
+            type: string
+          description: '`["openid", "profile", "email", "offline_access"]`.'
+        service_documentation:
+          type: string
+          description: Docs domain root.
+        token_endpoint:
+          type: string
+          description: Quilty token endpoint (`/v1/auth/refresh` facade).
+        token_endpoint_auth_methods_supported:
+          type: array
+          items:
+            type: string
+          description: '`["none"]` — PKCE-only (mobile public client).'
+        ui_locales_supported:
+          type: array
+          items:
+            type: string
+          description: Hosted UI locales advertised.
+    OidcDiscoveryResponse:
+      type: object
+      description: |-
+        W2-B.3 Phase E — OpenAPI schema for the OIDC Discovery 1.0
+        response. The wire body is a JSON document produced by the Cognito
+        upstream and proxied verbatim; we model the structurally-stable
+        top-level fields for spec readers without trying to enumerate every
+        optional field Cognito may emit.
+      required:
+      - issuer
+      - jwks_uri
+      - authorization_endpoint
+      - token_endpoint
+      properties:
+        authorization_endpoint:
+          type: string
+          description: Authorization endpoint at the Cognito hosted UI.
+        issuer:
+          type: string
+          description: Issuer URI per OpenID Discovery 1.0 §3.
+          example: https://auth.my-quilty.com
+        jwks_uri:
+          type: string
+          description: JWKS URI used by RP libraries to fetch signing keys.
+          example: https://auth.my-quilty.com/.well-known/jwks.json
+        token_endpoint:
+          type: string
+          description: Token endpoint at the Cognito hosted UI.
+    PasswordPolicy:
+      type: object
+      description: |-
+        W2-B.3 Phase E — typed nested OpenAPI schemas for the public client-
+        config body (closes Phase E QA M1 polish — replaces `value_type=Object`
+        placeholders with proper #[derive(ToSchema)] structs so SDK codegen
+        produces typed clients).
+
+        Mirrors the actual wire body at handler.rs:80-104. Mobile clients
+        codegen against this contract.
+      required:
+      - min_length
+      - max_length
+      - require_upper
+      - require_lower
+      - require_digit
+      - require_special
+      - hibp_check
+      properties:
+        hibp_check:
+          type: string
+          description: |-
+            `"client_side_k_anonymity"` — directive for the mobile-side HIBP
+            k-anonymity check before signup/password-change is attempted.
+          example: client_side_k_anonymity
+        max_length:
+          type: integer
+          example: 128
+          minimum: 0
+        min_length:
+          type: integer
+          example: 8
+          minimum: 0
+        require_digit:
+          type: boolean
+        require_lower:
+          type: boolean
+        require_special:
+          type: boolean
+        require_upper:
+          type: boolean
+    PublicConfigResponse:
+      type: object
+      description: |-
+        OpenAPI schema for the public client-config body. Top-level fields
+        mirror handler.rs:80-104 verbatim.
+      required:
+      - issuer
+      - domain
+      - jwks_uri
+      - password_policy
+      - email_policy
+      - oauth_providers
+      - captcha
+      - support_email
+      properties:
+        captcha:
+          $ref: '#/components/schemas/CaptchaPublicConfig'
+          description: Captcha state for the public surface.
+        domain:
+          type: string
+          description: Public-API host (bare host, no scheme).
+        email_policy:
+          $ref: '#/components/schemas/EmailPolicy'
+          description: Email input policy.
+        issuer:
+          type: string
+          description: Quilty issuer URL.
+        jwks_uri:
+          type: string
+          description: JWKS URI for token verification.
+        oauth_providers:
+          type: array
+          items:
+            type: string
+          description: Supported OAuth providers for bootstrap (`["google", "apple"]`).
+        password_policy:
+          $ref: '#/components/schemas/PasswordPolicy'
+          description: Password input policy.
+        support_email:
+          type: string
+          description: Operator-facing support email.
+    ReadyDetailResponse:
+      type: object
+      description: |-
+        W2-B.3 Phase E — OpenAPI schema for the SigV4-gated detail
+        response (RFC application/health+json). Operators see per-probe
+        classification + bounded `output` enum class (NOT raw SDK error
+        chains — those would leak DDB ARNs etc.).
+      required:
+      - status
+      - checks
+      properties:
+        checks:
+          type: object
+          description: |-
+            Map of probe name → array of measurement instances. Each entry
+            carries `status` (per-probe pass/fail), `componentType` (RFC
+            vocabulary: `datastore`/`system`/`internalservice`), and `time`
+            (elapsed ms). Failed probes also carry a bounded `output`
+            field whose value is one of `timeout`/`sdk_error`/`cache_degraded`.
+        status:
+          type: string
+          description: '`pass | warn | fail` — same vocabulary as the public response.'
+          example: warn
+          pattern: ^(pass|warn|fail)$
+    ReadyResponse:
+      type: object
+      description: |-
+        W2-B.3 Phase E — OpenAPI schema for the PUBLIC `/healthz/ready`
+        response body. 3-state per RFC application/health+json vocabulary
+        (`pass`/`warn`/`fail`). Per-probe detail is OMITTED from the
+        public response — that's the SigV4-gated detail endpoint's job.
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          description: |-
+            Overall verdict. `pass` ⇒ all probes ok. `warn` ⇒ Tier-2 (SES /
+            KMS) probe degraded; Tier-1 (DDB / Cognito / AppConfig) ok;
+            200 OK + no LB drain. `fail` ⇒ at least one Tier-1 probe
+            degraded; 503 + retry-after.
+          example: pass
+          pattern: ^(pass|warn|fail)$
+    RecoveryBindRequest:
+      type: object
+      required:
+      - session_bind_token
+      properties:
+        session_bind_token:
+          type: string
+          description: |-
+            32-byte URL-safe-base64 (43 chars no-pad) — minted by
+            `POST /v1/auth/recovery/magic-link/consume`.
+          example: AbCdEfGhIjKlMnOpQrStUvWxYz0123456789AbCdEfG
+      additionalProperties: false
+    RecoveryBindResponse:
+      type: object
+      description: |-
+        Wire shape of the success response. Mirrors Cognito's
+        `AuthenticationResult` (subset). The mobile client treats this as
+        a normal signin completion — the recovery flow is invisible past
+        this point.
+      required:
+      - access_token
+      - refresh_token
+      - expires_in
+      - token_type
+      - id_token
+      properties:
+        access_token:
+          type: string
+          example: eyJraWQiOiJxd2VydHkiLCJhbGciOiJSUzI1NiJ9...
+        expires_in:
+          type: integer
+          format: int64
+          example: 3600
+        id_token:
+          type: string
+          description: |-
+            Cognito identity token. Mirror of access_token shape;
+            downstream services that pin to Cognito's standard JWT
+            (PreTokenGen V2 etc.) expect this present.
+          example: eyJraWQiOiJxd2VydHkiLCJhbGciOiJSUzI1NiJ9...
+        refresh_token:
+          type: string
+          example: eyJjdHkiOiJKV1QiLCJlbmMiOiJBMjU2R0NNIn0...
+        token_type:
+          type: string
+          example: Bearer
+    RetractAppliedResponse:
+      type: object
+      required:
+      - case_id
+      - approval_id
+      - status
+      properties:
+        approval_id:
+          type: string
+          description: ULID of the ADMIN_APPROVAL row that was retracted.
+          example: 01J0APPROVAL2345678901234
+        case_id:
+          type: string
+          description: |-
+            ULID of the case the retracted approval was for (unchanged
+            by this call — leg-1 retract does NOT mutate the case row).
+          example: 01J0CASE12345678901234567
+        status:
+          type: string
+          description: Row status — `retracted_by_requester`.
+          example: retracted_by_requester
+    RiskFeedbackAckResponse:
+      type: object
+      description: |-
+        OpenAPI schema mirror of the wire body that `acknowledged()` emits.
+        Only used for `#[utoipa::ToSchema]` derivation; the runtime path
+        emits the literal JSON string for zero-allocation perf.
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          description: Literal `"feedback_acknowledged"`.
+          example: feedback_acknowledged
+    RiskFeedbackAction:
+      type: string
+      description: |-
+        W3-B.4.1 (2026-05-23) — user's confirmed risk-feedback action.
+        Wire form `snake_case`. `confirmed_not_me` is the security-critical
+        case (user asserts the flagged signin was unauthorized → cascade
+        revoke + raise risk score). `confirmed_me` is the false-positive
+        signal (user owns the flagged signin → mute future risk scoring
+        on the same fingerprint for a cooldown window).
+      enum:
+      - confirmed_not_me
+      - confirmed_me
+    RiskFeedbackRequest:
+      type: object
+      required:
+      - token
+      properties:
+        action:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/RiskFeedbackAction'
+            description: |-
+              W3-B.4.1 — user's typed action. Optional for backward
+              compatibility with the pre-W3-B email-click flow that
+              dispatched a bare token; new emails should always include
+              it. When absent, the handler defaults to
+              `RiskFeedbackAction::ConfirmedNotMe` (security-conservative —
+              assume worst-case + cascade revoke).
+        token:
+          type: string
+          description: KMS-RS256 risk-feedback bearer JWT (purpose=RiskFeedback, 72h TTL).
+          example: eyJhbGciOiJSUzI1NiJ9.<claims>.<sig>
+      additionalProperties: false
+    SubmittedResponse:
+      type: object
+      required:
+      - case_id
+      - sla_due_at
+      - status
+      properties:
+        case_id:
+          type: string
+          description: ULID of the newly-created IDENTITY_REVIEW_CASE.
+          example: 01J0CASE12345678901234567
+        sla_due_at:
+          type: string
+          description: RFC 3339 UTC `Z` — 45 days from submit (MHMDA SLA).
+          example: 2026-07-07T00:00:00Z
+        status:
+          type: string
+          description: Literal `"submitted"`.
+          example: submitted
+    UnlockedResponse:
+      type: object
+      description: |-
+        OpenAPI schema mirror of the wire body that `unlocked()` emits.
+        Only used for `#[utoipa::ToSchema]` derivation; the runtime path
+        emits the literal JSON string for zero-allocation perf.
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          description: Literal `"unlocked"`.
+          example: unlocked
+    VerificationStatusResponse:
+      type: object
+      description: |-
+        W2-B.3 Phase E — OpenAPI schema for the verification-status poll
+        response. Drives mobile-app "your email has been verified" UX.
+      required:
+      - status
+      properties:
+        status:
+          type: string
+          description: |-
+            `pending` ⇒ token is valid + has not yet been claimed.
+            `verified` ⇒ user has clicked the deep-link.
+            `expired` ⇒ token's `exp` claim is in the past.
+            `revoked` ⇒ token was explicitly revoked (e.g. email-change-revoke).
+          example: pending
+          pattern: ^(pending|verified|expired|revoked)$
+    WidgetConfig:
+      type: object
+      description: |-
+        Turnstile widget render hints — drives `turnstile.render({...})`
+        client-side. Per Cloudflare's widget-config docs. Fields use the
+        vendor's vocabulary verbatim. Pattern constraints (W2-B.3 Phase E QA
+        M4) drive SDK codegen toward typed enums instead of bare strings.
+      required:
+      - appearance
+      - theme
+      - size
+      - refresh_expired
+      properties:
+        appearance:
+          type: string
+          description: |-
+            `always` | `execute` | `interaction-only` | `none` (no-challenge sentinel).
+            Default `interaction-only` (invisible). `WidgetConfig::none()` emits
+            `"none"` per the anti-enumeration constant-shape contract.
+          example: interaction-only
+          pattern: ^(always|execute|interaction-only|none)$
+        refresh_expired:
+          type: string
+          description: '`auto` | `manual` | `never` | `none`. Default `auto`.'
+          example: auto
+          pattern: ^(auto|manual|never|none)$
+        size:
+          type: string
+          description: '`normal` | `compact` | `flexible` | `none`. Default `normal`.'
+          example: normal
+          pattern: ^(normal|compact|flexible|none)$
+        theme:
+          type: string
+          description: '`auto` | `light` | `dark` | `none`. Default `auto`.'
+          example: auto
+          pattern: ^(auto|light|dark|none)$
+  securitySchemes:
+    bearer_jwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Cognito-issued RS256 access token. See auth-public /v1/auth/signin for issuance + /v1/auth/token/refresh for rotation. Authorizer validates iss / aud / exp / token_use=access / security_version / revoked_before per Wave 5 authorizer.
+tags:
+- name: auth.signup
+  description: Account creation
+- name: auth.signin
+  description: Authentication
+- name: auth.mfa
+  description: Multi-factor authentication
+- name: auth.password
+  description: Password management
+- name: auth.sessions
+  description: Active session management
+- name: auth.account
+  description: Account lifecycle
+- name: auth.oauth
+  description: OAuth bootstrap (Google + Apple)
+- name: auth.passkeys
+  description: WebAuthn / passkey enrollment + management
+- name: auth.risc
+  description: Inbound RISC / CAEP provider webhooks
+- name: auth.captcha
+  description: Cloudflare Turnstile composite-scoring (ADR 0042)
+- name: config
+  description: Public client configuration
+- name: discovery
+  description: RFC 8414 OAuth AS + OIDC discovery + JWKS
+- name: healthz
+  description: Liveness + readiness probes (RFC application/health+json)
+- name: legal
+  description: Per-jurisdiction ToS + Privacy versioning (Kantara CRv1.1)

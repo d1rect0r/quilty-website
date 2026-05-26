@@ -21,6 +21,7 @@
 import 'server-only';
 
 import { cookies as nextCookies, headers as nextHeaders } from 'next/headers';
+import { makeFetchApiClient, makeNoOpCircuitBreaker } from '@quilty/api-client';
 import { makeInMemoryCaptchaVerifier } from '@quilty/captcha';
 import { CONSENT_COOKIE_NAME } from '@quilty/consent';
 import { makeInMemoryConsentStore, makeServerConsentReader } from '@quilty/consent/server';
@@ -100,5 +101,27 @@ export function makeServerContainer(): ServerContainer {
     // callback migrate() hits the no-op branch today). DynamoDB
     // activation gates on a single canonical store.
     consentStore: makeInMemoryConsentStore(),
+    // ApiClient (ADR-0017) — outbound HTTPS to the Rust backend.
+    // Native-fetch transport + exponential-backoff retry + W3C
+    // traceparent injection + RFC 9457 Problem Details parsing.
+    // CircuitBreaker is the no-op adapter today; opossum-backed
+    // adapter activates at the cascading-failure trigger per
+    // ADR-0017 Decision D. The `onRetry` callback logs to
+    // CloudWatch via the wrapped logger — toast-on-retry is a
+    // browser-side concern (server retries don't have a UI surface
+    // since the user is awaiting the Lambda response).
+    apiClient: makeFetchApiClient({
+      baseUrl: process.env.QUILTY_API_BASE_URL ?? 'https://api.my-quilty.com',
+      circuitBreaker: makeNoOpCircuitBreaker(),
+      onRetry: (attempt, error) => {
+        wrappedLogger.info('api_client_retry', {
+          attempt,
+          error_code:
+            error && typeof error === 'object' && 'code' in error
+              ? String((error as { code: unknown }).code)
+              : 'unknown',
+        });
+      },
+    }),
   };
 }

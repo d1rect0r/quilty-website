@@ -17,6 +17,7 @@
  */
 
 import { cookies as nextCookies, headers as nextHeaders } from 'next/headers';
+import { makeFetchApiClient, makeNoOpCircuitBreaker } from '@quilty/api-client';
 import { CONSENT_COOKIE_NAME } from '@quilty/consent';
 import { makeInMemoryConsentStore, makeServerConsentReader } from '@quilty/consent/server';
 import {
@@ -73,5 +74,22 @@ export function makeEdgeContainer(): EdgeContainer {
     // adapter is server-only (AWS SDK is Node-only); when it activates,
     // a parallel Edge-compat fetch-based adapter ships here.
     consentStore: makeInMemoryConsentStore(),
+    // ApiClient at the Edge tier (ADR-0017). Native-fetch + retry +
+    // problem-details parsing — Edge-runtime-safe (no Node-only deps).
+    // Same baseUrl + onRetry hook as the server composition; the
+    // shared port surface keeps both runtimes behaviourally identical.
+    apiClient: makeFetchApiClient({
+      baseUrl: process.env.QUILTY_API_BASE_URL ?? 'https://api.my-quilty.com',
+      circuitBreaker: makeNoOpCircuitBreaker(),
+      onRetry: (attempt, error) => {
+        wrappedLogger.info('api_client_retry', {
+          attempt,
+          error_code:
+            error && typeof error === 'object' && 'code' in error
+              ? String((error as { code: unknown }).code)
+              : 'unknown',
+        });
+      },
+    }),
   };
 }

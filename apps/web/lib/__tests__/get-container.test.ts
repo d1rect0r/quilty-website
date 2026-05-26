@@ -1,3 +1,4 @@
+import { makeInMemoryApiClient } from '@quilty/api-client/testing';
 import { makeInMemoryCaptchaVerifier } from '@quilty/captcha';
 import { makeDefaultDenyConsentReader } from '@quilty/consent';
 import { makeInMemoryConsentStore } from '@quilty/consent/server';
@@ -45,6 +46,9 @@ function makeTestServerContainer(): ServerContainer {
     captchaVerifier: makeInMemoryCaptchaVerifier(),
     rateLimiter: makeInMemoryRateLimiter(),
     consentStore: makeInMemoryConsentStore(),
+    apiClient: makeInMemoryApiClient({
+      handler: async <TBody = unknown>() => ({ status: 200, body: undefined as TBody }),
+    }),
   };
 }
 
@@ -82,6 +86,9 @@ function makeTestEdgeContainer(): EdgeContainer {
     featureFlags: makeEnvFlagEvaluator(),
     phiScrubber: makePhiScrubber(),
     consentStore: makeInMemoryConsentStore(),
+    apiClient: makeInMemoryApiClient({
+      handler: async <TBody = unknown>() => ({ status: 200, body: undefined as TBody }),
+    }),
   };
 }
 
