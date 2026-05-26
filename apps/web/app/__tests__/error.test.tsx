@@ -90,7 +90,7 @@ describe('app/error.tsx', () => {
       expect.objectContaining({ boundary: 'app-error', digest: 'abc123' }),
     );
     expect(loggerErrorSpy).toHaveBeenCalledWith(
-      'boom',
+      'error_boundary_caught',
       expect.objectContaining({
         boundary: 'app-error',
         error_name: 'Error',

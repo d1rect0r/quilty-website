@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { cookies, headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { verifyCsrf, verifyHoneypot, verifyTimeTrap } from '@quilty/security';
@@ -207,7 +208,17 @@ export async function POST(request: Request): Promise<NextResponse> {
   // the 429. Per-email shadow is important against IP-rotating bot
   // farms targeting a single user/account.
   const ipKey = `contact:ip:${clientIp}`;
-  const emailKey = `contact:email:${values.email.toLowerCase()}`;
+  // Hash the email before using it as the rate-limit key. The raw
+  // email is a HIPAA §164.514(b)(2)(i) direct identifier; storing it
+  // as a Map/DynamoDB key risks PHI leakage if the rate-limit adapter
+  // ever logs the key in a SDK-level exception or DynamoDB
+  // ConditionExpression error. SHA-256 is deterministic (same email →
+  // same bucket) so the per-email rate-limit semantics are preserved.
+  const emailHash = createHash('sha256')
+    .update(values.email.toLowerCase())
+    .digest('hex')
+    .slice(0, 32);
+  const emailKey = `contact:email:${emailHash}`;
   const ipDecision = await container.rateLimiter.consume(ipKey, RATE_LIMIT_POLICY);
   if (!ipDecision.allowed) {
     const envelope: ContactFormResult = {

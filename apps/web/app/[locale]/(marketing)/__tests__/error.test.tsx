@@ -89,7 +89,7 @@ describe('app/[locale]/(marketing)/error.tsx', () => {
       expect.objectContaining({ boundary: 'marketing-error', digest: 'mkt456' }),
     );
     expect(loggerErrorSpy).toHaveBeenCalledWith(
-      'boom',
+      'error_boundary_caught',
       expect.objectContaining({
         boundary: 'marketing-error',
         error_name: 'Error',

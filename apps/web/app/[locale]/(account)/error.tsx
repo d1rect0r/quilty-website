@@ -47,7 +47,7 @@ export default function AccountError({ error, reset }: ErrorPageProps) {
       boundary: 'account-error',
       ...(error.digest !== undefined && { digest: error.digest }),
     });
-    container.logger.error(error.message, {
+    container.logger.error('error_boundary_caught', {
       boundary: 'account-error',
       error_name: error.name,
       ...(error.digest !== undefined && { digest: error.digest }),

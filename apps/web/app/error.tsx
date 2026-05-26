@@ -32,7 +32,14 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
       boundary: 'app-error',
       ...(error.digest !== undefined && { digest: error.digest }),
     });
-    container.logger.error(error.message, {
+    // Log a static label rather than `error.message` — framework-level
+    // parse failures (Zod, fetch URL echoes) can encode free-text user
+    // content in the message string. The wrapLogger sanitizer's value-
+    // pattern regex would catch shape-matching PHI (email/phone/SSN)
+    // but is not a substitute for never logging the raw message at all.
+    // The `digest` + `error_name` give support engineers everything
+    // they need without surfacing user-typed bytes.
+    container.logger.error('error_boundary_caught', {
       boundary: 'app-error',
       error_name: error.name,
       ...(error.digest !== undefined && { digest: error.digest }),

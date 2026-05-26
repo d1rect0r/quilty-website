@@ -84,7 +84,7 @@ describe('app/global-error.tsx', () => {
       expect.objectContaining({ boundary: 'global-error', digest: 'global-789' }),
     );
     expect(loggerErrorSpy).toHaveBeenCalledWith(
-      'layout crash',
+      'error_boundary_caught',
       expect.objectContaining({ boundary: 'global-error', error_name: 'Error' }),
     );
   });

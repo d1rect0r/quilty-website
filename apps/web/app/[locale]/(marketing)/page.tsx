@@ -7,7 +7,8 @@ import type { Metadata } from 'next';
 // The identity-discovery milestone may replace this with a topical homepage title
 // ("Quilty — Mental health, made personal") once the voice lands.
 export const metadata: Metadata = {
-  description: 'Quilty — a mental-health peer-set product.',
+  description:
+    'Quilty is a peer-set mental-health product for people building sustainable mental wellness — private, evidence-anchored, and designed for the long haul. Learn how Quilty supports your routine without third-party tracking.',
   // Per-page canonical + self-referencing hreflang. The root layout no
   // longer ships a blanket canonical; every
   // marketing page MUST declare its own. `x-default` points at the English
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
   // programmatically broaden this.
   alternates: {
     canonical: '/en',
-    languages: { en: '/en', 'x-default': '/en' },
+    languages: { 'en-US': '/en', 'x-default': '/en' },
   },
 };
 

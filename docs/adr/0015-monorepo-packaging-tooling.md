@@ -7,7 +7,7 @@
 - **Originating discussion:** `docs/research/round_6_foundation_audit/decisions-log.md` § META-5
 - **Related decisions:** D75 (modular monolith), D76 (hexagonal-by-boundary), D77 (composition root), D78 (vendor SDK chokepoint), D79 (cross-package barrel rule), META-1 (vendor-agnostic naming), META-5 (5-generator suite)
 - **Related ADRs:** [ADR-0001](0001-monorepo-shape.md), [ADR-0008](0008-modular-monolith.md), [ADR-0009](0009-hexagonal-by-boundary.md), [ADR-0010](0010-composition-root.md), [ADR-0014](0014-port-adapter-naming.md)
-- **Related research:** `docs/research/round_6_foundation_audit/_raw/15-monorepo-tooling.md` § Plop + Turborepo generator survey; Turborepo 2.x release notes on bundled Plop runner; Nx schematics comparison (rejected as over-engineered for the 8-package scale)
+- **Related research:** `docs/research/round_6_foundation_audit/_raw/15-hexagonal-foundations-and-history.md` § Packaging-tooling discussion in the hexagonal foundations cluster; `docs/research/round_6_foundation_audit/_raw/17-composition-and-test-patterns.md` § Generator-shaped boilerplate elimination at the composition root + per-package shape; Turborepo 2.x release notes on bundled Plop runner; Nx schematics comparison (rejected as over-engineered for the 8-package scale)
 - **Software versions assumed:** Turborepo 2.9, pnpm 10, `@turbo/gen` (bundled with Turborepo 2.2+), Node 24
 
 ## Context

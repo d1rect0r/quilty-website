@@ -68,7 +68,19 @@ export const metadata: Metadata = {
     'Have a question about Quilty? Send our team a note and we will respond within two business days. For clinical questions, please contact your provider directly.',
   alternates: {
     canonical: '/en/contact',
-    languages: { en: '/en/contact', 'x-default': '/en/contact' },
+    languages: { 'en-US': '/en/contact', 'x-default': '/en/contact' },
+  },
+  openGraph: {
+    title: 'Contact Quilty — get in touch with our team',
+    description:
+      'Send our team a note and we will respond within two business days. For clinical questions, please contact your provider directly.',
+    url: '/en/contact',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Contact Quilty — get in touch with our team',
+    description: 'Send our team a note and we will respond within two business days.',
   },
 };
 

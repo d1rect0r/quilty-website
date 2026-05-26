@@ -20,7 +20,7 @@
  * (subprocessors-subscribe, waitlist, contact-sales).
  */
 
-import * as LabelPrimitive from '@radix-ui/react-label';
+import { Root as LabelRoot } from '@radix-ui/react-label';
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
@@ -28,10 +28,10 @@ import { cn } from '@/lib/utils';
  * Label — Radix root with the project's semantic text token.
  */
 const Label = React.forwardRef<
-  React.ComponentRef<typeof LabelPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>
+  React.ComponentRef<typeof LabelRoot>,
+  React.ComponentPropsWithoutRef<typeof LabelRoot>
 >(({ className, ...props }, ref) => (
-  <LabelPrimitive.Root
+  <LabelRoot
     ref={ref}
     className={cn(
       'text-fg-default mb-1 block text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
@@ -52,7 +52,7 @@ const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLI
       type={type}
       ref={ref}
       className={cn(
-        'border-border-default focus-visible:border-border-strong focus-visible:ring-ring bg-bg-elevated text-fg-default block min-h-[44px] w-full rounded border px-3 py-2 outline-none focus-visible:ring-2',
+        'border-border-default focus-visible:border-border-strong focus-visible:ring-ring bg-bg-elevated text-fg-default block min-h-[44px] w-full rounded border px-3 py-2 outline-2 outline-transparent focus-visible:ring-2',
         className,
       )}
       {...props}
@@ -105,6 +105,7 @@ function FieldErrorRegion({
     <output
       id={id}
       aria-live="polite"
+      aria-atomic="true"
       className="text-danger-fg mt-1 block min-h-[1.25rem] text-sm font-medium"
     >
       {message ? <span key={`${fieldKey}-err-${message}`}>{message}</span> : null}

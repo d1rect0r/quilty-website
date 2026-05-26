@@ -76,7 +76,7 @@ describe('app/[locale]/(account)/error.tsx', () => {
       expect.objectContaining({ boundary: 'account-error', digest: 'acct789' }),
     );
     expect(loggerErrorSpy).toHaveBeenCalledWith(
-      'boom',
+      'error_boundary_caught',
       expect.objectContaining({ boundary: 'account-error', digest: 'acct789' }),
     );
   });

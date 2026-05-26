@@ -96,3 +96,27 @@ export type ContactFormResult =
       readonly field_errors?: Readonly<Partial<Record<keyof ContactFormValues, string>>>;
       readonly retry_after_ms?: number;
     };
+
+// Zod schema mirror of `ContactFormResult`. The client calls
+// `contactFormResultSchema.safeParse(await res.json())` to validate
+// the boundary type — an unsafe `as ContactFormResult` cast on
+// untrusted JSON is rejected at runtime (CDN error page, upstream
+// proxy failure, future server-shape drift). Keep in sync with the
+// type union above.
+export const contactFormResultSchema = z.discriminatedUnion('ok', [
+  z.object({ ok: z.literal(true), digest: z.string() }),
+  z.object({
+    ok: z.literal(false),
+    reason: z.enum([
+      'csrf',
+      'time_trap',
+      'captcha',
+      'validation',
+      'rate_limit',
+      'send_failed',
+      'unknown',
+    ]),
+    field_errors: z.record(z.string(), z.string()).optional(),
+    retry_after_ms: z.number().optional(),
+  }),
+]);

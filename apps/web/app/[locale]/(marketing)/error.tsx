@@ -63,7 +63,7 @@ export default function MarketingError({ error, reset }: ErrorPageProps) {
       boundary: 'marketing-error',
       ...(error.digest !== undefined && { digest: error.digest }),
     });
-    container.logger.error(error.message, {
+    container.logger.error('error_boundary_caught', {
       boundary: 'marketing-error',
       error_name: error.name,
       ...(error.digest !== undefined && { digest: error.digest }),

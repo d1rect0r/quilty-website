@@ -63,11 +63,15 @@ The web analytics vendor for the website tier is locked at D42b (revised Round 5
 ## Snapshot — sprint-close authority
 
 This in-repo Markdown file is a **snapshot** of the current BAA
-state for code-review traceability. The authoritative
-spreadsheet lives cross-repo at
-`quilty-aws/docs/compliance/baa-inventory.{md|xlsx}` per D169.
-Creation of the cross-repo spreadsheet is a manual user action
-tracked at `docs/runbook/m1.5-post-sprint-checklist.md` item 2.
+state for code-review traceability. The authoritative artefact
+lives cross-repo at `quilty-aws/docs/legal/baa_inventory.md` per
+D169 — the cross-repo §164.404 breach-notification SOP +
+art_17_19_cascade.md + CC9_risk_mitigation.md all cite this
+specific path. The spreadsheet form (`baa_inventory.xlsx`)
+optionally lives alongside the .md at the same path for vendor-
+audit filtering. Creation of the cross-repo artefact is a manual
+user action tracked at `docs/runbook/m1.5-post-sprint-checklist.md`
+item 2.
 
 When the cross-repo spreadsheet exists, this Markdown snapshot
 is updated at every M-milestone close + on vendor BAA status

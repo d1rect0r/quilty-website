@@ -4,7 +4,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useId, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { FieldErrorRegion, Input, Label, Textarea } from '@/components/app/Form';
-import { contactFormSchema, type ContactFormResult, type ContactFormValues } from './schema';
+import {
+  contactFormResultSchema,
+  contactFormSchema,
+  type ContactFormResult,
+  type ContactFormValues,
+} from './schema';
 
 /**
  * Client Component — React Hook Form + Zod resolver.
@@ -65,6 +70,7 @@ export function ContactForm({
     handleSubmit,
     formState: { errors, isSubmitting },
     setError,
+    setFocus,
     reset,
   } = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
@@ -107,7 +113,26 @@ export function ContactForm({
         },
         body: JSON.stringify(values),
       });
-      const envelope = (await res.json()) as ContactFormResult;
+      // Validate the boundary type — `res.json()` returns `unknown`,
+      // and an unchecked `as ContactFormResult` cast would mis-narrow
+      // any unexpected shape (CDN error page, upstream proxy failure,
+      // future server-shape drift). Zod safeParse rejects bad shapes
+      // at runtime and surfaces a clean error to the user.
+      const parsed = contactFormResultSchema.safeParse(await res.json());
+      if (!parsed.success) {
+        setFormStatus({
+          kind: 'error',
+          message: 'Unexpected response from server. Please try again shortly.',
+        });
+        return;
+      }
+      // Zod's inferred type uses `Record<string, string>` for the
+      // field_errors map; ContactFormResult narrows the key set to
+      // `keyof ContactFormValues`. The runtime values are the same;
+      // the cast bridges the broader Zod-inferred type to the
+      // narrower ContactFormResult type. Safe because the discriminated
+      // union shape was validated by safeParse above.
+      const envelope = parsed.data as ContactFormResult;
       if (envelope.ok) {
         setFormStatus({ kind: 'success', digest: envelope.digest });
         reset({
@@ -127,11 +152,18 @@ export function ContactForm({
         return;
       }
       if (envelope.field_errors) {
+        let firstFailingField: keyof ContactFormValues | undefined;
         for (const [field, msg] of Object.entries(envelope.field_errors)) {
           if (typeof msg === 'string') {
-            setError(field as keyof ContactFormValues, { message: msg });
+            const fieldKey = field as keyof ContactFormValues;
+            setError(fieldKey, { message: msg });
+            if (firstFailingField === undefined) firstFailingField = fieldKey;
           }
         }
+        // WCAG 3.3.1 + 3.3.3 — focus the first failing field so a
+        // keyboard-only user lands on the actionable input instead of
+        // remaining on the submit button.
+        if (firstFailingField !== undefined) setFocus(firstFailingField);
       }
       const userMessage =
         envelope.reason === 'rate_limit'
@@ -253,6 +285,7 @@ export function ContactForm({
         id={`${statusId}-success`}
         aria-label="Form status"
         aria-live="polite"
+        aria-atomic="true"
         className="block min-h-[1.5rem]"
       >
         {formStatus.kind === 'success' && (
@@ -264,11 +297,18 @@ export function ContactForm({
           </span>
         )}
       </output>
-      <output
+      {/* Error region is a plain <div role="alert"> rather than <output
+          role="alert"> — <output> carries an implicit role="status" via
+          HTML-AAM, and stacking role="alert" on top produces an AT
+          role-conflict (NVDA + JAWS 2024 resolve it inconsistently).
+          A plain div with explicit role+aria-live+aria-atomic is the
+          load-bearing ARIA 1.2 §6.6.3 shape. */}
+      <div
         id={`${statusId}-error`}
         aria-label="Form error"
         role="alert"
         aria-live="assertive"
+        aria-atomic="true"
         className="block"
       >
         {formStatus.kind === 'error' && (
@@ -276,7 +316,7 @@ export function ContactForm({
             {formStatus.message}
           </span>
         )}
-      </output>
+      </div>
 
       <button
         type="submit"
