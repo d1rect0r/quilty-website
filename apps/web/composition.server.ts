@@ -63,7 +63,15 @@ export function makeServerContainer(): ServerContainer {
     // /.well-known/gpc.json commitment from day one rather than
     // silently falling back to the previous static `false`.
     analytics: wrapAnalytics({
-      adapter: makeAmplitudeAnalytics({ logger: wrappedLogger }),
+      // Single destination today: `product-analytics`, fulfilled by the
+      // Amplitude adapter. The fan-out infrastructure (per-destination
+      // consent + Promise.allSettled) is wired now; the `lifecycle-
+      // marketing` (Customer.io) + `warehouse` (Snowflake) destinations
+      // land at their respective activation triggers per ADR-0017's
+      // deferral table — no port or wrapper changes needed.
+      destinations: new Map([
+        ['product-analytics', makeAmplitudeAnalytics({ logger: wrappedLogger })],
+      ]),
       consentReader: makeServerConsentReader({
         headers: async () => nextHeaders(),
         readConsentCookie: async () => {

@@ -13,6 +13,8 @@ import {
   wrapAnalytics,
   wrapErrorReporter,
   wrapLogger,
+  type Analytics,
+  type AnalyticsDestination,
 } from '@quilty/observability';
 import { makeInMemoryRateLimiter } from '@quilty/rate-limit';
 import { makeSanitizer } from '@quilty/security';
@@ -35,7 +37,9 @@ function makeTestServerContainer(): ServerContainer {
     sanitizer,
     logger,
     analytics: wrapAnalytics({
-      adapter: makeAmplitudeAnalytics({ logger }),
+      destinations: new Map<AnalyticsDestination, Analytics>([
+        ['product-analytics', makeAmplitudeAnalytics({ logger })],
+      ]),
       consentReader: makeDefaultDenyConsentReader(),
       sanitizer,
     }),
@@ -60,7 +64,9 @@ function makeTestClientContainer(): ClientContainer {
     sanitizer,
     logger,
     analytics: wrapAnalytics({
-      adapter: makeAmplitudeAnalytics({ logger }),
+      destinations: new Map<AnalyticsDestination, Analytics>([
+        ['product-analytics', makeAmplitudeAnalytics({ logger })],
+      ]),
       consentReader: makeDefaultDenyConsentReader(),
       sanitizer,
     }),
@@ -78,7 +84,9 @@ function makeTestEdgeContainer(): EdgeContainer {
     sanitizer,
     logger,
     analytics: wrapAnalytics({
-      adapter: makeAmplitudeAnalytics({ logger }),
+      destinations: new Map<AnalyticsDestination, Analytics>([
+        ['product-analytics', makeAmplitudeAnalytics({ logger })],
+      ]),
       consentReader: makeDefaultDenyConsentReader(),
       sanitizer,
     }),

@@ -42,9 +42,49 @@ export type AnalyticsEvent =
   | { readonly name: 'subscription_started'; readonly props: { readonly plan: string } }
   | { readonly name: 'account_deleted'; readonly props: { readonly reason: AccountDeleteReason } };
 
+/**
+ * Role-shaped destination set for the fan-out pipeline.
+ *
+ * NO vendor names appear here (Rule 5 / ADR-0014): destinations describe
+ * the role a downstream sink plays, not the vendor that fulfills it. The
+ * composition root maps each role to a vendor-bound adapter today; swapping
+ * a vendor (Amplitude → Mixpanel, Customer.io → Braze) is a composition-
+ * root change with zero touch to ports + zero touch to call sites.
+ *
+ *   - `product-analytics`: per-event behavioural telemetry that drives
+ *     funnel + cohort + retention analysis. Amplitude is the current
+ *     adapter; consent category = `analytics`.
+ *   - `lifecycle-marketing`: per-user identity + event drop for email +
+ *     SMS lifecycle automation. Customer.io is the future adapter
+ *     (activation gated on BAA per ADR-0017 deferral table); consent
+ *     category = `marketing`.
+ *   - `warehouse`: append-only event log for analytical SQL (Snowflake /
+ *     BigQuery). Future server-side fan-out; consent category =
+ *     `analytics` (warehouse-side analytical use).
+ *
+ * Adding a new destination is a 3-step change: extend this union, extend
+ * `DEFAULT_CONSENT_CATEGORY_BY_DESTINATION` in `domain/wrap-analytics.ts`,
+ * and wire the adapter at the composition root. The wrapper's fan-out
+ * logic does not change.
+ */
+export type AnalyticsDestination = 'product-analytics' | 'lifecycle-marketing' | 'warehouse';
+
 export interface AnalyticsCallContext {
   readonly user_id_hash?: string;
   readonly session_id?: string;
+  /**
+   * Optional per-call destination filter. When absent, the wrapper uses
+   * its `defaultDestinations` policy (typically `['product-analytics']`).
+   * When present, only the listed destinations receive the event —
+   * subject to per-destination consent gating.
+   *
+   * Each destination's consent category is checked independently against
+   * the snapshot; a single `marketing: false` does NOT block
+   * `product-analytics` emission, and vice versa. Per-destination failure
+   * is isolated via `Promise.allSettled` — one adapter throwing does not
+   * starve the others.
+   */
+  readonly destinations?: readonly AnalyticsDestination[];
 }
 
 /**

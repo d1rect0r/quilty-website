@@ -20,6 +20,7 @@
 export type {
   Analytics,
   AnalyticsCallContext,
+  AnalyticsDestination,
   AnalyticsEvent,
   ErrorReporter,
   ErrorReporterContext,
@@ -66,7 +67,12 @@ export {
 // Factory wrappers (Cerebral-lesson chokepoint composition)
 // ---------------------------------------------------------------------------
 
-export { wrapAnalytics, type WrappedAnalyticsOptions } from './domain/wrap-analytics';
+export {
+  wrapAnalytics,
+  DEFAULT_CONSENT_CATEGORY_BY_DESTINATION,
+  type ConsentCategoryForDestination,
+  type WrappedAnalyticsOptions,
+} from './domain/wrap-analytics';
 export { wrapErrorReporter, type WrappedErrorReporterOptions } from './domain/wrap-error-reporter';
 export { wrapLogger, type WrappedLoggerOptions } from './domain/wrap-logger';
 export { wrapReplay, type WrappedReplayOptions } from './domain/wrap-replay';

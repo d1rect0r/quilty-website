@@ -54,7 +54,10 @@ export function makeClientContainer(): ClientContainer {
     sanitizer,
     logger: wrappedLogger,
     analytics: wrapAnalytics({
-      adapter: makeAmplitudeAnalytics({ logger: wrappedLogger }),
+      // See composition.server.ts for the destination fan-out rationale.
+      destinations: new Map([
+        ['product-analytics', makeAmplitudeAnalytics({ logger: wrappedLogger })],
+      ]),
       consentReader: makeDefaultDenyConsentReader(),
       sanitizer,
       // Observability for a chronically broken ConsentReader — a

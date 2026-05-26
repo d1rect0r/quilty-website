@@ -52,7 +52,10 @@ export function makeEdgeContainer(): EdgeContainer {
     // reads `request.headers` directly. See composition.server.ts for
     // the matching wiring on the Node runtime.
     analytics: wrapAnalytics({
-      adapter: makeAmplitudeAnalytics({ logger: wrappedLogger }),
+      // See composition.server.ts for the destination fan-out rationale.
+      destinations: new Map([
+        ['product-analytics', makeAmplitudeAnalytics({ logger: wrappedLogger })],
+      ]),
       consentReader: makeServerConsentReader({
         headers: async () => nextHeaders(),
         readConsentCookie: async () => {
