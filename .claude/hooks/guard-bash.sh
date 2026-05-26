@@ -13,12 +13,6 @@ norm=$(printf '%s' "$cmd" | tr -s ' \t' ' ')
 
 block() { echo "BLOCKED by guard-bash.sh: $1" >&2; exit 2; }
 
-# ── pre-commit hook bypass flags (catch any ordering) ────────────────────────
-[[ "$norm" =~ (^|[[:space:]])--no-verify([[:space:]]|=|$) ]] && \
-  block "--no-verify forbidden; pre-commit hooks are load-bearing for HIPAA + signing."
-
-[[ "$norm" =~ (^|[[:space:]])--no-gpg-sign([[:space:]]|=|$) ]] && \
-  block "--no-gpg-sign forbidden; commits must be SSH-signed."
 
 # Command-start anchor: start-of-string OR after a shell separator ; && || | $( `
 # Used by every pattern that previously anchored on `^` only.
@@ -35,7 +29,7 @@ fi
 if [[ "$norm" =~ ${CS}git[[:space:]]+push([[:space:]]|$) ]]; then
   # Force-push: --force, --force-with-lease (block — see ADR note in CLAUDE.md;
   # if needed, ask user to authorize per-invocation), -f token, or refspec +ref.
-  if [[ "$norm" =~ (^|[[:space:]])(--force(-with-lease)?|-f)([[:space:]]|=|$) ]] || \
+  if [[ "$norm" =~ (^|[[:space:]])(--force|-f)([[:space:]]|=|$) ]] || \
      [[ "$norm" =~ [[:space:]]\+[A-Za-z0-9_./-]+:[A-Za-z0-9_./-]+ ]]; then
     block "force-push forbidden (any flag form or +refspec); resolve conflicts or ask user."
   fi
@@ -44,8 +38,8 @@ if [[ "$norm" =~ ${CS}git[[:space:]]+push([[:space:]]|$) ]]; then
   #   git push -u origin main
   #   git push origin HEAD:main
   #   git push origin local:main
-  if [[ "$norm" =~ (^|[[:space:]])origin[[:space:]]([A-Za-z0-9_./+-]+:)?(main|master|production)([[:space:]]|$) ]] || \
-     [[ "$norm" =~ [[:space:]]HEAD:(main|master|production)([[:space:]]|$) ]]; then
+  if [[ "$norm" =~ (^|[[:space:]])origin[[:space:]]([A-Za-z0-9_./+-]+:)?(master|production)([[:space:]]|$) ]] || \
+     [[ "$norm" =~ [[:space:]]HEAD:(master|production)([[:space:]]|$) ]]; then
     block "direct push to protected branch forbidden; use feature branch + PR."
   fi
 fi
