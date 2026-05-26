@@ -90,8 +90,8 @@ export interface WrappedAnalyticsOptions {
   readonly destinations: ReadonlyMap<AnalyticsDestination, Analytics>;
   /**
    * Destinations to fan out to when the caller passes no `destinations`
-   * in the call context. Defaults to `['product-analytics']` — matches
-   * the single-destination policy locked in W2.A5 (research wave).
+   * in the call context. Defaults to `['product-analytics']` — single-
+   * destination policy locked in `docs/website_strategy_discussion.md`.
    *
    * Setting this to a multi-destination list switches the wrapper into
    * always-fan-out mode (every track() call hits every destination
@@ -143,7 +143,7 @@ export function wrapAnalytics(options: WrappedAnalyticsOptions): Analytics {
   // Construction-time fail-loud guard: an empty `defaultDestinations`
   // would silently drop every track() call that omits ctx.destinations.
   // Surfacing this at startup converts a runtime silent no-op into a
-  // misconfiguration error (HIGH finding bug-hunter Phase A B.4).
+  // misconfiguration error.
   if (defaultDestinations !== undefined && defaultDestinations.length === 0) {
     throw new Error(
       'wrapAnalytics: defaultDestinations was provided but is empty. ' +

@@ -116,6 +116,34 @@ describe('makeFetchApiClient — adapter-specific behavior', () => {
     expect(captured[0]?.get('Idempotency-Key')).toBe('01904c8a-3a7b-7c34-8e6c-5e2a1d3b4f8e');
   });
 
+  it('ApiProblemError.message is a static slug+status template (no server detail echo)', () => {
+    // Sprint-wide D31 invariant: Error.message propagates through
+    // error boundaries + Sentry capture. If the Rust backend ever
+    // echoes user-supplied content into `problem.detail`, the natural-
+    // language string must NOT reach the .message field where key-
+    // based PHI scrubbing cannot reliably catch it. Consumers that
+    // need the human-readable detail read `.problem.detail` directly.
+    const SENSITIVE_DETAIL = 'Email leak@example.com not found in records';
+    const err = new ApiProblemError({
+      problem: {
+        type: PROBLEM_TYPES.validation,
+        title: 'Validation Failed',
+        status: 400,
+        detail: SENSITIVE_DETAIL,
+        instance: undefined,
+        correlationId: undefined,
+        extensions: {},
+        slug: 'validation',
+      },
+    });
+    // The detail is preserved on the typed problem field.
+    expect(err.problem.detail).toBe(SENSITIVE_DETAIL);
+    // But Error.message does NOT echo it.
+    expect(err.message).not.toContain('leak@example.com');
+    expect(err.message).not.toContain(SENSITIVE_DETAIL);
+    expect(err.message).toBe('Problem: validation (HTTP 400)');
+  });
+
   it('parses RFC 9457 problem+json responses into ApiProblemError', async () => {
     const fetchStub: typeof globalThis.fetch = vi.fn(async () => {
       return new Response(

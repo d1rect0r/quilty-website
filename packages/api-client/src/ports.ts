@@ -75,9 +75,9 @@ export interface ApiResponse<TBody> {
  * `@quilty/shared-types` openapi-typescript output.
  *
  * Throws one of the `errors.ts` typed members on failure (`ApiNetwork`
- * / `ApiTimeout` / `ApiHttp` / `ApiProblem` / `ApiParse` / `ApiCircuitOpen`
- * / `ApiRetryBudgetExhausted` / `ApiAborted`). Vendor errors NEVER
- * cross this boundary.
+ * / `ApiTimeout` / `ApiHttp` / `ApiProblem` / `ApiParse` / `ApiRequest`
+ * / `ApiCircuitOpen` / `ApiRetryBudgetExhausted` / `ApiAborted`).
+ * Vendor errors NEVER cross this boundary.
  */
 export interface ApiClient {
   readonly request: <TBody = unknown>(input: ApiRequest) => Promise<ApiResponse<TBody>>;

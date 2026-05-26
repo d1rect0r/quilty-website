@@ -19,21 +19,13 @@
  * without needing a live HTTP roundtrip.
  */
 
+import { PROBLEM_TYPES, RECOMMENDED_STATUS, type ProblemTypeSlug } from '@quilty/api-client';
 import { faker } from '../faker';
 
-export type ProblemTypeSlug =
-  | 'validation'
-  | 'csrf'
-  | 'rate-limit'
-  | 'auth-required'
-  | 'forbidden'
-  | 'consent-required'
-  | 'session-expired'
-  | 'step-up-required'
-  | 'not-found'
-  | 'service-unavailable'
-  | 'idempotency-key-conflict'
-  | 'precondition-failed';
+// Re-export the canonical slug union so consumers don't need to
+// dual-import. Drift detection lives at the @quilty/api-client side
+// of the source-of-truth boundary.
+export type { ProblemTypeSlug };
 
 export interface ProblemDetailsFixture {
   readonly type: string;
@@ -46,21 +38,6 @@ export interface ProblemDetailsFixture {
   readonly slug: ProblemTypeSlug | undefined;
 }
 
-const SLUG_TO_HTTP_STATUS: Readonly<Record<ProblemTypeSlug, number>> = {
-  validation: 422,
-  csrf: 403,
-  'rate-limit': 429,
-  'auth-required': 401,
-  forbidden: 403,
-  'consent-required': 403,
-  'session-expired': 401,
-  'step-up-required': 401,
-  'not-found': 404,
-  'service-unavailable': 503,
-  'idempotency-key-conflict': 409,
-  'precondition-failed': 412,
-};
-
 function makeCorrelationId(): string {
   // The canonical correlation-id is the `q1m_<crockford-base32>` shape
   // minted by apps/web/lib/correlation-id.ts; we mirror the shape here
@@ -69,10 +46,10 @@ function makeCorrelationId(): string {
 }
 
 function baseProblem(slug: ProblemTypeSlug, overrides: Partial<ProblemDetailsFixture> = {}) {
-  const status = overrides.status ?? SLUG_TO_HTTP_STATUS[slug];
+  const status = overrides.status ?? RECOMMENDED_STATUS[slug];
   const correlationId = overrides.correlationId ?? makeCorrelationId();
   return {
-    type: overrides.type ?? `https://my-quilty.com/problems/v1/${slug}`,
+    type: overrides.type ?? PROBLEM_TYPES[slug],
     title: overrides.title ?? humanize(slug),
     status,
     detail: overrides.detail ?? faker.lorem.sentence({ min: 6, max: 12 }),

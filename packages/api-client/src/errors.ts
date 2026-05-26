@@ -160,6 +160,17 @@ export class ApiHttpError extends ApiClientError {
  *
  * Retryability: derived from the `retryable` extension field on the
  * Problem Details if present; default is "retry only on 503 / 504 status".
+ *
+ * `Error.message` carries a STATIC template — slug + HTTP status — NOT
+ * the server-supplied `detail` string. Reason: `Error.message`
+ * propagates through Next.js error boundaries + Sentry capture; if the
+ * Rust backend ever echoes a request parameter into `detail` (an
+ * email lookup miss, a record-not-found that includes the missing ID,
+ * etc.) the natural-language string flows into Sentry's
+ * `event.exception.values[*].value` where key-based PHI scrubbing
+ * cannot reliably catch it. Consumers that need the human-readable
+ * detail read `.problem.detail` directly — the value is preserved on
+ * the typed `problem` field unchanged.
  */
 export class ApiProblemError extends ApiClientError {
   readonly status: number;
@@ -170,9 +181,10 @@ export class ApiProblemError extends ApiClientError {
     cause?: unknown | undefined;
     correlationId?: string | undefined;
   }) {
+    const slugOrType = args.problem.slug ?? args.problem.type;
     super({
       code: 'problem-details',
-      message: args.problem.detail || args.problem.title,
+      message: `Problem: ${slugOrType} (HTTP ${args.problem.status})`,
       cause: args.cause,
       correlationId: args.correlationId,
     });

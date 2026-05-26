@@ -612,6 +612,9 @@ importers:
         specifier: ^3.25.76
         version: 3.25.76
     devDependencies:
+      '@quilty/api-client':
+        specifier: workspace:*
+        version: link:../api-client
       '@types/node':
         specifier: 22.10.2
         version: 22.10.2
