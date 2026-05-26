@@ -60,11 +60,42 @@ The web analytics vendor for the website tier is locked at D42b (revised Round 5
 | Sanity             | CMS (D30 trigger)  | PENDING | Engages only at the content-volume trigger; BAA required if any clinical content lands in the CMS |
 | Zendesk / Intercom | Hosted help center | PENDING | The help center surface CAN carry PHI (user-submitted free text); BAA mandatory before launch     |
 
+## Snapshot — sprint-close authority
+
+This in-repo Markdown file is a **snapshot** of the current BAA
+state for code-review traceability. The authoritative
+spreadsheet lives cross-repo at
+`quilty-aws/docs/compliance/baa-inventory.{md|xlsx}` per D169.
+Creation of the cross-repo spreadsheet is a manual user action
+tracked at `docs/runbook/m1.5-post-sprint-checklist.md` item 2.
+
+When the cross-repo spreadsheet exists, this Markdown snapshot
+is updated at every M-milestone close + on vendor BAA status
+changes; the spreadsheet remains the source of truth for vendor
+audit + legal review.
+
+### Column-schema note (snapshot vs authoritative)
+
+This in-repo snapshot uses a **4-column shape** (Vendor /
+Purpose / Status / Notes) optimised for human readability inside
+a Markdown table. The cross-repo authoritative spreadsheet uses
+the **14-column shape** specified at
+`docs/runbook/m1.5-post-sprint-checklist.md` item 2 (9 baseline
+
+- 5 enterprise-canon fields from the Stripe / Plaid 2024+ Vendor
+  Risk Management standard: sub-processor location, vendor breach-
+  notification SLA, BAA retention period, vendor SOC 2 Type II
+  valid-until, vendor escalation contact). The narrowing here is
+  deliberate — the snapshot trades audit-completeness for
+  in-codebase legibility; the authoritative spreadsheet carries
+  the full Vendor Risk Management surface.
+
 ## Review cadence
 
 - **Quarterly:** legal + security walk the inventory + confirm executed BAAs are current + flag expiring ones
 - **On every new vendor evaluation:** add a row + assign a status before any code references the vendor
 - **On status change to EXECUTED:** the corresponding adapter in the codebase may activate (e.g., `makeSesEmailSender` skeleton becomes the real send path)
+- **At sprint close:** update this Markdown snapshot + the cross-repo spreadsheet in lockstep. Sprint-close diff goes to legal review per the quarterly cadence above.
 
 ## What this document is NOT
 

@@ -56,7 +56,14 @@ const SKIP_PATH_FRAGMENTS = [
 ];
 
 const HIPAA_PATTERN = /HIPAA[-\s]compli(?:ant|ance)/i;
-const DPO_PATTERN = /\bDPO\b/i;
+// `/\bDPO\b(?!@)/i` — match the "DPO" word in narrative context
+// (title claim) but NOT when followed by `@` (the mailbox local-
+// part case). D119 locks `dpo@my-quilty.com` as the GDPR Article
+// 37 transparency-disclosure mailbox; documenting the mailbox
+// name in runbooks is legitimate. The negative lookahead `(?!@)`
+// preserves the D136 self-applied-title ban while permitting the
+// canonical mailbox-routing surface.
+const DPO_PATTERN = /\bDPO\b(?!@)/i;
 
 const violations = [];
 
