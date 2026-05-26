@@ -1,0 +1,36 @@
+{
+  "name": "@quilty/test-fixtures",
+  "version": "0.1.0",
+  "description": "Seeded test-data factories for cross-package fixtures. Wraps faker-js + fishery with zod-schema-validated builders so every fixture stays in sync with its source-of-truth schema. HIPAA-safe by construction (example.test domain, US reserved phone range, no realistic identifiers).",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25.0.0",
+    "pnpm": ">=10.0.0 <11.0.0"
+  },
+  "scripts": {
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^9.3.0",
+    "fishery": "^2.2.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@vitest/coverage-v8": "2.1.8",
+    "typescript": "^5.7.2",
+    "vitest": "2.1.8"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "sideEffects": false
+}

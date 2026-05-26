@@ -53,6 +53,7 @@
   "devDependencies": {
     "@axe-core/playwright": "4.10.2",
     "@playwright/test": "1.60.0",
+    "@quilty/test-fixtures": "workspace:*",
     "@spotlightjs/overlay": "4.5.0",
     "@tailwindcss/postcss": "4.3.0",
     "@tanstack/react-query-devtools": "^5.90.0",

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateCsrfToken, makeRenderTimestamp } from '@quilty/security';
+import { ContactFormFactory } from '@quilty/test-fixtures';
 import { __resetIdempotencyForTesting } from '@/lib/idempotency';
 import type { SentryEventLike } from '@quilty/observability';
 
@@ -110,7 +111,11 @@ async function makeValidBody(overrides: Partial<Record<string, unknown>> = {}) {
   mockHeaders.set('x-forwarded-for', '203.0.113.42');
   const time_token = makeRenderTimestamp();
   await new Promise((r) => setTimeout(r, 1600));
-  return {
+  // ContactFormFactory generates schema-valid random payloads; we pin
+  // the boundary-crossing fields (csrf_token / time_token / email +
+  // name + idempotency_key needed by happy-path assertions) and let
+  // the factory randomize the rest.
+  return ContactFormFactory.build({
     name: 'Alice',
     email: 'alice@example.com',
     subject: 'Hi',
@@ -120,7 +125,7 @@ async function makeValidBody(overrides: Partial<Record<string, unknown>> = {}) {
     idempotency_key: '550e8400-e29b-41d4-a716-446655440000',
     turnstile_token: 'pending',
     ...overrides,
-  };
+  });
 }
 
 function makeRequest(body: unknown): Request {

@@ -55,6 +55,11 @@ const VENDOR_SDK_IMPORTS = [
     message:
       'Import analytics via @quilty/observability (Analytics port). Direct PostHog imports bypass the consent gate + PHI sanitizer per D35 + D67.',
   },
+  {
+    name: '@faker-js/faker',
+    message:
+      'Import fixture helpers (faker, safeEmail, safePhone, safeAdultBirthDate, setFixtureSeed) from @quilty/test-fixtures. Direct @faker-js/faker imports bypass the HIPAA-safe wrappers (RFC 6761 .test TLD + NANP 555 prefix + seeded refDate) and can leak realistic identifiers into test artifacts that share a transport with production logs.',
+  },
 ];
 
 // D148 — PHI-denylist regex for identifier names that must never appear
@@ -350,6 +355,10 @@ export default tseslint.config(
       'apps/web/sentry.*.config.ts',
       'apps/web/instrumentation.ts',
       'packages/*/src/adapters/**/*.ts',
+      // The HIPAA-safe faker singleton wraps @faker-js/faker at exactly
+      // one location in the repo; every other consumer routes through
+      // @quilty/test-fixtures.
+      'packages/test-fixtures/src/faker.ts',
     ],
     rules: {
       'no-restricted-imports': 'off',
@@ -424,8 +433,34 @@ export default tseslint.config(
     files: ['**/__tests__/**', '**/tests/**', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
-      'no-restricted-imports': 'off',
+      // Soften the broad vendor-SDK ban for tests — adapter contract
+      // tests legitimately import their vendor SDK to verify the
+      // adapter shape — BUT keep the @faker-js/faker restriction in
+      // place so HIPAA-safe fixture wrappers stay load-bearing. Direct
+      // faker imports in tests would bypass the .test TLD + 555 NANP +
+      // seeded-refDate guarantees from @quilty/test-fixtures.
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@faker-js/faker',
+              message:
+                'Import fixture helpers from @quilty/test-fixtures (faker, safeEmail, safePhone, safeAdultBirthDate, setFixtureSeed). Direct @faker-js/faker imports bypass the HIPAA-safe wrappers.',
+            },
+          ],
+        },
+      ],
       'no-restricted-syntax': 'off',
+    },
+  },
+  // The faker singleton itself MUST import @faker-js/faker — restore
+  // unrestricted imports on this one file, which the test-file rule
+  // above otherwise re-enables.
+  {
+    files: ['packages/test-fixtures/src/faker.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
     },
   },
   // Meta-tooling files that DOCUMENT the bans must be allowed to
