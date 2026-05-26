@@ -1,7 +1,7 @@
 /**
  * Contact-acknowledgement transactional email template (D31 + D67).
  *
- * The user-locked echo-the-message UX (Wave 5 forms-canonical close):
+ * The locked echo-the-message UX (D113 forms-canonical surface):
  * we email a copy of the user's submitted message back to them for
  * their records. The value-pattern regex pass in @quilty/security
  * sanitize (D67 + D148) catches free-text PHI in the message body

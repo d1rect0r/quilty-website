@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Help',
-  description: 'Quilty help center. Self-host vs vendor decision at M9+ per U3.',
+  description:
+    'Quilty help center. Self-host vs vendor decision deferred until post-launch per U3.',
   robots: { index: false, follow: true },
   alternates: {
     canonical: '/en/help',
@@ -16,7 +17,7 @@ export default function HelpPage() {
       <h1 className="text-fg-default text-4xl font-semibold">Help</h1>
       <p className="text-fg-muted mt-4">
         Coming soon — help center implementation (self-host vs Zendesk/Intercom at{' '}
-        <code>help.my-quilty.com</code>) decided at M9+ per U3.
+        <code>help.my-quilty.com</code>) deferred until post-launch per U3.
       </p>
     </section>
   );

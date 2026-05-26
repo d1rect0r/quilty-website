@@ -7,7 +7,7 @@ import type { Metadata } from 'next';
  * Invoked when a portal Server Component / Server Action calls
  * `forbidden()` from `next/navigation`. The helper requires
  * `experimental.authInterrupts: true` in next.config.ts; the file is
- * a scaffold ready to activate at the auth-integration milestone (M6),
+ * a scaffold ready to activate at the auth-integration milestone,
  * when permission-gated portal sub-screens start firing the helper
  * for users whose session lacks the required scope/role.
  *

@@ -10,7 +10,7 @@ import type { Metadata } from 'next';
  * policy stub that names the structure + the load-bearing language
  * (Privacy Lead title, HIPAA-aligned discipline, sensitive-data
  * classes, jurisdiction-floor SLA, identity-verification anti-
- * pattern, sub-processor pointer). M8 lawyer review tightens the
+ * pattern, sub-processor pointer). Lawyer-review milestone tightens the
  * specific obligations + retention periods + supervisory-authority
  * contacts but the structural shape is locked here so external
  * systems (Apple Dev, Google OAuth verification, Stripe activation)

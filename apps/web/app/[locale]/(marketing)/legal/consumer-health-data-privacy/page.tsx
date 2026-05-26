@@ -27,7 +27,7 @@ import type { Metadata } from 'next';
  *      Quilty's pixel-free posture, the policy must disclose the
  *      ban applies + the company commits to it.
  *
- * Marked for M8 lawyer review. The structural shape + load-bearing
+ * Marked for the lawyer-review milestone. The structural shape + load-bearing
  * wording (Catch-22 verbatim, sensitive-data-class language per
  * D153, geofencing-ban acknowledgment) is locked here.
  */

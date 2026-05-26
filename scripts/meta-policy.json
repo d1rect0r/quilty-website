@@ -1,0 +1,112 @@
+{
+  "$comment": "META-2 source-comment hygiene policy. Loaded by scripts/check-no-workflow-context.mjs at runtime. Adding a new pattern: append to `patterns[]` + update docs/runbook/meta-2-enforcement.md + reference the binding D-number / META-N. Each pattern has: rule (kebab-case identifier), regex (string, will be `new RegExp(value, flags)`), flags (string, typically 'i' for case-insensitive), message (one-line fix guidance).",
+  "policy_version": 1,
+  "scopes": {
+    "directories": [
+      ["packages", "*", "src"],
+      ["apps", "web", "app"],
+      ["apps", "web", "components"],
+      ["apps", "web", "lib"]
+    ],
+    "files": [
+      ["apps", "web", "proxy.ts"],
+      ["apps", "web", "instrumentation.ts"],
+      ["apps", "web", "sentry.client.config.ts"],
+      ["apps", "web", "sentry.server.config.ts"],
+      ["apps", "web", "sentry.edge.config.ts"],
+      ["apps", "web", "composition.server.ts"],
+      ["apps", "web", "composition.client.ts"],
+      ["apps", "web", "composition.edge.ts"]
+    ],
+    "exclude_dirs": [
+      "node_modules",
+      ".next",
+      ".velite",
+      ".turbo",
+      ".sst",
+      ".open-next",
+      "dist",
+      "build",
+      "coverage",
+      "playwright-report",
+      "test-results",
+      "__tests__",
+      "tests",
+      "research"
+    ],
+    "exclude_filename_regex": "\\.(test|spec)\\.(ts|tsx|js|jsx|mjs|cjs)$",
+    "scan_extensions": [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]
+  },
+  "escape_hatch": {
+    "comment_marker": "META-2-allow:",
+    "description": "Inline annotation that suppresses the gate on the SAME line. Format: `// META-2-allow: <one-line rationale>`. Use sparingly + only when the matched substring is legitimate (e.g., a vendor SKU like 'M3' that happens to match the M-number pattern). The rationale is required for git-blame audit traceability."
+  },
+  "patterns": [
+    {
+      "rule": "m-number",
+      "regex": "\\bM[0-9]+(?:\\.[0-9]+)?\\b",
+      "flags": "",
+      "message": "Replace M-number (M1, M1.5, M3, etc.) with a permanent doc ref (D-number, ADR, RFC)."
+    },
+    {
+      "rule": "round-n",
+      "regex": "\\bRound[\\s-][0-9]+\\b",
+      "flags": "i",
+      "message": "Replace Round-N audit ref with the canonical D-number or ADR-NNNN."
+    },
+    {
+      "rule": "wave-n",
+      "regex": "\\bWave[\\s-][0-9]+\\b",
+      "flags": "i",
+      "message": "Replace Wave-N sprint ref with a permanent doc ref (D-number, ADR-NNNN)."
+    },
+    {
+      "rule": "cluster-n",
+      "regex": "\\bCluster[\\s-][0-9]+\\b",
+      "flags": "i",
+      "message": "Replace Cluster-N taxonomy ref with a permanent doc ref (D-number, ADR-NNNN)."
+    },
+    {
+      "rule": "sprint",
+      "regex": "\\b(?:this|next)[ \\t]+sprint\\b",
+      "flags": "i",
+      "message": "Replace \"this sprint\" / \"next sprint\" with a milestone-neutral phrasing."
+    },
+    {
+      "rule": "audit-found",
+      "regex": "\\bthe[ \\t]+audit[ \\t]+found\\b",
+      "flags": "i",
+      "message": "Replace \"the audit found\" with a permanent doc ref."
+    },
+    {
+      "rule": "commit-n",
+      "regex": "\\bCommit\\s+[0-9]+\\b",
+      "flags": "i",
+      "message": "Replace Commit N ref with a permanent doc ref (D-number, ADR-NNNN)."
+    },
+    {
+      "rule": "agent-name",
+      "regex": "@quilty/[a-z-]+-reviewer\\b",
+      "flags": "i",
+      "message": "Replace `@quilty/<role>-reviewer` agent-name ref with a generic reviewer mention."
+    },
+    {
+      "rule": "jira-ticket",
+      "regex": "\\bJIRA-[0-9]+\\b",
+      "flags": "i",
+      "message": "Replace JIRA-NNN ticket ref with a permanent doc ref. Tickets outlive their utility; source comments should reference D-numbers or ADRs."
+    },
+    {
+      "rule": "linear-ticket",
+      "regex": "\\bQLY-[0-9]+\\b",
+      "flags": "i",
+      "message": "Replace QLY-NNN Linear ticket ref with a permanent doc ref. Tickets outlive their utility; source comments should reference D-numbers or ADRs. (The Linear pattern is scoped to the Quilty project key `QLY-` so it does not false-positive on legitimate prefixes like ADR-, RFC-, etc. If a future contributor adds a new Linear project key, append it here as a separate rule.)"
+    },
+    {
+      "rule": "gh-issue",
+      "regex": "\\bGH-[0-9]{2,}\\b",
+      "flags": "i",
+      "message": "Replace GH-NNN issue ref with a permanent doc ref. GitHub issue numbers drift across repos / migrations; source comments should reference D-numbers or ADRs."
+    }
+  ]
+}

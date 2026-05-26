@@ -7,7 +7,7 @@ import type { Metadata } from 'next';
  * Invoked when a portal Server Component / Server Action calls
  * `unauthorized()` from `next/navigation`. The helper requires
  * `experimental.authInterrupts: true` in next.config.ts; the file is
- * a scaffold ready to activate at the auth-integration milestone (M6),
+ * a scaffold ready to activate at the auth-integration milestone,
  * when session-expiration / not-signed-in conditions inside portal
  * routes start firing the helper.
  *
@@ -16,8 +16,9 @@ import type { Metadata } from 'next';
  * in first. AT users hear "Sign in required" as the h1; the
  * distinction matters for both UX clarity + compliance audit.
  *
- * Once Cognito sign-in lands (M6), the primary CTA's href moves from
- * the placeholder `/en/account` to the Cognito Managed Login URL.
+ * Once Cognito sign-in lands (auth-integration milestone), the
+ * primary CTA's href moves from the placeholder `/en/account` to
+ * the Cognito Managed Login URL.
  *
  * `robots: noindex, nofollow` inherited from the (account) layout
  * cascade — no re-declaration here.

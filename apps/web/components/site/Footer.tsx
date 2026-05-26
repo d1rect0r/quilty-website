@@ -5,7 +5,8 @@ import Link from 'next/link';
 /**
  * Marketing-tier site footer. Includes the CCPA §7025(c)(6) GPC honored
  * indicator (D62) when the request's `Sec-GPC: 1` header was detected at
- * the edge. M2 fills in real legal copy + "Your Privacy Choices" link.
+ * the edge. The marketing-content milestone fills in real legal copy +
+ * "Your Privacy Choices" link.
  *
  * `COPYRIGHT_YEAR` is evaluated at module load (build time on the server)
  * not at render time. This keeps marketing pages statically renderable —

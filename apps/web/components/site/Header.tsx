@@ -2,9 +2,9 @@ import Link from 'next/link';
 
 /**
  * Marketing-tier site header. Lives only in (marketing)/layout.tsx — the
- * portal has its own PortalNav per U1. Real branding + nav items land in
- * M3 identity discovery; M1 ships a structural placeholder so layout/CSP
- * hooks have something to wrap.
+ * portal has its own PortalNav per U1. Real branding + nav items land at
+ * the identity-discovery milestone; today the scaffold ships a structural
+ * placeholder so layout/CSP hooks have something to wrap.
  */
 export function Header() {
   return (
@@ -14,7 +14,7 @@ export function Header() {
           Quilty
         </Link>
         <nav aria-label="Primary">
-          {/* Real nav items land in M2 with the marketing IA scope (per U2).
+          {/* Real nav items land at the marketing-content milestone (per U2).
               Every interactive element has min-h-11 (44px) to satisfy WCAG 2.5.5
               Target Size (AA) — a11y reviewer finding. */}
           <ul className="text-fg-muted flex items-center gap-2 text-sm">

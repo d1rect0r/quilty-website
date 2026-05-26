@@ -8,7 +8,7 @@ import * as Sentry from '@sentry/nextjs';
  * emitted by instrumentation.ts).
  *
  * The `beforeSend` hook now delegates to the @quilty/observability
- * `PHIScrubber` port adapter (Commit 31). The prior inline scrubbing
+ * `PHIScrubber` port adapter (D67 + D148). The prior inline scrubbing
  * was duplicated across server / client / edge configs; the adapter
  * centralizes the chokepoint so a future Sentry SDK upgrade or a
  * vendor swap (Datadog, Honeycomb) is a single-adapter change.

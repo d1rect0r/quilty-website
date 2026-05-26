@@ -40,7 +40,7 @@ Sentry.init({
   replaysOnErrorSampleRate: 1.0,
 
   // beforeSend — last line of defense. The PHIScrubber adapter
-  // (Commit 31) centralises the chokepoint logic that previously was
+  // (D67 + D148) centralises the chokepoint logic that previously was
   // duplicated across server / client / edge configs. See
   // sentry.server.config.ts for the chokepoint rationale.
   beforeSend(event) {

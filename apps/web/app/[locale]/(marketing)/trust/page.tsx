@@ -9,8 +9,9 @@ import type { Metadata } from 'next';
  * Stripe + Sentry pattern — a single indexable page that surfaces
  * security posture + compliance status + encryption + sub-processor
  * pointer + incident-history pointer + responsible-disclosure pointer.
- * Migrates to a SafeBase Trust Center subdomain post-SOC 2 (M7-M8
- * trigger); this `/trust` path remains the entry point.
+ * Migrates to a SafeBase Trust Center subdomain post-SOC-2-readiness
+ * (lawyer-review-milestone trigger); this `/trust` path remains the
+ * entry point.
  *
  * Language discipline:
  *   - HIPAA-aligned, NEVER HIPAA-compliant (D104, Cerebral $7M FTC

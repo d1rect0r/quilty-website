@@ -31,7 +31,7 @@ import { makeServerContainer } from '@/composition.server';
  * branch in the in-memory adapter — by design, since the in-memory
  * store has no entry. The full migrate flow activates when the real
  * token exchange lands and the cookie-tier `ConsentStore.set` write
- * lands alongside it (M6+).
+ * lands alongside it at the auth-integration milestone.
  *
  * The placeholder `user_id_hash` `'pending-auth-integration'` is a
  * single-key sentinel — every callback invocation today writes to

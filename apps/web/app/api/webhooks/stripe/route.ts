@@ -8,8 +8,9 @@ import { NextResponse } from 'next/server';
  * lands at the subscription activation. Verifies the Stripe webhook signature, dispatches to the Rust
  * backend over authenticated HTTPS, mirrors subscription state in DDB.
  *
- * Reserving the URL at M1 lets Stripe activation flow (test-mode webhook
- * registration) work as a no-op while the real handler is being built.
+ * Reserving the URL at scaffold time lets the Stripe activation flow
+ * (test-mode webhook registration) work as a no-op while the real
+ * handler is being built.
  */
 export async function POST() {
   return NextResponse.json(

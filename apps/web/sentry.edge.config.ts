@@ -7,7 +7,7 @@ import * as Sentry from '@sentry/nextjs';
  * 16 file convention) + any Route Handler running on the Edge.
  *
  * The `beforeSend` hook delegates to the @quilty/observability
- * `PHIScrubber` port adapter (Commit 31). See sentry.server.config.ts
+ * `PHIScrubber` port adapter (D67 + D148). See sentry.server.config.ts
  * for the chokepoint-centralization rationale + why direct
  * `makePhiScrubber()` construction here (vs container singleton)
  * avoids a circular dependency with composition-root init.

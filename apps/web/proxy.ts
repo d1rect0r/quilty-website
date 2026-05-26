@@ -133,9 +133,11 @@ function applyGpcForceOffCookie(request: NextRequest, response: NextResponse): v
   // `gpc_detected: true` is correct here — the function only runs
   // when `Sec-GPC: 1` was present on the request (guarded above), so
   // the persisted snapshot reflects what was actually seen. Writing
-  // `false` was a Wave-4-era bug: a future read of the cookie alone
-  // (without the live header) would inherit the false value and
-  // silently lie about the GPC signal's provenance. The cookie
+  // `false` was a regression from an earlier scaffold pass (the
+  // GPC-detector port's `gpc_detected` field is the per-request
+  // header-presence signal per D63). A future read of the cookie
+  // alone (without the live header) would inherit the false value
+  // and silently lie about the GPC signal's provenance. The cookie
   // reader still consults the live header on every request; this
   // field documents what was true at write time.
   const payload = JSON.stringify({
@@ -356,8 +358,19 @@ export function proxy(request: NextRequest): NextResponse {
   // RFC 7231 §7.1.3 — the maintenanceRewrite path sets these only
   // when MAINTENANCE_MODE is on. Direct nav with operational mode
   // still classifies the response as a maintenance surface.
+  //
+  // Apply the same env-var validation as `maintenanceRewrite()`:
+  // an unvalidated `MAINTENANCE_RETRY_AFTER_SECONDS` (e.g., "5m" or
+  // "auto") would emit a malformed `Retry-After` value that
+  // Googlebot ignores per its crawl-throttle parser, voiding the
+  // header's purpose. Numeric-only check mirrors the canonical
+  // path so the two surfaces stay behaviorally identical.
   if (pathname === '/503') {
-    const retryAfter = process.env.MAINTENANCE_RETRY_AFTER_SECONDS ?? '3600';
+    const rawRetryAfter = process.env.MAINTENANCE_RETRY_AFTER_SECONDS;
+    const retryAfter =
+      rawRetryAfter !== undefined && /^\d+$/.test(rawRetryAfter)
+        ? rawRetryAfter
+        : String(DEFAULT_RETRY_AFTER_SECONDS);
     response.headers.set('Retry-After', retryAfter);
     response.headers.set('X-Cluster-Status', 'maintenance');
   } else {

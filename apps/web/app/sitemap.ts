@@ -67,7 +67,7 @@ const MARKETING_ROUTES: readonly MarketingRoute[] = [
   // SLA, identity-verification anti-pattern); lastModified bumped
   // off the scaffold-baseline date. `monthly` cadence matches the
   // peer legal pages because the page tracks the regulatory-guidance
-  // delta + the M8 lawyer review will tighten the obligations.
+  // delta + the lawyer-review milestone will tighten the obligations.
   {
     path: '/legal/privacy',
     lastModified: '2026-05-22',
@@ -107,9 +107,10 @@ const MARKETING_ROUTES: readonly MarketingRoute[] = [
   // procurement teams discover it during vendor security review;
   // indexable + high priority (peer convention places trust pages at
   // 0.8 — adjacent to home in the SEO-priority hierarchy). Promotes
-  // to a SafeBase subdomain post-SOC 2 (M7-M8 trigger) at which
-  // point this entry stays as the canonical entry-point URL +
-  // adds a `trust.my-quilty.com` rel-canonical companion.
+  // to a SafeBase subdomain post-SOC-2 (lawyer-review-milestone
+  // trigger) at which point this entry stays as the canonical
+  // entry-point URL + adds a `trust.my-quilty.com` rel-canonical
+  // companion.
   {
     path: '/trust',
     lastModified: TRUST_PAGE_DATE,

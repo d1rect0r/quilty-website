@@ -13,7 +13,7 @@ export { GpcHonoredIndicator } from '../components/GpcHonoredIndicator';
 // `detectGpcFromHeaders` reads a request header — meaningless on the
 // client. Surfacing it via /server keeps the universal barrel free of
 // utilities that look client-safe but only have a server-runtime
-// meaning (perf-bundle-reviewer Wave 4 close-pass finding).
+// meaning (per D63 GPC-detection server-tier scoping).
 export { detectGpcFromHeaders, type HeaderGetter } from '../domain/gpc-detector';
 
 export { makeDynamoDBConsentStore, type DynamoDBConsentStoreInput } from '../adapters/dynamodb';

@@ -10,7 +10,7 @@ import type { Metadata } from 'next';
  * their own page or nested layout.
  *
  * Per ADR-0005 two-tier CSP: portal routes get the nonce + strict-dynamic
- * CSP variant in proxy.ts (Commit 5). Per ADR-0002: every portal Server
+ * CSP variant in proxy.ts (D59). Per ADR-0002: every portal Server
  * Component re-validates via the session store — no authorization decisions
  * in proxy.ts alone (Next.js CVE-2025-29927).
  *

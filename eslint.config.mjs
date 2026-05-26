@@ -440,7 +440,11 @@ export default tseslint.config(
   // observability chokepoint discipline applies to runtime code paths,
   // not to a standalone pre-commit script).
   {
-    files: ['eslint.config.mjs', 'scripts/check-compliance-language.mjs'],
+    files: [
+      'eslint.config.mjs',
+      'scripts/check-compliance-language.mjs',
+      'scripts/check-no-workflow-context.mjs',
+    ],
     rules: {
       'no-restricted-syntax': 'off',
       'no-console': 'off',

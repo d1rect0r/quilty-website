@@ -12,8 +12,8 @@ import { PortalNavLinks } from './PortalNavLinks';
  *
  * Real authenticated user dropdown + sign-out lands at the
  * auth-integration activation with the BFF session model (ADR-0002).
- * M1 ships a structural placeholder so the portal route-group has a
- * header reference + the layout/CSP boundary is wired.
+ * The current scaffold ships a structural placeholder so the portal
+ * route-group has a header reference + the layout/CSP boundary is wired.
  */
 export function PortalNav() {
   return (

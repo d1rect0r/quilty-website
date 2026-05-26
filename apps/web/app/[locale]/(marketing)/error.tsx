@@ -25,7 +25,7 @@ const RETRY_WINDOW_MS = 5_000;
  * the user sees a "something went wrong" panel in place of the
  * failing page, not a bare full-screen surface.
  *
- * Contract mirrors `apps/web/app/error.tsx` (Wave 1 Commit 15):
+ * Contract mirrors `apps/web/app/error.tsx` (D147 retry-fallback + WCAG 4.1.3):
  *   - `role="alert"` + `aria-live="assertive"` + `aria-atomic="true"`
  *     on the announcement sibling (WCAG 4.1.3 + ARIA19)
  *   - h1 focused on mount (`tabIndex={-1}` + `headingRef.current?.focus()`
