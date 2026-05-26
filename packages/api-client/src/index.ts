@@ -42,6 +42,7 @@ export {
   ApiNetworkError,
   ApiParseError,
   ApiProblemError,
+  ApiRequestError,
   ApiRetryBudgetExhaustedError,
   ApiTimeoutError,
   isApiClientError,
@@ -85,12 +86,10 @@ export {
 // Tracing (W3C traceparent) — Decision F in ADR-0017
 // ---------------------------------------------------------------------------
 
-export {
-  TRACEPARENT_HEADER,
-  currentTraceparent,
-  formatTraceparent,
-  parseTraceparent,
-} from './domain/traceparent';
+export { TRACEPARENT_HEADER, formatTraceparent, parseTraceparent } from './domain/traceparent';
+// Vendor-bound adapter (reads `@opentelemetry/api` active span) — kept
+// separate from the pure domain formatters per ADR-0014 Rule 5.
+export { currentTraceparent } from './adapters/otel-traceparent';
 
 // ---------------------------------------------------------------------------
 // Retry policy — Decision C in ADR-0017

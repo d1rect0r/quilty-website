@@ -15,6 +15,7 @@
  * `src/adapters/<vendor>.ts` (ADR-0014 Rule 2 + Rule 5).
  */
 
+import { retryableFromProblem } from './domain/problem-details';
 import type { ApiProblemError, ApiHttpError } from './errors';
 
 // ---------------------------------------------------------------------------
@@ -198,6 +199,15 @@ function isTransientError(error: unknown): boolean {
       return isTransientStatus(error.status);
     }
     if (error.code === 'problem-details' && 'status' in error && typeof error.status === 'number') {
+      // Server-supplied `retryable` extension overrides the canonical
+      // status-based heuristic (ADR-0017 Decision G). A 503 with
+      // `retryable: false` must NOT retry; a 422 with `retryable: true`
+      // must. Falls back to the status table when the extension is
+      // absent.
+      if ('problem' in error) {
+        const explicit = retryableFromProblem((error as ApiProblemError).problem);
+        if (explicit !== undefined) return explicit;
+      }
       return isTransientStatus(error.status);
     }
     return false;

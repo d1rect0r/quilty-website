@@ -2,9 +2,15 @@
  * TanStack Query v5 client factory — Next.js 16 App Router hydration
  * pattern (ADR-0017 Decision H).
  *
- * Server-side: a fresh `QueryClient` per request (the `cache()` wrap
- * ensures one per request boundary, not per render). Client-side: a
- * module-level singleton (lazy-initialised inside the browser).
+ * Server-side: React's `cache()` wrap binds `getQueryClient()` to the
+ * current request boundary, so every Server Component within a single
+ * request tree shares one `QueryClient`. WITHOUT the `cache()` wrap,
+ * each Server Component call creates a fresh client and prefetches in
+ * a parent RSC are NOT visible to a `dehydrate()` call in a child
+ * (canonical anti-pattern documented in TanStack Advanced SSR guide).
+ *
+ * Client-side: a module-level singleton (lazy-initialised inside the
+ * browser).
  *
  * The 60s `staleTime` floor + 5min `gcTime` are TanStack canonical
  * defaults for SSR-hydrated queries — they prevent the client from
@@ -16,6 +22,7 @@
  * optimistic mutations + background sync only.
  */
 
+import { cache } from 'react';
 import { QueryClient, isServer } from '@tanstack/react-query';
 
 function makeQueryClient(): QueryClient {
@@ -45,19 +52,31 @@ function makeQueryClient(): QueryClient {
 let browserQueryClient: QueryClient | undefined;
 
 /**
+ * Per-request server-side singleton. React's `cache()` scopes the
+ * memoization to the current request boundary, so every
+ * `getServerQueryClient()` call within the same RSC tree returns the
+ * same `QueryClient` instance — required for `HydrationBoundary` to
+ * see what parent prefetches wrote (TanStack Advanced SSR pattern).
+ *
+ * `cache()` is a no-op on the client; we use the explicit branch
+ * below for browser singleton initialization.
+ */
+const getServerQueryClient = cache((): QueryClient => makeQueryClient());
+
+/**
  * Returns the QueryClient for the current runtime.
  *
- * SERVER: per-request fresh client (the `cache()` wrapper in `app/`
- * code creates a single instance per request boundary).
+ * SERVER: per-request shared client via React `cache()`. Multiple
+ * Server Components within one request boundary observe the same
+ * instance; prefetches in a parent RSC are visible to a `dehydrate()`
+ * in a child.
  *
  * CLIENT: module-level singleton. Subsequent calls return the same
  * instance so the cache survives across re-renders.
  */
 export function getQueryClient(): QueryClient {
   if (isServer) {
-    // Server: always make a new client. Per-request isolation is the
-    // canonical Next.js 16 + TanStack Query v5 pattern.
-    return makeQueryClient();
+    return getServerQueryClient();
   }
   // Browser: lazily create the singleton.
   if (!browserQueryClient) {

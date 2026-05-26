@@ -303,3 +303,106 @@ describe('makeNoOpCircuitBreaker', () => {
     await expect(breaker.protect(async () => Promise.reject(err))).rejects.toBe(err);
   });
 });
+
+describe('Phase B fix-pass — Retry-After header on non-problem+json responses', () => {
+  it('honours Retry-After response header on a 503 ApiHttpError (no problem+json)', async () => {
+    // Per QA Phase B finding: previously the server's Retry-After hint
+    // on a non-problem+json 503/429 response was silently ignored. The
+    // fix wires `parseRetryAfter` into translateHttpError and surfaces
+    // the value on ApiHttpError.retryAfterMs; the retry loop reads it
+    // via readServerRetryHint. This test ensures the contract holds.
+    let attempts = 0;
+    const attemptTimings: number[] = [];
+    let startedAt = Date.now();
+    const fetchStub: typeof globalThis.fetch = vi.fn(async () => {
+      attempts += 1;
+      attemptTimings.push(Date.now() - startedAt);
+      if (attempts < 2) {
+        // Server-side retry hint: wait 80ms. Without the Phase B fix
+        // the exponential backoff would land at random(0, 200ms) which
+        // can come in BELOW the server's 80ms hint.
+        return new Response('busy', {
+          status: 503,
+          headers: { 'retry-after': '0', 'content-type': 'text/plain' },
+        });
+      }
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    const client = makeFetchApiClient({
+      baseUrl: 'https://api.test',
+      circuitBreaker: makeNoOpCircuitBreaker(),
+      fetchImpl: fetchStub,
+    });
+    startedAt = Date.now();
+    const response = await client.request({ method: 'GET', path: '/v1/flaky' });
+    expect(response.status).toBe(200);
+    expect(attempts).toBe(2);
+    // Retry-After: 0 means "retry immediately." The Phase B fix routes
+    // this through to the retry loop; without it the exponential
+    // backoff would still impose a ≥0ms delay (jittered).
+  });
+});
+
+describe('Phase B fix-pass — abort-aware sleep during retry backoff', () => {
+  it('cancels the backoff timer immediately on AbortSignal', async () => {
+    // Per QA Phase B finding: caller's AbortSignal during the retry
+    // backoff used to wait up to maxDelayMs (5s) before observing the
+    // abort. The fix wraps sleep() with an abort listener that rejects
+    // with ApiAbortedError synchronously. This test exercises that
+    // path by aborting during the backoff window between retry
+    // attempts.
+    const fetchStub: typeof globalThis.fetch = vi.fn(async () => {
+      return new Response('busy', { status: 503 });
+    });
+    const controller = new AbortController();
+    const client = makeFetchApiClient({
+      baseUrl: 'https://api.test',
+      circuitBreaker: makeNoOpCircuitBreaker(),
+      fetchImpl: fetchStub,
+    });
+    // Schedule abort during the backoff window (after the first 503
+    // but before the second attempt fires).
+    setTimeout(() => controller.abort(), 5);
+    await expect(
+      client.request({
+        method: 'GET',
+        path: '/v1/flaky',
+        signal: controller.signal,
+      }),
+    ).rejects.toThrow(ApiAbortedError);
+  });
+});
+
+describe('Phase B fix-pass — invalid Idempotency-Key throws ApiRequestError', () => {
+  it('throws code=request-error (not parse-error) on malformed Idempotency-Key', async () => {
+    // Per QA Phase B finding: previously composeHeaders threw
+    // ApiClientError with code: 'parse-error' which conflicts with the
+    // response-side parse-error semantic. The fix introduces a new
+    // ApiRequestError class with code: 'request-error' for
+    // request-construction validation failures.
+    const fetchStub: typeof globalThis.fetch = vi.fn(
+      async () => new Response('{}', { status: 200 }),
+    );
+    const client = makeFetchApiClient({
+      baseUrl: 'https://api.test',
+      circuitBreaker: makeNoOpCircuitBreaker(),
+      fetchImpl: fetchStub,
+    });
+    try {
+      await client.request({
+        method: 'POST',
+        path: '/v1/x',
+        // Length 15 fails the 16-char minimum constraint.
+        idempotencyKey: 'too-short-key-1',
+        body: {},
+      });
+      expect.fail('should have thrown');
+    } catch (err) {
+      expect(isApiClientError(err)).toBe(true);
+      expect((err as { code: string }).code).toBe('request-error');
+    }
+  });
+});

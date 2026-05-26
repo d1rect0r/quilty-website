@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { makeDefaultRetryPolicy, makeNoRetryPolicy, parseRetryAfter } from '../src/domain/retry';
-import { ApiHttpError, ApiNetworkError, ApiAbortedError, ApiParseError } from '../src/errors';
+import {
+  ApiHttpError,
+  ApiNetworkError,
+  ApiAbortedError,
+  ApiParseError,
+  ApiProblemError,
+} from '../src/errors';
+import { PROBLEM_TYPES } from '../src/domain/problem-types';
 
 describe('makeDefaultRetryPolicy', () => {
   it('reports idempotent GET on network error as retryable', () => {
@@ -48,6 +55,45 @@ describe('makeDefaultRetryPolicy', () => {
       true,
     );
     expect(policy.shouldRetry(new ApiHttpError({ status: 408, message: 'timeout' }), 0)).toBe(true);
+  });
+
+  it('honours `retryable: false` extension on a 503 ApiProblemError', () => {
+    // ADR-0017 Decision G: server-supplied `retryable` extension overrides
+    // the status-based heuristic. A 503 with retryable=false must NOT retry
+    // (the server has signalled the failure is non-transient at this layer).
+    const policy = makeDefaultRetryPolicy({ method: 'GET' });
+    const err = new ApiProblemError({
+      problem: {
+        type: PROBLEM_TYPES['service-unavailable'],
+        title: 'Service Unavailable',
+        status: 503,
+        detail: 'permanent downstream outage',
+        instance: undefined,
+        correlationId: undefined,
+        extensions: { retryable: false },
+        slug: 'service-unavailable',
+      },
+    });
+    expect(policy.shouldRetry(err, 0)).toBe(false);
+  });
+
+  it('honours `retryable: true` extension on a 422 ApiProblemError', () => {
+    // Inverse: a non-canonical-retryable status (422) with retryable=true
+    // must retry per the server's explicit signal.
+    const policy = makeDefaultRetryPolicy({ method: 'GET' });
+    const err = new ApiProblemError({
+      problem: {
+        type: PROBLEM_TYPES.validation,
+        title: 'Validation Failed',
+        status: 422,
+        detail: 'transient validation error',
+        instance: undefined,
+        correlationId: undefined,
+        extensions: { retryable: true },
+        slug: 'validation',
+      },
+    });
+    expect(policy.shouldRetry(err, 0)).toBe(true);
   });
 
   it('does NOT retry on HTTP 400/401/403/404', () => {

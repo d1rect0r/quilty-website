@@ -1,9 +1,12 @@
 /**
- * W3C `traceparent` injection (Decision F in ADR-0017).
+ * W3C `traceparent` formatting + parsing (Decision F in ADR-0017).
  *
- * Reads the current active span from `@opentelemetry/api` and
- * composes the canonical `traceparent` header per the W3C-Trace-Context
- * spec:
+ * Pure domain layer — NO vendor SDK imports here per ADR-0014 Rule 5.
+ * The active-span READ (which IS vendor-bound to `@opentelemetry/api`)
+ * lives in `adapters/otel-traceparent.ts`. This file owns the W3C
+ * format + parse logic in isolation.
+ *
+ * Canonical traceparent shape per the W3C Trace Context spec:
  *
  *   00-{trace-id}-{parent-id}-{trace-flags}
  *
@@ -14,18 +17,7 @@
  *   - parent-id is 16 lowercase hex chars (64 bits).
  *   - trace-flags is 2 lowercase hex chars (`01` if recording / `00`
  *     if not).
- *
- * `@vercel/otel` 2.1.x configures W3C-canonical propagators by
- * default per D56; this module reads the active span context and
- * formats the header. The adapter (`fetch.ts`) injects the result
- * on every outbound request via openapi-fetch middleware.
- *
- * `baggage` is OPTIONAL per ADR-0017 Decision F; today ships
- * traceparent only. Baggage injection lands at the identity-context
- * context propagation trigger.
  */
-
-import { trace } from '@opentelemetry/api';
 
 export const TRACEPARENT_HEADER = 'traceparent';
 
@@ -47,27 +39,6 @@ export function formatTraceparent(spanContext: {
   // unknown upper bits per spec §3.2.1.
   const flagsHex = (spanContext.traceFlags & 0xff).toString(16).padStart(2, '0');
   return `00-${spanContext.traceId}-${spanContext.spanId}-${flagsHex}`;
-}
-
-/**
- * Read the active span via the OTel global tracer + format its
- * SpanContext into the traceparent header value. Returns undefined
- * when no span is active (e.g., the call sits outside any tracer
- * scope, or `@vercel/otel` hasn't initialized).
- *
- * The adapter uses this directly in its openapi-fetch middleware:
- *
- *   const tp = currentTraceparent();
- *   if (tp) req.headers.set('traceparent', tp);
- */
-export function currentTraceparent(): string | undefined {
-  const span = trace.getActiveSpan();
-  if (!span) return undefined;
-  const ctx = span.spanContext();
-  // OTel SpanContext.isValid() is the canonical way to check the
-  // context is non-invalid (00000... trace IDs are reserved).
-  if (!isValidSpanContext(ctx.traceId, ctx.spanId)) return undefined;
-  return formatTraceparent(ctx);
 }
 
 /**

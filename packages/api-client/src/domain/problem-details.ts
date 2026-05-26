@@ -41,6 +41,14 @@ export interface ProblemDetails {
   readonly status: number;
   readonly detail: string;
   readonly instance: string | undefined;
+  /**
+   * Quilty-canonical extension promoted to a top-level field. The Rust
+   * backend emits `correlation_id` on every problem+json response (cross-
+   * referenced with the `x-correlation-id` response header) so consumer
+   * code can render it directly without rummaging through `extensions`.
+   * Falls back to undefined when the server didn't emit one.
+   */
+  readonly correlationId: string | undefined;
   readonly extensions: Readonly<Record<string, unknown>>;
   /**
    * Slug derived from `type` URI via the local type-registry. Undefined
@@ -82,10 +90,25 @@ function parseCanonicalShape(body: Record<string, unknown>, httpStatus: number):
   const statusValue = pickNumber(body, 'status') ?? httpStatus;
   const detailValue = pickString(body, 'detail') ?? '';
   const instanceValue = pickString(body, 'instance');
+  // Rust backend emits `correlation_id` at top level (verified against
+  // quilty-aws/lambdas/rust/crates/auth-user/tests/snapshots/*.snap).
+  // Promote to a first-class field on ProblemDetails so consumers can
+  // render the support-reference ID without rummaging through extensions.
+  const correlationIdValue = pickString(body, 'correlation_id');
 
-  // Extensions are every top-level key EXCEPT the five canonical ones.
-  // RFC 9457 §3.2 explicitly allows arbitrary additional members.
-  const canonicalKeys = new Set(['type', 'title', 'status', 'detail', 'instance']);
+  // Extensions are every top-level key EXCEPT the canonical RFC 9457
+  // members AND the Quilty-promoted `correlation_id`. RFC 9457 §3.2
+  // explicitly allows arbitrary additional members; the promoted
+  // `correlation_id` is removed from `extensions` to avoid double-
+  // exposure (the value lives on the top-level field).
+  const canonicalKeys = new Set([
+    'type',
+    'title',
+    'status',
+    'detail',
+    'instance',
+    'correlation_id',
+  ]);
   const extensions: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(body)) {
     if (!canonicalKeys.has(key)) {
@@ -99,6 +122,7 @@ function parseCanonicalShape(body: Record<string, unknown>, httpStatus: number):
     status: statusValue,
     detail: detailValue,
     instance: instanceValue,
+    correlationId: correlationIdValue,
     extensions,
     slug: slugForUri(typeValue),
   };
@@ -138,6 +162,7 @@ function parseWrapperShape(errorObj: Record<string, unknown>, httpStatus: number
     status: httpStatus,
     detail: messageValue,
     instance: undefined,
+    correlationId: undefined,
     extensions,
     slug: knownSlug,
   };
@@ -150,6 +175,7 @@ function synthesizeFallback(httpStatus: number): ProblemDetails {
     status: httpStatus,
     detail: '',
     instance: undefined,
+    correlationId: undefined,
     extensions: {},
     slug: undefined,
   };

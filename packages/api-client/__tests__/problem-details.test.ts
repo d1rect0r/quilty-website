@@ -56,6 +56,30 @@ describe('parseProblemDetails — canonical RFC 9457 shape', () => {
     expect('type' in result.extensions).toBe(false);
     expect('title' in result.extensions).toBe(false);
   });
+
+  it('promotes correlation_id from extensions to top-level field', () => {
+    // Per QA Phase B finding: Rust backend's actual emission shape
+    // (verified against quilty-aws/...auth-user/tests/snapshots/*.snap)
+    // includes a top-level `correlation_id` field. Promoting it to a
+    // first-class field on ProblemDetails lets consumers render
+    // "Support ref: q1m_xyz" without rummaging through extensions.
+    const body = {
+      type: PROBLEM_TYPES.validation,
+      title: 'Validation Failed',
+      status: 400,
+      detail: 'Email invalid',
+      correlation_id: 'q1m_a1b2c3d4',
+    };
+    const result = parseProblemDetails(body, 400);
+    expect(result.correlationId).toBe('q1m_a1b2c3d4');
+    // Promoted out of extensions — no double exposure.
+    expect('correlation_id' in result.extensions).toBe(false);
+  });
+
+  it('emits undefined correlationId when the server did not emit one', () => {
+    const result = parseProblemDetails({ type: PROBLEM_TYPES.validation, status: 400 }, 400);
+    expect(result.correlationId).toBeUndefined();
+  });
 });
 
 describe('parseProblemDetails — Rust-backend wrapper shape', () => {
@@ -146,8 +170,10 @@ describe('retryAfterMsFromProblem + retryableFromProblem', () => {
 });
 
 describe('PROBLEM_TYPES registry', () => {
-  it('declares 11 canonical types', () => {
-    expect(Object.keys(PROBLEM_TYPES)).toHaveLength(11);
+  it('declares 12 canonical types', () => {
+    // 11 originals + 'forbidden' (added Phase B for Rust backend
+    // ERR_FORBIDDEN 403 responses that don't match the 'csrf' shape).
+    expect(Object.keys(PROBLEM_TYPES)).toHaveLength(12);
   });
 
   it('all URIs share the my-quilty.com/problems/v1 prefix', () => {
@@ -160,6 +186,15 @@ describe('PROBLEM_TYPES registry', () => {
     for (const [slug, uri] of Object.entries(PROBLEM_TYPES)) {
       expect(slugForUri(uri)).toBe(slug);
     }
+  });
+
+  it('includes the forbidden slug for Rust-backend ERR_FORBIDDEN 403 responses', () => {
+    // Per QA Phase B enterprise-comparison: Rust emits ERR_FORBIDDEN at
+    // status 403 that does not slug-match `csrf` (csrf is a specific
+    // CSRF-triple-layer failure shape). The `forbidden` slug captures
+    // the general permission-denied case.
+    expect(PROBLEM_TYPES.forbidden).toBe('https://my-quilty.com/problems/v1/forbidden');
+    expect(slugForUri(PROBLEM_TYPES.forbidden)).toBe('forbidden');
   });
 
   it('slugForUri returns undefined for unknown URIs', () => {

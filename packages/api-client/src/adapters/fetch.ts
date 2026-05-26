@@ -30,23 +30,25 @@
 
 import {
   ApiAbortedError,
-  ApiClientError,
   ApiHttpError,
-  ApiNetworkError,
   ApiParseError,
   ApiProblemError,
   ApiRetryBudgetExhaustedError,
-  ApiTimeoutError,
 } from '../errors';
-import {
-  isProblemJsonContentType,
-  parseProblemDetails,
-  retryAfterMsFromProblem,
-} from '../domain/problem-details';
-import { IDEMPOTENCY_KEY_HEADER, isValidIdempotencyKey } from '../domain/idempotency-key';
-import { TRACEPARENT_HEADER, currentTraceparent } from '../domain/traceparent';
+import { retryAfterMsFromProblem } from '../domain/problem-details';
 import { makeDefaultRetryPolicy } from '../domain/retry';
 import { parseRetryAfter } from '../domain/retry';
+import {
+  composeHeaders,
+  composeSignals,
+  composeUrl,
+  extractCorrelationId,
+  headersToRecord,
+  serializeBody,
+  sleep,
+  translateFetchError,
+  translateHttpError,
+} from './fetch-helpers';
 import type { ApiClient, ApiRequest, ApiResponse, CircuitBreaker, RetryPolicy } from '../ports';
 
 export interface FetchApiClientOptions {
@@ -233,7 +235,13 @@ async function runWithRetry<TBody>(
     if (attempt > 0) {
       const serverHint = readServerRetryHint(lastError);
       const delay = serverHint ?? policy.delayMs(attempt);
-      if (delay > 0) await sleep(delay);
+      // Abort-aware sleep: caller's AbortSignal cancels the backoff
+      // immediately rather than letting the timer run to completion.
+      // Without this the Lambda continues sleeping up to `maxDelayMs`
+      // after the user navigates away — billed time + delayed abort
+      // surface. Pass `input.signal` through so the sleep promise
+      // rejects with ApiAbortedError on cancellation.
+      if (delay > 0) await sleep(delay, input.signal);
       // Fire the onRetry callback on attempt ≥ 1. The apps/web layer
       // uses this to surface the sonner toast at attempt ≥ 2 per
       // ADR-0017 Decision I.
@@ -263,198 +271,12 @@ function readServerRetryHint(error: unknown): number | undefined {
     if (fromExtension !== undefined) return fromExtension;
   }
   if (error instanceof ApiHttpError) {
-    // ApiHttpError carries the body but not parsed headers; the
-    // server-side Retry-After is parsed at translate-time and
-    // attached via .cause if needed. Future enhancement: surface
-    // the Retry-After value on the typed error directly.
+    // The Retry-After response header is parsed at translate-time and
+    // attached to ApiHttpError.retryAfterMs. The retry loop reads it
+    // here to honour the server's hint over the exponential schedule.
+    if (error.retryAfterMs !== undefined) return error.retryAfterMs;
   }
   return undefined;
-}
-
-// ---------------------------------------------------------------------------
-// Translation helpers — vendor-error → typed-error union
-// ---------------------------------------------------------------------------
-
-function translateFetchError(err: unknown, timedOut: boolean): ApiClientError {
-  if (timedOut) {
-    return new ApiTimeoutError({ message: 'Request timed out at the client', cause: err });
-  }
-  if (isAbortError(err)) {
-    return new ApiAbortedError({ message: 'Request aborted by caller', cause: err });
-  }
-  if (isNodeNetworkError(err)) {
-    const nodeCode = (err as { code: string }).code;
-    return new ApiNetworkError({
-      message: `Network error: ${nodeCode}`,
-      cause: err,
-    });
-  }
-  if (err instanceof TypeError) {
-    // Browser fetch fires `TypeError: Failed to fetch` on network failures.
-    return new ApiNetworkError({ message: 'Failed to fetch', cause: err });
-  }
-  return new ApiClientError({
-    code: 'network',
-    message: 'Unknown fetch error',
-    cause: err,
-  });
-}
-
-async function translateHttpError(
-  response: Response,
-  responseHeaders: Readonly<Record<string, string>>,
-  correlationId: string | undefined,
-): Promise<ApiClientError> {
-  const contentType = responseHeaders['content-type'] ?? '';
-  if (isProblemJsonContentType(contentType)) {
-    let parsedBody: unknown;
-    try {
-      parsedBody = await response.json();
-    } catch (err) {
-      // problem+json content-type but invalid JSON body → fall back to ApiHttpError.
-      return new ApiHttpError({
-        status: response.status,
-        message: `HTTP ${response.status} with malformed problem+json body`,
-        cause: err,
-        correlationId,
-      });
-    }
-    const problem = parseProblemDetails(parsedBody, response.status);
-    return new ApiProblemError({ problem, correlationId });
-  }
-  let bodyText: string | undefined;
-  try {
-    bodyText = await response.text();
-  } catch {
-    // best-effort; body is optional on the ApiHttpError.
-    bodyText = undefined;
-  }
-  return new ApiHttpError({
-    status: response.status,
-    message: `HTTP ${response.status} ${response.statusText}`,
-    body: bodyText,
-    correlationId,
-  });
-}
-
-function isAbortError(err: unknown): boolean {
-  if (err instanceof DOMException && err.name === 'AbortError') return true;
-  if (typeof err === 'object' && err !== null && 'name' in err && err.name === 'AbortError')
-    return true;
-  return false;
-}
-
-function isNodeNetworkError(err: unknown): boolean {
-  if (typeof err !== 'object' || err === null) return false;
-  if (!('code' in err) || typeof (err as { code: unknown }).code !== 'string') return false;
-  const code = (err as { code: string }).code;
-  return (
-    code === 'ECONNREFUSED' ||
-    code === 'ECONNRESET' ||
-    code === 'ETIMEDOUT' ||
-    code === 'ENOTFOUND' ||
-    code === 'EAI_AGAIN'
-  );
-}
-
-function extractCorrelationId(err: unknown): string | undefined {
-  if (err instanceof ApiClientError) return err.correlationId;
-  return undefined;
-}
-
-// ---------------------------------------------------------------------------
-// Request composition helpers
-// ---------------------------------------------------------------------------
-
-function composeUrl(baseUrl: string, path: string, query: ApiRequest['query']): string {
-  // openapi-fetch convention: baseUrl + path, with leading `/` on path.
-  const normalisedPath = path.startsWith('/') ? path : `/${path}`;
-  const base = `${baseUrl}${normalisedPath}`;
-  if (!query) return base;
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(query)) {
-    if (value === undefined) continue;
-    params.set(key, String(value));
-  }
-  const qs = params.toString();
-  return qs.length > 0 ? `${base}?${qs}` : base;
-}
-
-function composeHeaders(
-  input: ApiRequest,
-  defaultHeaders: Readonly<Record<string, string>>,
-): Headers {
-  const merged: Record<string, string> = { ...defaultHeaders };
-  for (const [key, value] of Object.entries(input.headers ?? {})) {
-    merged[key] = value;
-  }
-  // Idempotency-Key injection — Stripe canon header name.
-  if (input.idempotencyKey !== undefined) {
-    if (!isValidIdempotencyKey(input.idempotencyKey)) {
-      throw new ApiClientError({
-        code: 'parse-error',
-        message: 'Invalid Idempotency-Key (length or character class)',
-      });
-    }
-    merged[IDEMPOTENCY_KEY_HEADER] = input.idempotencyKey;
-  }
-  // W3C traceparent injection — only when an active span is in scope.
-  const traceparent = currentTraceparent();
-  if (traceparent !== undefined && !(TRACEPARENT_HEADER in merged)) {
-    merged[TRACEPARENT_HEADER] = traceparent;
-  }
-  // Content-Type default for JSON bodies (callers can override).
-  if (input.body !== undefined && merged['content-type'] === undefined) {
-    merged['content-type'] = 'application/json';
-  }
-  return new Headers(merged);
-}
-
-function serializeBody(
-  input: ApiRequest,
-): string | FormData | URLSearchParams | Blob | ArrayBuffer | undefined {
-  if (input.body === undefined) return undefined;
-  if (typeof input.body === 'string') return input.body;
-  if (input.body instanceof FormData) return input.body;
-  if (input.body instanceof URLSearchParams) return input.body;
-  if (input.body instanceof Blob) return input.body;
-  if (input.body instanceof ArrayBuffer) return input.body;
-  // Default: JSON-encode objects + arrays.
-  return JSON.stringify(input.body);
-}
-
-function composeSignals(
-  callerSignal: AbortSignal | undefined,
-  timeoutSignal: AbortSignal,
-): AbortSignal {
-  if (!callerSignal) return timeoutSignal;
-  // AbortSignal.any was promoted to MDN Baseline 2024; safe in
-  // Node 24 + Next.js 16 edge + modern browsers.
-  if (typeof AbortSignal !== 'undefined' && 'any' in AbortSignal) {
-    return (AbortSignal as unknown as { any(signals: AbortSignal[]): AbortSignal }).any([
-      callerSignal,
-      timeoutSignal,
-    ]);
-  }
-  // Fallback for older runtimes: forward the caller's abort to a
-  // fresh controller that also honours the timeout.
-  const combined = new AbortController();
-  const forward = () => combined.abort();
-  callerSignal.addEventListener('abort', forward, { once: true });
-  timeoutSignal.addEventListener('abort', forward, { once: true });
-  return combined.signal;
-}
-
-function headersToRecord(headers: Headers): Readonly<Record<string, string>> {
-  const out: Record<string, string> = {};
-  headers.forEach((value, key) => {
-    out[key.toLowerCase()] = value;
-  });
-  return out;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**

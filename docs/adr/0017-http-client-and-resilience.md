@@ -8,7 +8,7 @@
 - **Related decisions:** D5 (BFF pattern via Next.js Route Handlers), D38 (W3C `traceparent` propagation), D52 (web access-token TTL 5min, refresh 8h), D56 (OpenTelemetry-first via `@vercel/otel`), D67 (PHI sanitizer chokepoint at the wrapper-port boundary), D113 (canonical 8-piece form pattern — Idempotency-Key)
 - **Related ADRs:** [ADR-0003](0003-openapi-codegen-direction.md), [ADR-0009](0009-hexagonal-by-boundary.md), [ADR-0010](0010-composition-root.md), [ADR-0011](0011-container-discriminated-union.md), [ADR-0013](0013-phi-scrubber-port.md), [ADR-0014](0014-port-adapter-naming.md), [ADR-0016](0016-dynamodb-data-model-policy.md)
 - **Related research:** M1.6 Wave 1 + Wave 3 enterprise-pattern research (synthesised in `/Users/d1rect0r_interneta/.claude/plans/misty-booping-rocket.md` § findings)
-- **Software versions assumed:** Next.js 16.2, TypeScript 5.7 strict, Node 24, `openapi-typescript` v8.x, `openapi-fetch` v0.17.x, `@tanstack/react-query` v5.90+, `@opentelemetry/api` v1.9+, `@vercel/otel` 2.1.x, `sonner` 2.0.x, React 19
+- **Software versions assumed:** Next.js 16.2, TypeScript 5.7 strict, Node 24, `openapi-typescript` v7.13.x (v7 is the current stable line as of 2026-05; v8 is on roadmap but not released), `@tanstack/react-query` v5.90+, `@opentelemetry/api` v1.9+, `@vercel/otel` 2.1.x, `sonner` 2.0.x, React 19
 
 ## Context
 
@@ -24,12 +24,11 @@ The "do nothing" outcome: every feature reaches for raw `fetch()` with bespoke e
 
 We will ship a new workspace package `@quilty/api-client` that lands ONE typed HTTP-client port + ONE retry-policy port + ONE circuit-breaker port + ONE Problem Details parser, composed at the website's server + edge composition roots.
 
-### Decision A — Codegen + runtime helper
+### Decision A — Codegen tooling
 
-- **Codegen tool:** `openapi-typescript` (types-only, ADR-0003 reaffirmed). CLI: `npx openapi-typescript <spec.yaml> -o <out>.ts`.
-- **Runtime helper:** `openapi-fetch` v0.17.x — the type-safe `createClient<paths>()` companion by the same maintainer. **GOTCHA: `baseUrl` must NOT end with `/`** (concatenation produces double-slash).
-- **Spec sources:** local copy of `quilty-aws/docs/auth/auth_v2_openapi.yaml` + `quilty-aws/docs/api/openapi.yaml` at M1.6; CI-driven publish-shared-types pipeline activates at M5 per ADR-0003.
-- **Future-risk acknowledged:** `openapi-fetch` enters maintenance mode Q2 2026; the port shape isolates this — swapping to a successor library is a one-file adapter change.
+- **Codegen tool:** `openapi-typescript` v7.13.x (types-only, ADR-0003 reaffirmed). CLI: `pnpm exec openapi-typescript <spec.yaml> -o <out>.ts`. v7 is the current stable line as of 2026-05; v8 is on roadmap.
+- **No runtime helper bundled.** The native-fetch adapter at `adapters/fetch.ts` owns the request/response pipeline; `openapi-fetch` was evaluated and dropped (maintenance-mode trajectory + consumers don't need its typed-route wrapper when call sites use the `ApiClient` port). **GOTCHA: `baseUrl` must NOT end with `/`** (path concatenation produces double-slash).
+- **Spec sources:** local copy of `quilty-aws/docs/auth/auth_v2_openapi.yaml` + `quilty-aws/docs/api/openapi.yaml` cached at `packages/shared-types/spec/`; CI-driven publish-shared-types pipeline activates at the codegen-CI trigger per ADR-0003.
 
 ### Decision B — HTTP layer
 
@@ -59,14 +58,14 @@ We will ship a new workspace package `@quilty/api-client` that lands ONE typed H
 
 ### Decision F — Tracing injection
 
-- **W3C `traceparent` + `baggage`** auto-injected on every outbound HTTP call via openapi-fetch middleware (`.use({ onRequest })`).
+- **W3C `traceparent` + `baggage`** auto-injected on every outbound HTTP call inside `composeHeaders()` within the native-fetch adapter (`packages/api-client/src/adapters/fetch-helpers.ts`); the active span is read from `@opentelemetry/api` in the isolated `adapters/otel-traceparent.ts` module (ADR-0014 Rule 5).
 - **Source:** `trace.getActiveSpan()?.spanContext()` from `@opentelemetry/api` — `@vercel/otel` 2.1.x configures W3C-canonical propagators by default per D56.
 - **Composition:** `traceparent: 00-{traceId}-{spanId}-{traceFlags}` per W3C-trace-context spec (`traceFlags` is the lowest bit of `ctx.traceFlags` — `01` if recording, `00` if not).
 - **Baggage** is OPTIONAL per Wave 1 + Wave 2 research; current scope ships traceparent only. Baggage injection lands at the M3+ identity-context propagation trigger (tenant_id / experiment cohort).
 
 ### Decision G — RFC 9457 Problem Details parser
 
-- **Canonical 11-type registry** at `packages/api-client/src/domain/problem-types.ts` with URIs `https://my-quilty.com/problems/v1/<slug>` for the slugs: `validation`, `csrf`, `rate-limit`, `auth-required`, `consent-required`, `session-expired`, `step-up-required`, `not-found`, `service-unavailable`, `idempotency-key-conflict`, `precondition-failed`.
+- **Canonical 12-type registry** at `packages/api-client/src/domain/problem-types.ts` with URIs `https://my-quilty.com/problems/v1/<slug>` for the slugs: `validation`, `csrf`, `rate-limit`, `auth-required`, `forbidden`, `consent-required`, `session-expired`, `step-up-required`, `not-found`, `service-unavailable`, `idempotency-key-conflict`, `precondition-failed`. The `forbidden` slug covers Rust-backend `ERR_FORBIDDEN` 403 responses that do not align with `csrf` semantics.
 - **Parser** handles two shapes: canonical RFC 9457 (`{ type, title, status, detail, instance, extensions }`) AND the Rust backend's `application/problem+json` content type (which per W3.A8 should match canonical but the parser tolerates wrapper-shape drift).
 - **Instance field**: request-id style (`q1m_<crockford-base32>`); minted by `apps/web/lib/correlation-id.ts` (existing).
 - **Pre-cache** the type registry as a build-time `apps/web/lib/problems-catalog.json` — no runtime fetch at error time (Wave 2 recommendation).
@@ -143,7 +142,10 @@ We will ship a new workspace package `@quilty/api-client` that lands ONE typed H
 
 - `packages/api-client/__tests__/` covers each domain helper (retry / problem-details / idempotency-key / traceparent) + the in-memory adapter contract test.
 - `pnpm verify` runs the new package's typecheck + tests + lint as part of `turbo run` recursion. The new workspace count is 12 (was 11 after A.5).
-- ESLint `no-restricted-imports` rule extended to allowlist `@tanstack/react-query` + `openapi-fetch` + `sonner` only inside `packages/api-client/src/adapters/<vendor>.ts` + `apps/web/components/app/*` (per ADR-0014 Rule 5).
+- Vendor SDK imports per ADR-0014 Rule 5 — vendor-name allowlist locations:
+  - `@opentelemetry/api`: only `packages/api-client/src/adapters/otel-traceparent.ts` (the vendor adapter; the pure W3C formatters in `domain/traceparent.ts` are vendor-free).
+  - `@tanstack/react-query`: `apps/web/lib/query-client.ts` (the factory adapter for the Next.js 16 hydration pattern) and `apps/web/components/app/Providers.tsx` (the provider mount).
+  - `sonner`: `apps/web/lib/toast.ts` (typed app-tier wrapper) and `apps/web/components/app/ToastProvider.tsx` (the mount). The shadcn-canonical primitive at `apps/web/components/ui/sonner.tsx` is a future addition once the shadcn CLI cache clears; until then the wrapper imports `sonner` directly. ESLint allowlist is NOT yet enforced as a `no-restricted-imports` rule (these vendors aren't on the project's ban list); the architectural rule is documented here so future ESLint extension matches the intent.
 - Contract test for the circuit-breaker no-op adapter asserts it's always-closed + never opens (smoke test for the future opossum-swap correctness).
 - The shadcn-installed `apps/web/components/ui/sonner.tsx` is the unedited primitive (guard-write.sh enforces D18 wrap-don't-edit).
 

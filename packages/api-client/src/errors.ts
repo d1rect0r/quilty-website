@@ -47,8 +47,26 @@ export type ApiClientErrorCode =
   | 'http-error'
   | 'problem-details'
   | 'parse-error'
+  | 'request-error'
   | 'circuit-open'
   | 'retry-budget-exhausted';
+
+/**
+ * Request-construction error — caller-supplied input failed validation
+ * BEFORE the fetch fired (e.g., malformed Idempotency-Key). Distinct
+ * from `parse-error` (which is response-body-side) so consumer error-
+ * code switches branch correctly. Never retried — fix the call site.
+ */
+export class ApiRequestError extends ApiClientError {
+  constructor(args: {
+    message: string;
+    cause?: unknown | undefined;
+    correlationId?: string | undefined;
+  }) {
+    super({ code: 'request-error', ...args });
+    this.name = 'ApiRequestError';
+  }
+}
 
 /**
  * Transient network error — DNS failure, TCP reset, connection refused.
@@ -106,11 +124,19 @@ export class ApiAbortedError extends ApiClientError {
 export class ApiHttpError extends ApiClientError {
   readonly status: number;
   readonly body: string | undefined;
+  /**
+   * Server-supplied retry hint (ms to wait) parsed from the `Retry-After`
+   * response header per RFC 7231 §7.1.3. Undefined when the header is
+   * absent or malformed. The retry loop honours this value over the
+   * exponential-backoff schedule when present (Decision C in ADR-0017).
+   */
+  readonly retryAfterMs: number | undefined;
 
   constructor(args: {
     status: number;
     message: string;
     body?: string | undefined;
+    retryAfterMs?: number | undefined;
     cause?: unknown | undefined;
     correlationId?: string | undefined;
   }) {
@@ -123,6 +149,7 @@ export class ApiHttpError extends ApiClientError {
     this.name = 'ApiHttpError';
     this.status = args.status;
     this.body = args.body;
+    this.retryAfterMs = args.retryAfterMs;
   }
 }
 
