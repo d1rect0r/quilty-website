@@ -59,6 +59,42 @@ new Linear project key is in use, append it as a separate
 
 ---
 
+## What the gate intentionally allows (permanent doc references)
+
+The patterns above ban ephemeral workflow context. The complement
+— **permanent documentation references** — is blessed by design
+and will never appear in `meta-policy.json` `patterns[]`. These
+identifiers map to versioned artifacts that ship with the
+codebase and remain meaningful years after the source line was
+written:
+
+| Reference kind            | Example matches                                                   | Where it lives                        |
+| ------------------------- | ----------------------------------------------------------------- | ------------------------------------- |
+| D-number                  | `D1`, `D42b`, `D67`, `D148`, `D195`                               | `docs/website_strategy_discussion.md` |
+| ADR identifier            | `ADR-0001`, `ADR-0014`                                            | `docs/adr/`                           |
+| META convention           | `META-1`, `META-2`, `META-5`                                      | `docs/website_strategy_discussion.md` |
+| RFC                       | `RFC 7725`, `RFC 9116`, `RFC 9457`                                | IETF (external; stable URL)           |
+| WCAG success criterion    | `WCAG 1.4.3`, `WCAG 2.5.5`, `WCAG 4.1.3`                          | W3C (external; stable URL)            |
+| CVE                       | `CVE-2025-29927`                                                  | NVD (external; stable URL)            |
+| HIPAA citation            | `HIPAA §164.404`, `§164.530(j)`                                   | 45 CFR Part 164                       |
+| GDPR / privacy citation   | `GDPR Article 17`, `CCPA §7025(c)(6)`, `WA MHMDA §RCW 19.373.020` | EU / state law (external; stable URL) |
+| FTC enforcement reference | `FTC §5`                                                          | 15 USC §45                            |
+
+Why this category is structurally different from workflow context:
+each kind above either ships with the codebase (D-numbers, ADRs,
+META conventions) or has a stable external URL (RFC, WCAG, CVE,
+statutes). A 2027 reader who encounters `D67` in source can open
+`docs/website_strategy_discussion.md` and find the decision; a
+2027 reader who encounters `Wave 4 close-pass` has no recovery
+path. That's the test for inclusion.
+
+Adding a new permanent reference kind is a docs-only change
+(append to the table above + cite in the binding ADR); no
+`meta-policy.json` edit is needed because the gate already
+ignores everything it does not explicitly ban.
+
+---
+
 ## Scopes — what gets scanned
 
 `scripts/meta-policy.json` `scopes.directories` enumerates the

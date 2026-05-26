@@ -34,8 +34,7 @@
         "react-dom",
         "/^@sentry//",
         "/^@vercel/otel$/",
-        "posthog-js",
-        "posthog-node",
+        "/^@amplitude//",
         "/^sst$/"
       ],
       "groupName": "framework + runtime + observability",

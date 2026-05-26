@@ -23,7 +23,7 @@ The raw vendor adapter must **never** appear as a Container property. ESLint + d
 | `ErrorReporter`        | `sentry-error-reporter` + in-memory | Isomorphic — `captureException` is the named import path that Next.js resolves to the right SDK (client / server / edge) in each subtree.                          |
 | `Logger`               | `cloudwatch-logger` + in-memory     | Structured JSON. `console.log` is the underlying writer (Lambda forwards to CloudWatch). ESLint bans direct console outside this adapter.                          |
 | `Replay`               | `sentry-replay` + in-memory         | Error-triggered only per D68. `replaysSessionSampleRate: 0`; the wrapper rejects any config that tries to raise it. Amplitude Session Replay is rejected outright. |
-| `FeatureFlagEvaluator` | `env-flags` + in-memory             | Reads typed env vars from `apps/web/lib/flags/features.ts`. The PostHog flags swap lands at the runtime-toggle trigger (D43).                                      |
+| `FeatureFlagEvaluator` | `env-flags` + in-memory             | Reads typed env vars from `apps/web/lib/flags/features.ts`. The runtime-toggle adapter activates at the trigger point per D43.                                     |
 
 ## Consent gate primitive
 

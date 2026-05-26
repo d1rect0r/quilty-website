@@ -153,8 +153,9 @@ export interface Replay {
 /**
  * FeatureFlagEvaluator port. The flag-name parameter is intentionally
  * generic — consumers narrow against their own `FeatureFlags` type at the
- * call site. The env-var adapter reads from typed env vars; the PostHog
- * adapter at the trigger point swaps in without changing the signature.
+ * call site. The env-var adapter reads from typed env vars; the
+ * runtime-toggle adapter at the trigger point swaps in without changing
+ * the signature.
  *
  * LaunchDarkly Oct 2025 outage lesson: every flag has a safe-by-default
  * value at the call site. If the underlying vendor is unreachable, the

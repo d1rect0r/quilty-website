@@ -196,11 +196,11 @@ function defineSiteResources(stage: string) {
           }
         : undefined, // preview-pr-* stages use the raw CloudFront URL
     environment: {
-      // For preview stages, NEXT_PUBLIC_SITE_URL is derived from the
-      // SST-emitted `site.url` (the raw CloudFront domain) — fixes the
-      // phantom *.preview.my-quilty.com URL flagged in Round-5 IaC
-      // reviewer M3 (no wildcard DNS record exists for that pattern).
-      NEXT_PUBLIC_SITE_URL: stage === 'dev' ? 'https://my-quilty.com' : ($site?.url ?? ''),
+      // Preview stages get '' here — the resource's own `url` Output cannot
+      // be referenced inside its own constructor args. Runtime falls back
+      // to localhost; wildcard preview custom domain is the proper fix
+      // (see docs/runbook/sst-deploy.md).
+      NEXT_PUBLIC_SITE_URL: stage === 'dev' ? 'https://my-quilty.com' : '',
       NEXT_PUBLIC_SENTRY_DSN: sentryDsn,
       // Server-only — never expose to the client bundle. The Next.js
       // build replaces unprefixed env vars with undefined in browser
@@ -300,14 +300,6 @@ function defineSiteResources(stage: string) {
     distributionId: site.nodes.cdn.id,
   };
 }
-
-// Forward reference helper for the NEXT_PUBLIC_SITE_URL fallback above —
-// SST's `site.url` is a Pulumi Output; we cannot reference it inside the
-// same `Nextjs` constructor argument that produces it. Replace this with
-// the actual ref once SST exposes `$resolve`-style late binding, or
-// migrate preview stages to a wildcard custom domain (see Phase 1
-// checklist in docs/runbook/sst-deploy.md).
-declare const $site: { url: string } | undefined;
 
 export default $config({
   app(input) {

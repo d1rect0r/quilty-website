@@ -82,10 +82,9 @@ const SUB_PROCESSORS: readonly SubProcessor[] = [
     baaStatus: 'Required before use',
   },
   {
-    name: 'PostHog',
-    dataProcessed:
-      'Event-level product analytics, feature-flag evaluations, session replays (mask-all by default)',
-    purpose: 'Web analytics + feature flags + experiments + replay',
+    name: 'Amplitude',
+    dataProcessed: 'Event-level product analytics, feature-flag + experiment evaluations',
+    purpose: 'Web + mobile analytics, feature flags, experiments',
     country: 'United States',
     baaStatus: 'Required before use',
   },

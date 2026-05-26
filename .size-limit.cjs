@@ -10,9 +10,9 @@
  *   - Gzip                                  ~200 KB
  *   - Brotli                                ~165 KB
  *
- * Initial budgets are 30% above baseline — room for M2 content but
- * tight enough that adding @posthog/posthog-js or @next/script bloat
- * trips a CI failure. Ratchet down as M2 lands real content.
+ * Initial budgets are 30% above baseline — room for new content but
+ * tight enough that adding a heavyweight client-side SDK or @next/script
+ * bloat trips a CI failure. Ratchet down as real content lands.
  *
  * Run: `pnpm size`
  * CI:  fail-on-exceeded via the GitHub Actions job in ci.yml.

@@ -63,7 +63,8 @@ describe('isSensitiveKey', () => {
   });
 
   it('catches the canonical analytics identifier fields', () => {
-    // Amplitude / Segment / PostHog all ship these field names by default.
+    // Industry-canonical analytics SDK identifier fields — every major
+    // vendor ships at least one of these by default.
     expect(isSensitiveKey('user_id')).toBe(true);
     expect(isSensitiveKey('userId')).toBe(true);
     expect(isSensitiveKey('distinct_id')).toBe(true);

@@ -13,7 +13,7 @@ import { makeServerContainer } from '@/composition.server';
  *   - Cognito app client (confidential, per U7) provisioned in
  *     `quilty-aws/auth/`
  *   - DynamoDB session table provisioned
- *   - PostHog/Sentry adapters wired
+ *   - Analytics + error-reporting adapters wired
  *
  * Pre-implementation, the handler also wires the
  * `ConsentStore.migrate(cookie → user)` call so when the real token

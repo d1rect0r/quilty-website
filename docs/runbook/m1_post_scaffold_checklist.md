@@ -98,10 +98,9 @@ SENTRY_PROJECT=
 SENTRY_INGEST_HOST=https://*.ingest.us.sentry.io
 SENTRY_CSP_REPORT_URI=
 
-# ── PostHog (D42b) — activated at M3 with consent ──────────────────
-NEXT_PUBLIC_POSTHOG_KEY=
-NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
-POSTHOG_PROJECT_API_KEY=
+# ── Amplitude (D42b, pivot 2026-05-19) — activated with consent ────
+NEXT_PUBLIC_AMPLITUDE_API_KEY=
+AMPLITUDE_SERVER_API_KEY=
 
 # ── Cognito (D6) — wired in M6 ─────────────────────────────────────
 COGNITO_USER_POOL_ID=
@@ -113,7 +112,7 @@ COGNITO_DOMAIN=https://auth.my-quilty.com
 # ── Feature flags (D43) ────────────────────────────────────────────
 FEATURE_FLAG_NEW_HOMEPAGE_HERO=false
 FEATURE_FLAG_EXPERIMENTAL_SUBSCRIPTION=false
-FEATURE_FLAG_POSTHOG_CLIENT_ENABLED=false
+FEATURE_FLAG_ANALYTICS_CLIENT_ENABLED=false
 FEATURE_FLAG_SENTRY_REPLAY_BOOST=false
 
 # ── Security (D58 + D60) ───────────────────────────────────────────
@@ -198,9 +197,10 @@ can deploy meaningfully:
 - [ ] Sentry organization + project created → DSN populated
 - [ ] Sentry BAA signed (Business tier; verify before sending any
       replay data per D42a)
-- [ ] PostHog Cloud organization + Boost add-on activated → DSN
-      populated (activates at M3 with ConsentState)
-- [ ] PostHog BAA signed
+- [ ] Amplitude project provisioned (web + mobile) → API key
+      populated (activates with ConsentState per D42b)
+- [ ] Amplitude Enterprise BAA signed (pre-launch upgrade per the
+      2026-05-19 pivot posture)
 - [ ] GitHub Packages npm registry token scoped to read
       `@quilty/api-types` (when OpenAPI codegen activates at M5)
 - [ ] Cloudflare Turnstile site key/secret (M6 auth signup form)

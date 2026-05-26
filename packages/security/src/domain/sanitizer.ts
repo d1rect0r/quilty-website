@@ -89,11 +89,12 @@ const PHI_KEY_DENYLIST: ReadonlySet<string> = new Set([
   'social_security_number',
   'taxid',
   'tax_id',
-  // Medical + user identifiers. `user_id` + variants are the canonical
-  // analytics-SDK fields (Amplitude `user_id`, PostHog `distinct_id`,
-  // Segment `userId`) — a clinical event joined to a bare user identifier
-  // is a HIPAA link field per §164.514(b)(2)(R). The camelCase normalizer
-  // catches `userId`/`patientID`/`memberID` variants automatically.
+  // Medical + user identifiers. `user_id` + variants (`distinct_id`,
+  // `userId`) are the canonical analytics-SDK identifier fields across
+  // the industry — a clinical event joined to a bare user identifier
+  // is a HIPAA link field per §164.514(b)(2)(R). The camelCase
+  // normalizer catches `userId`/`patientID`/`memberID` variants
+  // automatically.
   'mrn',
   'medical_record_number',
   'patient_id',

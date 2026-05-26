@@ -1,5 +1,5 @@
 {
-  "$comment": "META-2 source-comment hygiene policy. Loaded by scripts/check-no-workflow-context.mjs at runtime. Adding a new pattern: append to `patterns[]` + update docs/runbook/meta-2-enforcement.md + reference the binding D-number / META-N. Each pattern has: rule (kebab-case identifier), regex (string, will be `new RegExp(value, flags)`), flags (string, typically 'i' for case-insensitive), message (one-line fix guidance).",
+  "$comment": "META-2 source-comment hygiene policy. Loaded by scripts/check-no-workflow-context.mjs at runtime. Adding a new pattern: append to `patterns[]` + update docs/runbook/meta-2-enforcement.md + reference the binding D-number / META-N. Each pattern has: rule (kebab-case identifier), regex (string, will be `new RegExp(value, flags)`), flags (string, typically 'i' for case-insensitive), message (one-line fix guidance). Permanent documentation references (D-numbers, ADR-NNNN, RFC, WCAG SC, CVE, HIPAA §, GDPR Article, FTC §) are blessed by design — they will never appear in `patterns[]` because they map to versioned project artifacts that ship with the code and remain meaningful over time. See docs/runbook/meta-2-enforcement.md § 'What the gate intentionally allows' for the full allowlist.",
   "policy_version": 1,
   "scopes": {
     "directories": [
