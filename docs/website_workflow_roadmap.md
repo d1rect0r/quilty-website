@@ -234,14 +234,14 @@ Pace: scope → direction → scaffold → small features → integrate auth →
 
 **Decision gate before M3:** axe-core passes on all 7 pages. Lighthouse scores ≥90 across the board on /. Apple/Google submission becomes viable from this point.
 
-### M3 — Identity discovery (voice + visual)
+### M3 — Identity discovery + entity formation (voice + visual + legal)
 
-**Goal:** Site looks and sounds like Quilty, not like default shadcn.
+**Goal:** Site looks and sounds like Quilty, not like default shadcn. Legal entity in place so subscription contracts can be signed in the company name.
 
 **Effort:** 1-2 weeks of iteration
 **Drive:** User-driven (you experiment in Claude Design / mockup tools) + Mixed (I implement)
 
-**Deliverables:**
+**Deliverables (visual + voice):**
 
 - 3-5 homepage hero copy variants explored
 - 2-3 visual directions (color palette, typography, density)
@@ -253,7 +253,14 @@ Pace: scope → direction → scaffold → small features → integrate auth →
 - Updated metadata + Open Graph images
 - Brand guideline doc (`docs/brand_guidelines.md` — minimal, just enough to maintain consistency)
 
-**Decision gate before M4:** voice + visual feel "right." This is judgment, not metric.
+**Deliverables (entity + legal — Round 6 Wave 6 promotion):**
+
+- USPTO trademark filing for "Quilty" name + logo (manual user action; brand identity must lock before filing)
+- Delaware C-Corp formation (manual user action; gates on initial revenue planning + lawyer review of the cap table)
+- Customer.io activation (transactional + drip email — BAA-eligible; replaces ad-hoc SES drip post-launch)
+- Sub-processor email-list mailbox `subprocessors@my-quilty.com` activated (D102 + D118)
+
+**Decision gate before M4:** voice + visual feel "right." This is judgment, not metric. USPTO filing receipt in hand. Delaware C-Corp formation complete (entity number assigned). Customer.io activation is non-blocking — drip + transactional copy can ship after M4 starts; BAA + sending-domain warmup are the gate items, not the campaign content.
 
 ### M4 — Marketing pages
 
@@ -356,10 +363,13 @@ Pace: scope → direction → scaffold → small features → integrate auth →
 
 - Stripe full activation done (M8 has the website checklist) — chicken-and-egg, so M7 starts in test mode
 - BAA with Stripe signed (if processing health-related data; consult lawyer)
+- Sign in with Apple integration ready (Cognito IdP federation; D6 Managed Login supports SiwA natively)
 
 **Deliverables:**
 
 - Stripe Customer Portal embed with deep links to subscription/payment/cancellation
+- Stripe + Apple Pay (Payment Request API; Stripe.js handles the wallet integration; replaces a separate RevenueCat IAP dependency for web checkout per Round 6 mobile-stack reconnaissance — mobile retains StoreKit/Play Billing direct, no RevenueCat wrapper)
+- Sign in with Apple (federated IdP via Cognito Managed Login per D6; required by App Store §4.8 if any other third-party identity provider is offered — passkeys + Google + SiwA are the M7 federation set)
 - IAP-aware routing: detect Apple/Google subscribers, route to App Store / Play settings with explicit copy
 - HSA/FSA invoice download
 - Plan-switch flow (monthly ↔ annual with proration)
@@ -395,8 +405,12 @@ Pace: scope → direction → scaffold → small features → integrate auth →
 - Stripe full activation: complete the website checklist (16 items in `research/regulatory_requirements.md`)
 - Auto-renewal + trial terms disclosure
 - Breach notice template at `/security/notices/` (soft requirement until needed)
+- **CSP enforce-flip from report-only to enforce** (Round 6 promotion — pre-requisite: 14 days of zero first-party violations in the Sentry CSP sink per D32 + D61 + the post-sprint checklist gate)
+- **HSTS preload submission to hstspreload.org** (Round 6 promotion — pre-requisite: M8 launch deploy + 30-day clean window at `max-age` target value with `includeSubDomains` per D60 + `docs/runbook/hsts-preload-gate.md`)
+- Sentry Business BAA countersigned + Sentry Replay activation (Round 6 promotion — gate-condition for moving from error-triggered only to consent-gated normal-sampling; per `docs/runbook/m1.5-post-sprint-checklist.md` item 5)
+- Mobile-coordinated apex-domain migration (Round 6 promotion — `support@my-quilty.app` → `support@my-quilty.com` per D45; coordinated Flutter release shipping the AASA/assetlinks manifest update for `my-quilty.com` deep-link claims)
 
-**Decision gate before launch:** lawyer signs off on privacy + terms + NPP. Stripe full activation granted. Apple Dev org enrollment complete. SES production access granted (likely landed by M2-M3, but verify). EAA-readiness audit complete if launching in EU.
+**Decision gate before launch:** lawyer signs off on privacy + terms + NPP. Stripe full activation granted. Apple Dev org enrollment complete. SES production access granted (likely landed by M2-M3, but verify). EAA-readiness audit complete if launching in EU. CSP enforce-flip + HSTS preload submission complete (the two one-way doors in the security-header stack). Sentry Business BAA countersigned (gates Replay normal-sampling activation).
 
 ### M9+ — Iterate (post-launch, ongoing)
 
@@ -408,7 +422,7 @@ Pace: scope → direction → scaffold → small features → integrate auth →
 
 - Hosted help center migration (Zendesk or Intercom at `help.my-quilty.com`)
 - Blog (if/when content marketing matters)
-- A/B testing infrastructure (PostHog Experiments — same platform as analytics + flags per D42b/D43 _Round-5 revised_)
+- A/B testing infrastructure (Amplitude Experiment — same vendor as analytics per D42b/D43 _Amplitude pivot 2026-05-19_)
 - SEO investment + content marketing
 - More marketing pages
 - Performance tuning (cold start, INP, LCP optimization)
@@ -416,7 +430,10 @@ Pace: scope → direction → scaffold → small features → integrate auth →
 - Headless CMS migration (when content volume + non-engineering authors justify)
 - Sitewide search (Pagefind → Algolia trigger)
 - Advanced analytics dashboards
-- PostHog analytics activation (when traffic + ConsentState shipped per D42b _Round-5 revised — was Amplitude_; mobile retains Amplitude separately)
+- Amplitude analytics activation (when traffic + ConsentState shipped per D42b _Amplitude pivot 2026-05-19_; shared SDK + data platform across web + mobile)
+- **SOC 2 Type II readiness** (Round 6 promotion — post-launch ~12 months; gates on first SaaS B2B contract requesting SOC 2 attestation OR pre-Series-A diligence trigger; Drata/Vanta as the post-2024 enterprise compliance-automation canon)
+- **Status page activation** (Round 6 promotion — Instatus Pro on `status.my-quilty.com`; gates on first paying customer OR first published uptime SLA OR 100 active users per `docs/runbook/m1.5-post-sprint-checklist.md` item 10)
+- **Service Worker activation** (Round 6 promotion — PWA install becomes a growth lever post-launch; gates on first measurable install-conversion intent; Workbox is the canonical 2026 PWA toolkit)
 
 ---
 
@@ -438,14 +455,14 @@ Pace: scope → direction → scaffold → small features → integrate auth →
 - Visual regression (Percy / Chromatic — TBD, additive)
 - Performance budgets enforced in CI (Lighthouse CI)
 
-### Observability (Sentry from M1, PostHog pre-launch — _Round-5 revised_)
+### Observability (Sentry from M1, Amplitude pre-launch — _Amplitude pivot 2026-05-19_)
 
 - Sentry: errors + RUM + error-triggered replay (mask-all default per D40/D68)
 - `web-vitals` → OTel histograms → Sentry (D56 OpenTelemetry-first via `@vercel/otel`)
 - Server-side logging to CloudWatch + PHI sanitizer + structured JSON (D42d/D67)
 - W3C `traceparent`/`baggage` propagation wired in M1 (D38/D56); end-to-end across Rust at M6
-- **PostHog Cloud Boost** activated post-ConsentState (M3) for analytics + consent-gated replay + flags + experiments (D42b _was Amplitude_)
-- Mobile retains Amplitude (separate contract, cross-platform identity reconciled via shared `user_id` from Rust backend)
+- **Amplitude** activated post-ConsentState (M3) for analytics; Amplitude Experiment at the flag-trigger point (D42b/D43 _Amplitude pivot 2026-05-19_; web + mobile share the same SDK + data platform)
+- Sentry Replay only for session replay per D68 (error-triggered, `replaysSessionSampleRate: 0`, mask-all + block-class on clinical controls); **Amplitude Session Replay is explicitly REJECTED** per Round-5 attribute-leak finding
 
 ### Security
 
@@ -505,7 +522,7 @@ To land before public launch:
 ### Legal / Compliance
 
 - [ ] Lawyer sign-off on Privacy Policy + ToS + NPP + Refund Policy
-- [ ] BAA with relevant vendors (Stripe if applicable, **PostHog Cloud Boost** for web, Sentry Business tier, Amplitude for mobile only)
+- [ ] BAA with relevant vendors (Stripe if applicable, **Amplitude Enterprise** for analytics web + mobile per the 2026-05-19 pivot, Sentry Business tier)
 - [ ] Cookie consent flow tested across EU + CA traffic
 - [ ] GPC honoring verified
 - [ ] Accessibility manual audit complete (TPGi or Deque)
@@ -530,7 +547,7 @@ To land before public launch:
 - [ ] All portal screens have real data flows
 - [ ] Subscription end-to-end tested in test mode
 - [ ] Sentry replay masking verified on all PII-bearing screens
-- [ ] PostHog (web) event taxonomy defined + instrumented for launch funnels; Amplitude (mobile) taxonomy aligned on shared `user_id`
+- [ ] Amplitude event taxonomy defined + instrumented for launch funnels (web + mobile share the same `user_id` from the Rust backend per the 2026-05-19 pivot)
 
 ---
 
@@ -579,88 +596,88 @@ User flagged: "we need to strategize before we automate and etc so we don't make
 
 Full text in `website_strategy_discussion.md`. This is the one-line summary for quick recall. Round-5 revisions marked with **R5**.
 
-| #           | Decision            | One-line summary                                                                                                                                                                                   |
-| ----------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1          | Framework           | Next.js 16 App Router + TypeScript                                                                                                                                                                 |
-| D2 **R5**   | Deploy              | **SST 4.x (Ion + Pulumi + OpenNext) on AWS, pinned `^4.14`**                                                                                                                                       |
-| D3          | App layout          | Single Next.js app for marketing + `/account/*` portal                                                                                                                                             |
-| D4          | Monorepo            | Turborepo + pnpm; apps/web + packages/shared-types _(per D69, no packages/ui at M1)_                                                                                                               |
-| D5          | BFF                 | Next.js Route Handlers (TS Lambda) — Option A locked                                                                                                                                               |
-| D6 **R5**   | Auth boundary       | **Cognito Managed Login** (Nov 2024 redesign — supersedes classic Hosted UI) at auth.my-quilty.com                                                                                                 |
-| D7          | Cookie scope        | `__Host-` prefix, per-subdomain (NOT parent-domain shared)                                                                                                                                         |
-| D8          | SameSite            | Lax                                                                                                                                                                                                |
-| D9 **R5**   | Logout              | **Cognito-native** front-channel `/logout` + `AdminUserGlobalSignOut` + BFF opaque session-ID + EventBridge fan-out (Cognito does NOT support OIDC BCL or emit `sid`)                              |
-| D10         | CSRF                | Signed double-submit + custom header                                                                                                                                                               |
-| D11 **R5**  | Mobile-web          | Independent sessions joined by `cognito_sub` + locally-minted `quilty_sid` + EventBridge revocation                                                                                                |
-| D12         | Domain              | my-quilty.com same-origin marketing + portal; subdomains carved out                                                                                                                                |
-| D13         | URL                 | trailingSlash: false                                                                                                                                                                               |
-| D14         | Locale              | `/[locale]/` route segment reserved, EN-only at launch                                                                                                                                             |
-| D15         | Permalinks          | /blog/<slug>, /account/\*                                                                                                                                                                          |
-| D16         | Redirects           | Versioned artifact in next.config.js                                                                                                                                                               |
-| D17 **R5**  | Styling             | **Tailwind v4 CSS-first `@theme` in globals.css (no `tailwind.config.ts`)** + 3-layer tokens                                                                                                       |
-| D18         | Components          | shadcn in components/ui/ + wrap-don't-edit                                                                                                                                                         |
-| D19         | Icons               | Lucide                                                                                                                                                                                             |
-| D20         | Theme               | Dark-mode-ready CSS variables (ship later)                                                                                                                                                         |
-| D21         | Perf                | next/font + next/image discipline                                                                                                                                                                  |
-| D22         | A11y                | axe-core in CI + jsx-a11y ESLint                                                                                                                                                                   |
-| D23         | WCAG                | 2.2 AA target                                                                                                                                                                                      |
-| D24         | Content             | Pages as typed block arrays                                                                                                                                                                        |
-| D25         | i18n                | next-intl                                                                                                                                                                                          |
-| D26         | Metadata            | metadataBase + canonical (self-ref `'./'`) + sitemap.ts + robots.ts                                                                                                                                |
-| D27 **R5**  | Schema              | Organization + SoftwareApplication + WebSite + BreadcrumbList (SERP); MedicalWebPage on /science + FAQPage for AI-overview citations only (Google retired FAQPage rich-result 2026-05-07)          |
-| D28         | RUM                 | INP/LCP/CLS tracking from day one                                                                                                                                                                  |
-| D29         | Blocks              | Hero + ValueProp + FeatureGrid + FAQ + TestimonialQuote + CTABanner                                                                                                                                |
-| D30         | CMS                 | MDX in repo (Velite + Zod per D64) → migrate to Sanity Enterprise at trigger                                                                                                                       |
-| D31         | PHI                 | Zero-PHI website                                                                                                                                                                                   |
-| D32         | CSP                 | Nonce + strict-dynamic (two-tier per D59)                                                                                                                                                          |
-| D33         | Headers             | HSTS preload + frame-ancestors + Permissions-Policy default-deny _(extended by D58)_                                                                                                               |
-| D34 **R5**  | SRI                 | **First-party `_next/static/*` only; Stripe.js + analytics rely on nonce + strict-dynamic + CSP reporting (PCI DSS 4.0 §11.6.1 compensating control). Stripe explicitly publishes no SRI hashes.** |
-| D35         | Consent             | Server-side ConsentState + GPC honoring + SDK-load-gated                                                                                                                                           |
-| D36         | SBOM                | CycloneDX in CI + lockfile pinning + Renovate (with 72h minimumReleaseAge) — Renovate replaces Dependabot per Round-5 audit                                                                        |
-| D37         | WAF                 | CloudFront managed rules + Turnstile on auth/signup                                                                                                                                                |
-| D38         | Tracing             | W3C traceparent → x_trace_id propagation (OTel-first per D56)                                                                                                                                      |
-| D39         | Audit               | Web hits same /v1/\* endpoints with `channel:"web"` tag                                                                                                                                            |
-| D40         | Replay              | Session replay mask-all default (concrete vendor pick D68)                                                                                                                                         |
-| D41         | Flags               | Server-side eval with local cache                                                                                                                                                                  |
-| D42a        | Errors+RUM          | Sentry Business tier day-one + `logError()` adapter                                                                                                                                                |
-| D42b **R5** | Web analytics       | **PostHog Cloud Boost** ($250/mo, one BAA) for analytics + replay + flags + experiments. Mobile keeps Amplitude separately.                                                                        |
-| D42c **R5** | Replay              | **Resolved by D68** — Sentry replay error-triggered + PostHog replay consent-gated                                                                                                                 |
-| D42d        | Server logs         | CloudWatch + structured JSON + PHI sanitizer (D67)                                                                                                                                                 |
-| D43 **R5**  | Flag tool           | Typed env-var `features.ts` day-one → **PostHog flags at trigger** (zero new infra; was GrowthBook)                                                                                                |
-| D44         | Subscription        | Stripe + Stripe Customer Portal + RevenueCat for IAP (config TBD M7)                                                                                                                               |
-| D45         | Public domain       | my-quilty.com (NOT .app)                                                                                                                                                                           |
-| D46         | Repo                | Rebuilt quilty-website monorepo, separate from quilty-aws                                                                                                                                          |
-| D47         | Phase 0 account     | Existing `development` account ($0 incremental)                                                                                                                                                    |
-| D48         | Backend lang        | Permanently Rust (TS Track A closed)                                                                                                                                                               |
-| D49         | Other restructuring | All deferred to Phase 1+ triggers (D69 overrides for `packages/ui`)                                                                                                                                |
-| **D50**     | Cognito tier        | Essentials at M1; Plus at M6 (passkeys + adaptive auth)                                                                                                                                            |
-| **D51**     | Session store       | Opaque session-ID cookie + DynamoDB store (NOT iron-session sealed cookie)                                                                                                                         |
-| **D52**     | Token TTLs          | Access 5 min; refresh 8h; rotation via `GetTokensFromRefreshToken`                                                                                                                                 |
-| **D53**     | CSRF triple         | Origin/Referer + signed double-submit + `X-Quilty-CSRF` header                                                                                                                                     |
-| **D54**     | Step-up auth        | `prompt=login` + server `elevated_until` (5-min window)                                                                                                                                            |
-| **D55**     | Backup codes        | In-app (Argon2id + DynamoDB), not in Cognito                                                                                                                                                       |
-| **D56**     | OTel-first          | `@vercel/otel` + W3C tracecontext+baggage propagators day-one                                                                                                                                      |
-| **D57**     | Trusted Types       | `require-trusted-types-for 'script'` report-only at M1                                                                                                                                             |
-| **D58**     | Headers ext.        | COOP same-origin-allow-popups + CORP same-origin + X-Content-Type-Options nosniff                                                                                                                  |
-| **D59**     | Two-tier CSP        | Marketing static+hashed / portal nonce+strict-dynamic (per-route branching in `proxy.ts`)                                                                                                          |
-| **D60**     | HSTS ramp           | M1 max-age=300 → ramp to 2y + preload at M8 launch gate (submission irreversible)                                                                                                                  |
-| **D61**     | CSP sink            | Sentry CSP endpoint via report-uri                                                                                                                                                                 |
-| **D62**     | GPC indicator       | `<GpcHonoredIndicator>` per CCPA §7025(c)(6) effective 2026-01-01                                                                                                                                  |
-| **D63**     | ConsentState        | Server-side DynamoDB (encrypted) + Sec-GPC at CloudFront edge                                                                                                                                      |
-| **D64**     | Content layer       | Velite + Zod-validated MDX frontmatter from M1; CMS pick = Sanity Enterprise at trigger                                                                                                            |
-| **D65**     | Block library       | Typed discriminated-union → single `<BlockRenderer>`                                                                                                                                               |
-| **D66**     | AI crawlers         | Block training (GPTBot/ClaudeBot/Google-Extended/Applebot-Extended/CCBot/Meta-ExternalAgent/Bytespider); allow citation (OAI-SearchBot/Claude-SearchBot/PerplexityBot)                             |
-| **D67**     | PHI sanitizer       | `lib/observability/sanitize.ts` + `assertNoPHI()` + ESLint no-console + ban direct vendor-SDK imports                                                                                              |
-| **D68**     | Replay vendors      | Sentry error-triggered + PostHog consent-gated; both with `block`-class on clinical controls                                                                                                       |
-| **D69**     | packages/ui         | Drop from M1 scaffold; recreate at first real extraction trigger (overrides D49 for that workspace)                                                                                                |
-| **U1**      | Portal nav          | Hybrid top-nav primary + sidebar at complex sub-screens                                                                                                                                            |
-| **U2**      | Reserved routes     | /science, /for-business, /customers (NOT /careers at M1)                                                                                                                                           |
-| **U3**      | Help center         | Reserve both /help path + help.my-quilty.com subdomain                                                                                                                                             |
-| **U4**      | Crawlers            | Per D66                                                                                                                                                                                            |
-| **U5**      | Cognito domain      | Flip enable_custom_domain at M1 cutover (next sprint in quilty-aws/auth/)                                                                                                                          |
-| **U6**      | DNS dance           | Manual PR-coordinated (one ceremony at cutover)                                                                                                                                                    |
-| **U7**      | Web Cognito client  | Confidential (client_secret in SSM)                                                                                                                                                                |
-| **U8**      | Web analytics       | Per D42b — PostHog Cloud Boost                                                                                                                                                                     |
+| #            | Decision            | One-line summary                                                                                                                                                                                   |
+| ------------ | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1           | Framework           | Next.js 16 App Router + TypeScript                                                                                                                                                                 |
+| D2 **R5**    | Deploy              | **SST 4.x (Ion + Pulumi + OpenNext) on AWS, pinned `^4.14`**                                                                                                                                       |
+| D3           | App layout          | Single Next.js app for marketing + `/account/*` portal                                                                                                                                             |
+| D4           | Monorepo            | Turborepo + pnpm; apps/web + packages/shared-types _(per D69, no packages/ui at M1)_                                                                                                               |
+| D5           | BFF                 | Next.js Route Handlers (TS Lambda) — Option A locked                                                                                                                                               |
+| D6 **R5**    | Auth boundary       | **Cognito Managed Login** (Nov 2024 redesign — supersedes classic Hosted UI) at auth.my-quilty.com                                                                                                 |
+| D7           | Cookie scope        | `__Host-` prefix, per-subdomain (NOT parent-domain shared)                                                                                                                                         |
+| D8           | SameSite            | Lax                                                                                                                                                                                                |
+| D9 **R5**    | Logout              | **Cognito-native** front-channel `/logout` + `AdminUserGlobalSignOut` + BFF opaque session-ID + EventBridge fan-out (Cognito does NOT support OIDC BCL or emit `sid`)                              |
+| D10          | CSRF                | Signed double-submit + custom header                                                                                                                                                               |
+| D11 **R5**   | Mobile-web          | Independent sessions joined by `cognito_sub` + locally-minted `quilty_sid` + EventBridge revocation                                                                                                |
+| D12          | Domain              | my-quilty.com same-origin marketing + portal; subdomains carved out                                                                                                                                |
+| D13          | URL                 | trailingSlash: false                                                                                                                                                                               |
+| D14          | Locale              | `/[locale]/` route segment reserved, EN-only at launch                                                                                                                                             |
+| D15          | Permalinks          | /blog/<slug>, /account/\*                                                                                                                                                                          |
+| D16          | Redirects           | Versioned artifact in next.config.js                                                                                                                                                               |
+| D17 **R5**   | Styling             | **Tailwind v4 CSS-first `@theme` in globals.css (no `tailwind.config.ts`)** + 3-layer tokens                                                                                                       |
+| D18          | Components          | shadcn in components/ui/ + wrap-don't-edit                                                                                                                                                         |
+| D19          | Icons               | Lucide                                                                                                                                                                                             |
+| D20          | Theme               | Dark-mode-ready CSS variables (ship later)                                                                                                                                                         |
+| D21          | Perf                | next/font + next/image discipline                                                                                                                                                                  |
+| D22          | A11y                | axe-core in CI + jsx-a11y ESLint                                                                                                                                                                   |
+| D23          | WCAG                | 2.2 AA target                                                                                                                                                                                      |
+| D24          | Content             | Pages as typed block arrays                                                                                                                                                                        |
+| D25          | i18n                | next-intl                                                                                                                                                                                          |
+| D26          | Metadata            | metadataBase + canonical (self-ref `'./'`) + sitemap.ts + robots.ts                                                                                                                                |
+| D27 **R5**   | Schema              | Organization + SoftwareApplication + WebSite + BreadcrumbList (SERP); MedicalWebPage on /science + FAQPage for AI-overview citations only (Google retired FAQPage rich-result 2026-05-07)          |
+| D28          | RUM                 | INP/LCP/CLS tracking from day one                                                                                                                                                                  |
+| D29          | Blocks              | Hero + ValueProp + FeatureGrid + FAQ + TestimonialQuote + CTABanner                                                                                                                                |
+| D30          | CMS                 | MDX in repo (Velite + Zod per D64) → migrate to Sanity Enterprise at trigger                                                                                                                       |
+| D31          | PHI                 | Zero-PHI website                                                                                                                                                                                   |
+| D32          | CSP                 | Nonce + strict-dynamic (two-tier per D59)                                                                                                                                                          |
+| D33          | Headers             | HSTS preload + frame-ancestors + Permissions-Policy default-deny _(extended by D58)_                                                                                                               |
+| D34 **R5**   | SRI                 | **First-party `_next/static/*` only; Stripe.js + analytics rely on nonce + strict-dynamic + CSP reporting (PCI DSS 4.0 §11.6.1 compensating control). Stripe explicitly publishes no SRI hashes.** |
+| D35          | Consent             | Server-side ConsentState + GPC honoring + SDK-load-gated                                                                                                                                           |
+| D36          | SBOM                | CycloneDX in CI + lockfile pinning + Renovate (with 72h minimumReleaseAge) — Renovate replaces Dependabot per Round-5 audit                                                                        |
+| D37          | WAF                 | CloudFront managed rules + Turnstile on auth/signup                                                                                                                                                |
+| D38          | Tracing             | W3C traceparent → x_trace_id propagation (OTel-first per D56)                                                                                                                                      |
+| D39          | Audit               | Web hits same /v1/\* endpoints with `channel:"web"` tag                                                                                                                                            |
+| D40          | Replay              | Session replay mask-all default (concrete vendor pick D68)                                                                                                                                         |
+| D41          | Flags               | Server-side eval with local cache                                                                                                                                                                  |
+| D42a         | Errors+RUM          | Sentry Business tier day-one + `logError()` adapter                                                                                                                                                |
+| D42b **R5+** | Web analytics       | **Amplitude all-in (web + mobile)** per 2026-05-19 pivot. Start without BAA; upgrade to Amplitude Enterprise pre-launch when PHI risk becomes real.                                                |
+| D42c **R5+** | Replay              | **Resolved by D68** — Sentry replay only (error-triggered, mask-all + block-class on clinical controls). Amplitude Session Replay is REJECTED per Round-5 attribute-leak finding.                  |
+| D42d         | Server logs         | CloudWatch + structured JSON + PHI sanitizer (D67)                                                                                                                                                 |
+| D43 **R5+**  | Flag tool           | Typed env-var `features.ts` day-one → **Amplitude Experiment at trigger** per 2026-05-19 pivot (same vendor as analytics; zero new infra; was PostHog flags / GrowthBook).                         |
+| D44          | Subscription        | Stripe + Stripe Customer Portal + Apple Pay (Payment Request API) + Sign in with Apple (Cognito IdP federation); **no RevenueCat IAP wrapper** for web checkout per Round 6 mobile-stack recon.    |
+| D45          | Public domain       | my-quilty.com (NOT .app)                                                                                                                                                                           |
+| D46          | Repo                | Rebuilt quilty-website monorepo, separate from quilty-aws                                                                                                                                          |
+| D47          | Phase 0 account     | Existing `development` account ($0 incremental)                                                                                                                                                    |
+| D48          | Backend lang        | Permanently Rust (TS Track A closed)                                                                                                                                                               |
+| D49          | Other restructuring | All deferred to Phase 1+ triggers (D69 overrides for `packages/ui`)                                                                                                                                |
+| **D50**      | Cognito tier        | Essentials at M1; Plus at M6 (passkeys + adaptive auth)                                                                                                                                            |
+| **D51**      | Session store       | Opaque session-ID cookie + DynamoDB store (NOT iron-session sealed cookie)                                                                                                                         |
+| **D52**      | Token TTLs          | Access 5 min; refresh 8h; rotation via `GetTokensFromRefreshToken`                                                                                                                                 |
+| **D53**      | CSRF triple         | Origin/Referer + signed double-submit + `X-Quilty-CSRF` header                                                                                                                                     |
+| **D54**      | Step-up auth        | `prompt=login` + server `elevated_until` (5-min window)                                                                                                                                            |
+| **D55**      | Backup codes        | In-app (Argon2id + DynamoDB), not in Cognito                                                                                                                                                       |
+| **D56**      | OTel-first          | `@vercel/otel` + W3C tracecontext+baggage propagators day-one                                                                                                                                      |
+| **D57**      | Trusted Types       | `require-trusted-types-for 'script'` report-only at M1                                                                                                                                             |
+| **D58**      | Headers ext.        | COOP same-origin-allow-popups + CORP same-origin + X-Content-Type-Options nosniff                                                                                                                  |
+| **D59**      | Two-tier CSP        | Marketing static+hashed / portal nonce+strict-dynamic (per-route branching in `proxy.ts`)                                                                                                          |
+| **D60**      | HSTS ramp           | M1 max-age=300 → ramp to 2y + preload at M8 launch gate (submission irreversible)                                                                                                                  |
+| **D61**      | CSP sink            | Sentry CSP endpoint via report-uri                                                                                                                                                                 |
+| **D62**      | GPC indicator       | `<GpcHonoredIndicator>` per CCPA §7025(c)(6) effective 2026-01-01                                                                                                                                  |
+| **D63**      | ConsentState        | Server-side DynamoDB (encrypted) + Sec-GPC at CloudFront edge                                                                                                                                      |
+| **D64**      | Content layer       | Velite + Zod-validated MDX frontmatter from M1; CMS pick = Sanity Enterprise at trigger                                                                                                            |
+| **D65**      | Block library       | Typed discriminated-union → single `<BlockRenderer>`                                                                                                                                               |
+| **D66**      | AI crawlers         | Block training (GPTBot/ClaudeBot/Google-Extended/Applebot-Extended/CCBot/Meta-ExternalAgent/Bytespider); allow citation (OAI-SearchBot/Claude-SearchBot/PerplexityBot)                             |
+| **D67**      | PHI sanitizer       | `lib/observability/sanitize.ts` + `assertNoPHI()` + ESLint no-console + ban direct vendor-SDK imports                                                                                              |
+| **D68**      | Replay vendors      | Sentry error-triggered only (per 2026-05-19 Amplitude pivot — PostHog replay dropped; Amplitude Session Replay REJECTED). `block`-class on every clinical control.                                 |
+| **D69**      | packages/ui         | Drop from M1 scaffold; recreate at first real extraction trigger (overrides D49 for that workspace)                                                                                                |
+| **U1**       | Portal nav          | Hybrid top-nav primary + sidebar at complex sub-screens                                                                                                                                            |
+| **U2**       | Reserved routes     | /science, /for-business, /customers (NOT /careers at M1)                                                                                                                                           |
+| **U3**       | Help center         | Reserve both /help path + help.my-quilty.com subdomain                                                                                                                                             |
+| **U4**       | Crawlers            | Per D66                                                                                                                                                                                            |
+| **U5**       | Cognito domain      | Flip enable_custom_domain at M1 cutover (next sprint in quilty-aws/auth/)                                                                                                                          |
+| **U6**       | DNS dance           | Manual PR-coordinated (one ceremony at cutover)                                                                                                                                                    |
+| **U7**       | Web Cognito client  | Confidential (client_secret in SSM)                                                                                                                                                                |
+| **U8**       | Web analytics       | Per D42b — **Amplitude all-in (web + mobile)** per 2026-05-19 pivot (was PostHog Cloud Boost under Round-5 lock).                                                                                  |
 
 ---
 
@@ -671,8 +688,8 @@ Genuinely unresolved (won't block M1):
 1. **Q1 — Voice + positioning** — discovered through M3 iteration
 2. **Q4 — Account portal v1 final scope** — refined at M5
 3. **Q6 — Visual identity beyond Tailwind baseline** — discovered through M3
-4. ~~D42c — Session replay vendor~~ — **Resolved Round 5 by D68** (Sentry error-triggered + PostHog consent-gated)
-5. ~~D43-upgrade — Feature flag tool trigger~~ — **Vendor resolved Round 5 by D43 revision** (PostHog flags); trigger conditions unchanged (runtime toggle / non-dev flipping / A/B testing)
+4. ~~D42c — Session replay vendor~~ — **Resolved Round 5 by D68 + revised 2026-05-19 Amplitude pivot** (Sentry replay error-triggered only; PostHog replay dropped; Amplitude Session Replay REJECTED)
+5. ~~D43-upgrade — Feature flag tool trigger~~ — **Vendor resolved by D43 + revised 2026-05-19 Amplitude pivot** (Amplitude Experiment at trigger; same vendor as analytics, zero new infra); trigger conditions unchanged (runtime toggle / non-dev flipping / A/B testing)
 6. **D44 — Subscription provider exact config** — closer to launch
 7. **Working patterns (above)** — discovered through M1-M2 lived experience
 
@@ -694,7 +711,7 @@ Things we've explicitly deferred with concrete triggers:
 | `lambdas/` polyglot CI gets awkward                          | Extract `lambdas/rust/` → new `quilty-rust` repo                                                                           |
 | Engineer #8-10                                               | Evaluate OpsLevel or Port (skip Backstage)                                                                                 |
 | >50 indexable pages                                          | Add Pagefind search; later Algolia                                                                                         |
-| 10k weekly visitors                                          | Activate A/B testing via PostHog Experiments (already in stack per D42b/D43 _Round-5 revised_)                             |
+| 10k weekly visitors                                          | Activate A/B testing via Amplitude Experiment (same vendor as analytics per D42b/D43 _2026-05-19 Amplitude pivot_)         |
 | First EU launch                                              | Manual a11y audit + EAA conformance verification                                                                           |
 
 ---

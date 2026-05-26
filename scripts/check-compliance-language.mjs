@@ -92,6 +92,17 @@ function walk(dir) {
   }
 }
 
+// Inline escape hatch — `D104-allow:` / `D136-allow:` on the same line as a
+// match suppresses the rule for that line. Used for meta-discussion of the
+// rule itself (the D136 row in the strategy doc has to NAME the banned title
+// to document the ban). Rationale text after the marker is required for
+// git-blame audit traceability — same pattern as META-2-allow in
+// `scripts/check-no-workflow-context.mjs`.
+const ALLOW_MARKERS = {
+  D104: 'D104-allow:',
+  D136: 'D136-allow:',
+};
+
 function scan(fullPath, rel) {
   let content;
   try {
@@ -103,7 +114,7 @@ function scan(fullPath, rel) {
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
     if (line === undefined) continue;
-    if (HIPAA_PATTERN.test(line)) {
+    if (HIPAA_PATTERN.test(line) && !line.includes(ALLOW_MARKERS.D104)) {
       violations.push({
         file: rel,
         line: i + 1,
@@ -112,7 +123,7 @@ function scan(fullPath, rel) {
         excerpt: line.trim(),
       });
     }
-    if (DPO_PATTERN.test(line)) {
+    if (DPO_PATTERN.test(line) && !line.includes(ALLOW_MARKERS.D136)) {
       violations.push({
         file: rel,
         line: i + 1,
