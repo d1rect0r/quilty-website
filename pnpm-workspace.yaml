@@ -8,6 +8,7 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+  - 'cf-functions'
 
 # Strictness flags. The audit + Round-5 monorepo agent flagged that lax peer-dep
 # resolution + dedupe drift are the dominant cause of "works on my machine"

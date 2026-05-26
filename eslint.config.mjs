@@ -463,6 +463,35 @@ export default tseslint.config(
       'no-restricted-imports': 'off',
     },
   },
+  // CloudFront Functions source files run in AWS's QuickJS-based JS
+  // engine, not Node + not Next.js. The runtime API requires a top-
+  // level `function handler(event)` declaration — never imported or
+  // re-exported, never called via JS module syntax. The rules below
+  // would otherwise mis-flag this as dead code.
+  //
+  // ES2020 subset constraint: `for...of` IS supported by the v2
+  // runtime, but the indexed-for loop pattern is the broadly-tested
+  // safe form across CFF versions. Disable the linter's preference
+  // for the iterator form on these files only.
+  {
+    files: ['cf-functions/*.cff.js'],
+    languageOptions: {
+      sourceType: 'script',
+      globals: {
+        // QuickJS-based runtime exposes a Web-API-aligned global
+        // surface: btoa / atob / TextEncoder / Date / JSON / Math.
+        btoa: 'readonly',
+        atob: 'readonly',
+        TextEncoder: 'readonly',
+        TextDecoder: 'readonly',
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/prefer-for-of': 'off',
+      'no-var': 'off',
+    },
+  },
   // Meta-tooling files that DOCUMENT the bans must be allowed to
   // contain the banned strings in their own source (rule messages,
   // error output, regex patterns). These files are not user-facing

@@ -1,0 +1,18 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./__tests__",
+    "outDir": "./dist",
+    // DOM lib + jsx preserve are required so tsc can walk through
+    // the @quilty/consent barrel's transitive TSX re-exports during
+    // type resolution. The CFF source code itself uses NEITHER —
+    // these are typechecker scaffolding for the test layer.
+    "lib": ["ES2023", "DOM"],
+    "jsx": "preserve",
+    "types": ["node"],
+    "allowJs": false,
+    "noEmit": true
+  },
+  "include": ["__tests__/**/*.ts"],
+  "exclude": ["node_modules", "dist", "*.cff.js"]
+}
