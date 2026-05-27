@@ -333,6 +333,10 @@ export default tseslint.config(
       'packages/observability/src/adapters/cloudwatch-logger.ts',
       'packages/observability/src/adapters/browser-logger.ts',
       'packages/observability/src/components/WebVitalsReporter.tsx',
+      // CLI gate that prints to stdout/stderr per the Unix exit-code-bearing
+      // script pattern; observability-chokepoint discipline applies to
+      // runtime code paths, not to pre-commit / build-verify scripts.
+      'packages/tokens/scripts/verify-css-diff.mjs',
     ],
     rules: {
       'no-console': 'off',

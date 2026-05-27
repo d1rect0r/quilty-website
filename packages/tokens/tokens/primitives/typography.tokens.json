@@ -1,0 +1,12 @@
+{
+  "font": {
+    "sans": {
+      "$value": "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+      "$type": "fontFamily"
+    },
+    "mono": {
+      "$value": "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace",
+      "$type": "fontFamily"
+    }
+  }
+}

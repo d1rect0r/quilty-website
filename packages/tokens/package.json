@@ -1,0 +1,40 @@
+{
+  "name": "@quilty/tokens",
+  "version": "0.1.0",
+  "description": "Design tokens authored in DTCG 2025.10 JSON. Style Dictionary v5 generates Tailwind v4 @theme CSS at build time; future Flutter ThemeExtension target ships at the visual-identity milestone (TW-012). Producer-only package; the website consumes dist/web/globals-generated.css, the Flutter app will consume dist/flutter/ at publish trigger.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25.0.0",
+    "pnpm": ">=10.0.0 <11.0.0"
+  },
+  "scripts": {
+    "build": "node src/style-dictionary.config.mjs",
+    "build:verify": "node src/style-dictionary.config.mjs && node scripts/verify-css-diff.mjs",
+    "lint": "eslint src scripts __tests__ --max-warnings 0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "verify": "node scripts/verify-css-diff.mjs"
+  },
+  "dependencies": {
+    "style-dictionary": "5.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@vitest/coverage-v8": "2.1.8",
+    "typescript": "^5.7.2",
+    "vitest": "2.1.8"
+  },
+  "exports": {
+    "./globals.css": "./dist/web/globals-generated.css"
+  },
+  "files": [
+    "dist",
+    "tokens",
+    "README.md"
+  ],
+  "sideEffects": [
+    "./dist/**/*.css"
+  ]
+}

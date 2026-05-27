@@ -1,0 +1,29 @@
+{
+  "color": {
+    "bg": {
+      "surface": { "$value": "{color.neutral.50}", "$type": "color" },
+      "elevated": { "$value": "white", "$type": "color" },
+      "overlay": { "$value": "oklch(20.8% 0.042 265.75 / 0.4)", "$type": "color" }
+    },
+    "fg": {
+      "default": { "$value": "{color.neutral.900}", "$type": "color" },
+      "muted": { "$value": "{color.neutral.600}", "$type": "color" },
+      "subtle": { "$value": "{color.neutral.500}", "$type": "color" },
+      "inverse": { "$value": "{color.neutral.50}", "$type": "color" }
+    },
+    "border": {
+      "default": { "$value": "{color.neutral.200}", "$type": "color" },
+      "strong": { "$value": "{color.neutral.300}", "$type": "color" },
+      "focus": { "$value": "{color.brand.500}", "$type": "color" }
+    },
+    "accent": {
+      "primary": { "$value": "{color.brand.700}", "$type": "color" },
+      "primary-hover": { "$value": "{color.brand.900}", "$type": "color" },
+      "fg": { "$value": "{color.neutral.50}", "$type": "color" }
+    },
+    "danger-fg": { "$value": "{color.danger.700}", "$type": "color" },
+    "success-fg": { "$value": "{color.success.700}", "$type": "color" },
+    "warning-fg": { "$value": "{color.warning.700}", "$type": "color" },
+    "ring": { "$value": "{color.brand.700}", "$type": "color" }
+  }
+}

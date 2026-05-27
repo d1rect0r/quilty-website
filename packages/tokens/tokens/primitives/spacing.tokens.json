@@ -1,0 +1,9 @@
+{
+  "spacing": {
+    "page-x": { "$value": "1.5rem", "$type": "dimension" },
+    "page-x-lg": { "$value": "2rem", "$type": "dimension" },
+    "section-y": { "$value": "4rem", "$type": "dimension" },
+    "ring-width": { "$value": "2px", "$type": "dimension" },
+    "ring-offset": { "$value": "2px", "$type": "dimension" }
+  }
+}
