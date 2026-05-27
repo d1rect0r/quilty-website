@@ -1,0 +1,35 @@
+{
+  "name": "@quilty/workflow",
+  "version": "0.1.0",
+  "description": "Durable workflow engine port + adapters. 6-method LCD (start/status/cancel/signal/query/waitForCompletion) across AWS Step Functions (primary, M7+ activation) and Temporal Cloud (cascading-complexity swap target). In-memory fake at /testing for deterministic test workflows with time-skipping.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25.0.0",
+    "pnpm": ">=10.0.0 <11.0.0"
+  },
+  "scripts": {
+    "lint": "eslint src __tests__ --max-warnings 0",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@vitest/coverage-v8": "2.1.8",
+    "typescript": "^5.7.2",
+    "vitest": "2.1.8"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./testing": {
+      "types": "./src/testing/index.ts",
+      "default": "./src/testing/index.ts"
+    }
+  },
+  "sideEffects": false
+}
