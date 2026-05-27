@@ -31,7 +31,13 @@
         "scripts/**/*.mjs",
         "tests/**/*.{ts,tsx}"
       ],
-      "ignore": ["lib/flags/features.ts", "lib/utils.ts", "lib/toast.ts"],
+      "ignore": [
+        "lib/flags/features.ts",
+        "lib/utils.ts",
+        "lib/toast.ts",
+        "components/site/InstallPrompt.tsx",
+        "components/site/IOSCoachMark.tsx"
+      ],
       "ignoreDependencies": [
         "class-variance-authority",
         "clsx",

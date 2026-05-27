@@ -338,6 +338,16 @@ export function proxy(request: NextRequest): NextResponse {
 
   applySecurityHeaders(response, { portal, nonce });
 
+  // Service Worker script must NOT be cached by the browser. A
+  // stale /sw.js bypasses subsequent SW updates (the SW Update API
+  // checks for byte-difference against the cached copy; a `no-cache`
+  // CDN response forces a revalidation roundtrip on every page
+  // load while keeping the SW's OWN cache strategies in place).
+  // Per ADR-0022 §Security.
+  if (pathname === '/sw.js') {
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  }
+
   if (shouldNoindexPath(pathname)) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   }

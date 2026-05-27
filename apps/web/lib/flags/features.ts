@@ -49,6 +49,19 @@ export interface FeatureFlags {
    * adapter wiring.
    */
   search_enabled: boolean;
+  /**
+   * PWA install-prompt UI activation (ADR-0022). When true, the
+   * unified `<InstallPrompt>` component listens for the
+   * `beforeinstallprompt` event on Chrome/Edge/Android and renders
+   * an iOS coach-mark fallback when running standalone-eligible on
+   * iOS Safari. Default OFF — the activation trigger is the first
+   * install-conversion-intent measurement signal (TW-015).
+   *
+   * The Service Worker itself registers regardless of this flag
+   * (cache strategies are always-on once SSR is past); the flag
+   * controls only the install-prompt surface visibility.
+   */
+  install_prompt_enabled: boolean;
 }
 
 export const FEATURE_FLAG_DEFAULTS: FeatureFlags = {
@@ -57,6 +70,7 @@ export const FEATURE_FLAG_DEFAULTS: FeatureFlags = {
   analytics_client_enabled: false,
   sentry_replay_boost: false,
   search_enabled: false,
+  install_prompt_enabled: false,
 };
 
 /**

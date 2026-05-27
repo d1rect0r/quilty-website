@@ -7,6 +7,7 @@ import {
   JsonLd,
 } from '@quilty/seo';
 import { Providers } from '@/components/app/Providers';
+import { ServiceWorkerRegistrar } from '@/components/site/ServiceWorkerRegistrar';
 import { Spotlight } from '@/components/dev/Spotlight';
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
@@ -94,6 +95,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <JsonLd data={buildOrganizationJsonLd(siteUrl)} />
         <JsonLd data={buildWebSiteJsonLd(siteUrl)} />
         <WebVitalsReporter />
+        {/* Service Worker registration (ADR-0022). Production-only;
+            the registrar's effect short-circuits in `next dev`. */}
+        <ServiceWorkerRegistrar />
         {/* Sentry Spotlight — dev-only debug overlay. The component
             gates internally on NODE_ENV; the production minifier
             tree-shakes the dynamic import body out of the prod bundle. */}
