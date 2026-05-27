@@ -46,6 +46,39 @@ import {
 const CSRF_COOKIE_NAME = '__Host-quilty_csrf';
 const RATE_LIMIT_POLICY = { limit: 5, windowMs: 10 * 60 * 1000 } as const;
 
+/**
+ * Rate-limit bypass for k6 load tests. Two-factor unlock:
+ *   1. `X-Load-Test-Bypass` header carries the rotating secret.
+ *   2. `RATELIMIT_BYPASS_TOKEN` env var matches; production tier
+ *      MUST leave this unset so the header is rejected even when an
+ *      attacker guesses the token.
+ *
+ * Per ADR-0017 + TW-026 (RATELIMIT_BYPASS_TOKEN quarterly rotation),
+ * staging/preview environments set this env at deploy time, rotate
+ * quarterly via the trigger watchlist. Production environments
+ * intentionally omit it — the function below short-circuits to
+ * `false` when the env is unset, so the bypass header is inert
+ * regardless of what value the client sends.
+ *
+ * Defense in depth: even with the correct token + env set, the
+ * caller should arrive over the load-test source-IP allowlist
+ * configured at the WAF tier (handled outside this file).
+ */
+function isLoadTestBypass(headerStore: Awaited<ReturnType<typeof headers>>): boolean {
+  const envToken = process.env['RATELIMIT_BYPASS_TOKEN'];
+  if (!envToken || envToken.length === 0) return false;
+  const headerToken = headerStore.get('x-load-test-bypass');
+  if (!headerToken) return false;
+  // Constant-time compare so the failed-bypass code path doesn't
+  // leak length / character timing about the configured token.
+  if (headerToken.length !== envToken.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < envToken.length; i += 1) {
+    mismatch |= envToken.charCodeAt(i) ^ headerToken.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
+
 function jsonResult(envelope: ContactFormResult, status: number): NextResponse {
   return NextResponse.json(envelope, {
     status,
@@ -208,6 +241,13 @@ export async function POST(request: Request): Promise<NextResponse> {
   // Rate-limit — per-IP first, then per-email. Either limit triggers
   // the 429. Per-email shadow is important against IP-rotating bot
   // farms targeting a single user/account.
+  //
+  // Load-test bypass: when X-Load-Test-Bypass matches RATELIMIT_BYPASS_TOKEN
+  // (env var, unset in production), skip the rate-limit decision but
+  // still run captcha + CSRF + honeypot above. k6 scenarios supply
+  // the bypass token from `tests/load/lib/bypass-token.ts`; without
+  // it, k6 hits the rate-limit ceiling within the first 5 iterations.
+  const bypassRateLimit = isLoadTestBypass(headerStore);
   const ipKey = `contact:ip:${clientIp}`;
   // Hash the email before using it as the rate-limit key. The raw
   // email is a HIPAA §164.514(b)(2)(i) direct identifier; storing it
@@ -220,25 +260,27 @@ export async function POST(request: Request): Promise<NextResponse> {
     .digest('hex')
     .slice(0, 32);
   const emailKey = `contact:email:${emailHash}`;
-  const ipDecision = await container.rateLimiter.consume(ipKey, RATE_LIMIT_POLICY);
-  if (!ipDecision.allowed) {
-    const envelope: ContactFormResult = {
-      ok: false,
-      reason: 'rate_limit',
-      retry_after_ms: ipDecision.retryAfterMs,
-    };
-    storeIdempotent(idemKey, envelope);
-    return jsonResult(envelope, 429);
-  }
-  const emailDecision = await container.rateLimiter.consume(emailKey, RATE_LIMIT_POLICY);
-  if (!emailDecision.allowed) {
-    const envelope: ContactFormResult = {
-      ok: false,
-      reason: 'rate_limit',
-      retry_after_ms: emailDecision.retryAfterMs,
-    };
-    storeIdempotent(idemKey, envelope);
-    return jsonResult(envelope, 429);
+  if (!bypassRateLimit) {
+    const ipDecision = await container.rateLimiter.consume(ipKey, RATE_LIMIT_POLICY);
+    if (!ipDecision.allowed) {
+      const envelope: ContactFormResult = {
+        ok: false,
+        reason: 'rate_limit',
+        retry_after_ms: ipDecision.retryAfterMs,
+      };
+      storeIdempotent(idemKey, envelope);
+      return jsonResult(envelope, 429);
+    }
+    const emailDecision = await container.rateLimiter.consume(emailKey, RATE_LIMIT_POLICY);
+    if (!emailDecision.allowed) {
+      const envelope: ContactFormResult = {
+        ok: false,
+        reason: 'rate_limit',
+        retry_after_ms: emailDecision.retryAfterMs,
+      };
+      storeIdempotent(idemKey, envelope);
+      return jsonResult(envelope, 429);
+    }
   }
 
   // Send acknowledgement email. wrapEmailSender already composes the
