@@ -34,6 +34,7 @@ import {
   wrapErrorReporter,
   wrapLogger,
 } from '@quilty/observability';
+import { makeInMemorySearchIndex } from '@quilty/search/testing';
 import { makeSanitizer } from '@quilty/security';
 import type { ClientContainer } from './lib/get-container';
 
@@ -71,5 +72,10 @@ export function makeClientContainer(): ClientContainer {
     }),
     featureFlags: makeEnvFlagEvaluator(),
     phiScrubber: makePhiScrubber(),
+    // SearchIndex (ADR-0019). In-memory fake is the default wiring
+    // because Pagefind would have nothing to index (zero MDX
+    // content). The wiring flips to makePagefindAdapter() at content
+    // activation per ADR-0019 Decision H + the trigger-watchlist.
+    searchIndex: makeInMemorySearchIndex({ documents: [] }),
   };
 }

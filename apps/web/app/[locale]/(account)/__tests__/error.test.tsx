@@ -25,6 +25,7 @@ function makeMockClientContainer(): ClientContainer {
     analytics: { track: vi.fn() },
     featureFlags: { flag: vi.fn(), all: () => ({}) },
     phiScrubber: { scrubSentryEvent: (event) => event },
+    searchIndex: { search: vi.fn(async () => ({ hits: [], total: 0 })) },
   };
 }
 

@@ -29,6 +29,7 @@
     "@quilty/email": "workspace:*",
     "@quilty/observability": "workspace:*",
     "@quilty/rate-limit": "workspace:*",
+    "@quilty/search": "workspace:*",
     "@quilty/security": "workspace:*",
     "@quilty/seo": "workspace:*",
     "@quilty/shared-types": "workspace:*",

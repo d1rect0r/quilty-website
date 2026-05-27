@@ -17,6 +17,7 @@ import {
   type AnalyticsDestination,
 } from '@quilty/observability';
 import { makeInMemoryRateLimiter } from '@quilty/rate-limit';
+import { makeInMemorySearchIndex } from '@quilty/search/testing';
 import { makeSanitizer } from '@quilty/security';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -73,6 +74,7 @@ function makeTestClientContainer(): ClientContainer {
     errorReporter: wrapErrorReporter({ adapter: makeSentryErrorReporter(), sanitizer }),
     featureFlags: makeEnvFlagEvaluator(),
     phiScrubber: makePhiScrubber(),
+    searchIndex: makeInMemorySearchIndex({ documents: [] }),
   };
 }
 

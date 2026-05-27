@@ -44,6 +44,7 @@ import type {
   PHIScrubber,
 } from '@quilty/observability';
 import type { RateLimiter } from '@quilty/rate-limit';
+import type { SearchIndex } from '@quilty/search';
 import type { Sanitizer } from '@quilty/security';
 
 /**
@@ -127,6 +128,20 @@ export interface ServerContainer extends BaseContainer {
  */
 export interface ClientContainer extends BaseContainer {
   readonly runtime: 'client';
+  /**
+   * SearchIndex port (ADR-0019) — vendor-agnostic search wrapper.
+   * Composed at the client root because Pagefind (the default
+   * adapter) is a client-side static-index bundle. Server-side
+   * search would require a hosted-engine swap (Algolia / Typesense)
+   * fronted by a first-party proxy; that surface lives on
+   * ServerContainer at the activation trigger.
+   *
+   * Default wired adapter is the in-memory fake (zero MDX content;
+   * Pagefind would have nothing to index). The `<ComingSoonSearch>`
+   * UI renders flag-gated until `features.flag('search_enabled')`
+   * flips per ADR-0019 Decision H.
+   */
+  readonly searchIndex: SearchIndex;
 }
 
 /**

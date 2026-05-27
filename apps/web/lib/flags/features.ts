@@ -39,6 +39,16 @@ export interface FeatureFlags {
    * mis-wiring from defeating the HIPAA-aligned floor.
    */
   sentry_replay_boost: boolean;
+  /**
+   * Search UI activation (ADR-0019). Flips when MDX content lands AND
+   * `pnpm build:pagefind` produces a populated index. Until then the
+   * `/[locale]/search` route renders `<ComingSoonSearch>`; the
+   * Cmd-K modal trigger in `Header.tsx` stays hidden. The SearchIndex
+   * port is always wired on the ClientContainer (in-memory fake by
+   * default); the flag gates the UI surface, not the underlying
+   * adapter wiring.
+   */
+  search_enabled: boolean;
 }
 
 export const FEATURE_FLAG_DEFAULTS: FeatureFlags = {
@@ -46,6 +56,7 @@ export const FEATURE_FLAG_DEFAULTS: FeatureFlags = {
   experimental_subscription: false,
   analytics_client_enabled: false,
   sentry_replay_boost: false,
+  search_enabled: false,
 };
 
 /**
