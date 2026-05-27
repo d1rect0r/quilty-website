@@ -6,7 +6,7 @@
 
 ## Status
 
-M1 scaffold-in-progress (2026-05-18). Cloudflare Pages scaffold soft-nuked. **Round-5 independent architecture review locked 2026-05-17** (11 decision revisions, 20 new decisions D50-D69, 8 UX locks U1-U8). All structural decisions D1-D49 + Round-5 revisions + D50-D69 + U1-U8 locked — see `docs/website_strategy_discussion.md` and `docs/research/round_5_independent_review/`.
+M1.6 Workstream B closed (2026-05-26). Foundation phase complete: M1 scaffold → M1.5 foundation refactor → M1.6/A cleanup → M1.6/B enterprise-seam locks all landed. Workstreams **C (operational discipline)** + **D (promoted defers)** remain from the locked `docs/m1.6_foundation_finishing_plan.md`. Sprint metrics in `docs/m1.6_verification_report.md`: 689 tests across 13 test-bearing workspaces, 98.13% type-coverage, 15/15 verify gates green, 3 new packages (`@quilty/api-client`, `@quilty/test-fixtures`, `cf-functions`), 2 new ADRs (0016 DynamoDB, 0017 HTTP client + resilience). All structural decisions D1-D49 + Round-5 revisions + D50-D69 + U1-U8 locked — see `docs/website_strategy_discussion.md` and `docs/research/round_5_independent_review/`.
 
 ---
 
