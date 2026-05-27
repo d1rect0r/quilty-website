@@ -10,7 +10,6 @@
   },
   "scripts": {
     "build": "node src/style-dictionary.config.mjs",
-    "build:verify": "node src/style-dictionary.config.mjs && node scripts/verify-css-diff.mjs",
     "lint": "eslint src scripts __tests__ --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",

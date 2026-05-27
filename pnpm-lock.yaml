@@ -150,6 +150,9 @@ importers:
       '@quilty/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
+      '@quilty/tokens':
+        specifier: workspace:*
+        version: link:../../packages/tokens
       '@radix-ui/react-label':
         specifier: ^2.1.7
         version: 2.1.8(@types/react-dom@19.0.2(@types/react@19.0.2))(@types/react@19.0.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)

@@ -49,6 +49,14 @@ dist/
 build/
 *.tsbuildinfo
 
+# @quilty/tokens publishes its generated CSS via the package `exports`
+# field; the file MUST exist at install time for apps/web to resolve
+# the `@import '@quilty/tokens/globals.css'` directive in fresh checkouts.
+# Drift between this committed artifact and the JSON sources is caught
+# by `packages/tokens/__tests__/byte-identical.test.ts`.
+!packages/tokens/dist/
+!packages/tokens/dist/**
+
 # OpenAPI codegen target (regenerated from Rust backend)
 packages/shared-types/src/generated/
 

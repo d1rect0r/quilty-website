@@ -42,6 +42,7 @@
         "tailwindcss",
         "@quilty/content",
         "@quilty/shared-types",
+        "@quilty/tokens",
         "openapi-typescript"
       ]
     },

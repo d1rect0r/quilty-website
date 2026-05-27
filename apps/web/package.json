@@ -33,6 +33,7 @@
     "@quilty/security": "workspace:*",
     "@quilty/seo": "workspace:*",
     "@quilty/shared-types": "workspace:*",
+    "@quilty/tokens": "workspace:*",
     "@radix-ui/react-label": "^2.1.7",
     "@sentry/nextjs": "10.53.1",
     "@tanstack/react-query": "^5.90.0",
