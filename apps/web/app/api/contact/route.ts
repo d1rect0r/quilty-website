@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { cookies, headers } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { verifyCsrf, verifyHoneypot, verifyTimeTrap } from '@quilty/security';
+import { verifyHoneypot, verifyTimeTrap } from '@quilty/security';
+import { verifyCsrf } from '@quilty/security/server';
 import { getServerContainer } from '@/lib/get-container';
 import { makeServerContainer } from '@/composition.server';
 import { mintCorrelationId } from '@/lib/correlation-id';

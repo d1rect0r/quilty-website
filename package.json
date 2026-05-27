@@ -49,7 +49,6 @@
     "@quilty/content": "workspace:*",
     "@secretlint/secretlint-rule-preset-recommend": "^11.7.1",
     "@size-limit/file": "12.1.0",
-    "@size-limit/preset-app": "12.1.0",
     "@turbo/gen": "2.9.14",
     "csp_evaluator": "^1.1.5",
     "dependency-cruiser": "^17.4.0",

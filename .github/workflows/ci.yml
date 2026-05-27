@@ -7,9 +7,8 @@
 #                gate + type-coverage + secretlint
 #   4. typecheck — TypeScript strict across workspaces
 #   5. test — Vitest unit (with v8 coverage)
-#   6. test:a11y — Playwright + axe-core WCAG 2.2 AA
-#   7. test:e2e — Playwright smoke + security + seo
-#   8. build — Next.js production build (verifies the full app compiles)
+#   6. test-e2e — Playwright e2e + a11y (axe-core WCAG 2.2 AA + smoke + security + seo)
+#   7. build — Next.js production build + size-limit budgets + PR-diff comment
 #
 # Concurrency cancellation per PR: a new push cancels in-flight runs on
 # the same head ref. Saves CI minutes + keeps queue depth bounded.
@@ -175,7 +174,12 @@ jobs:
     name: Next.js build
     needs: [lint, hygiene, typecheck, test, test-e2e]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 25-minute ceiling accommodates the webpack production build
+    # (per ADR-0018, opted-out of Turbopack for per-route chunk
+    # measurement) + andresz1/size-limit-action rebuilds the base
+    # branch under the hood to compute the PR diff, doubling the build
+    # cost on PR events. 15-minute ceiling tripped on cold-cache runs.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -200,6 +204,28 @@ jobs:
 
       - name: Bundle size budgets (size-limit)
         run: pnpm size
+
+      - name: Size-limit diff comment on PR
+        # Comments a delta-vs-base-branch table on the PR. Fails the
+        # job when any per-route or first-load budget is exceeded.
+        # Skipped on push-to-main events (no PR to comment on).
+        #
+        # Note on cost: this action ALSO runs `pnpm install` + the
+        # build script on the base branch under the hood (the only
+        # way to compute the diff). The 25-minute build-job ceiling
+        # accommodates this. Migration to Codecov Bundle Analysis
+        # eliminates the double-build cost once the first 30-day
+        # baseline lands — tracked on the C.1 watchlist.
+        if: github.event_name == 'pull_request'
+        uses: andresz1/size-limit-action@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # skip_step: build — the head-branch build already ran in
+          # the previous step; the action only needs to build the
+          # base branch for diff.
+          skip_step: build
+          script: pnpm size
+          package_manager: pnpm
 
       - name: Upload build artifact for Lighthouse CI
         uses: actions/upload-artifact@v4

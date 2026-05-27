@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { generateCsrfToken, makeRenderTimestamp } from '@quilty/security';
+import { makeRenderTimestamp } from '@quilty/security';
+import { generateCsrfToken } from '@quilty/security/server';
 import { ContactFormFactory } from '@quilty/test-fixtures';
 import { __resetIdempotencyForTesting } from '@/lib/idempotency';
 import type { SentryEventLike } from '@quilty/observability';

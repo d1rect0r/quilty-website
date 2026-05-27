@@ -31,6 +31,11 @@
       "types": "./src/client.ts",
       "default": "./src/client.ts"
     },
+    "./server": {
+      "types": "./src/server/index.ts",
+      "node": "./src/server/index.ts",
+      "default": "./src/server/index.ts"
+    },
     "./testing": {
       "types": "./src/testing/index.ts",
       "default": "./src/testing/index.ts"

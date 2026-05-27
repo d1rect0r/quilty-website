@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "next build",
+    "build": "next build --webpack",
     "clean": "rm -rf .next .turbo .velite *.tsbuildinfo",
     "dev": "next dev",
     "icons:build": "node scripts/build-icons.mjs",

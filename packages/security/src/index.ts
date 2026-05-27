@@ -1,29 +1,42 @@
 /**
- * Public barrel for @quilty/security.
+ * Public barrel for @quilty/security — the client-bundle-safe default.
+ *
+ * Subpath layout (package.json `exports`):
+ *   - `@quilty/security` (this file) — client-bundle-safe surface:
+ *     CSP builders, security headers, redirect validator, sanitizer,
+ *     PHI assertion, honeypot, time-trap, and the makeSanitizer +
+ *     makeRedirectValidator port factories. Everything here MUST be
+ *     reachable from a webpack client bundle without pulling Node-
+ *     only modules.
+ *   - `@quilty/security/server` — Node-only surface: `generateCsrfToken`
+ *     + `verifyCsrf` (csrf.ts uses `node:crypto`). Server Components,
+ *     Route Handlers, and edge-runtime code import from this subpath.
+ *   - `@quilty/security/client` — narrower client subset (no sanitizer
+ *     / no PHI denylist payload). Reserved for the bundle-weight
+ *     reduction commit that moves `composition.client.ts` +
+ *     `sentry.client.config.ts` + `WebVitalsReporter.tsx` over from
+ *     this default barrel. Triggered when client-bundle size budgets
+ *     tighten below the current ~4-5 KB sanitizer overhead.
+ *   - `@quilty/security/testing` — test fakes + helpers.
  *
  * CSP + Security-Headers + Redirect-Validator helpers are exported as
- * plain functions, not as factory-returned port objects. A port is a
- * seam where the implementation can swap. CSP/header construction is
- * pure string composition with no vendor to swap and no closed-over
- * state worth abstracting — the factory shape would be
- * over-engineering. Direct function exports remove dead client-bundle
+ * plain functions, not factory-returned port objects. A port is a seam
+ * where the implementation can swap. CSP/header construction is pure
+ * string composition with no vendor to swap and no closed-over state
+ * worth abstracting — direct function exports remove dead client-bundle
  * code + ~30 lines of factory ceremony with no loss of testability.
  *
  * Deep imports into `src/*` are forbidden by `.dependency-cruiser.cjs`
- * rule `cross-package-imports-must-use-barrel`.
+ * rule `cross-package-imports-must-use-barrel`. Subpath barrels at
+ * `src/<subpath>/index.ts` satisfy the rule.
  *
- * Boundary-debt note: the sanitizer + PHI-denylist + value-pattern
- * regex set ships through this barrel into the client bundle whenever
- * a client module imports `makeSanitizer` (composition.client.ts) or
- * `sanitize` (sentry.client.config.ts). The runtime cost is small
+ * Current client-bundle posture: the sanitizer + PHI denylist + value-
+ * pattern regex set ships through THIS barrel into the client bundle
+ * whenever a client module imports `makeSanitizer` (composition.client.ts)
+ * or `sanitize` (sentry.client.config.ts). The runtime cost is small
  * (~4-5 KB gzipped) and the defensive value is non-negative even in
- * the browser, but architecturally the value-pattern regex pass and
- * the PHI denylist exist to protect log/error sinks — sinks that only
- * fire server- and edge-side. A future `@quilty/security/client`
- * sub-export would carve the client-safe surface (`isSafeRedirect`,
- * `buildMarketingCsp`, the forms-canonical helpers) from the
- * server/edge surface (`sanitize`, `makeSanitizer`). Deferred to a
- * dedicated boundary commit so the scope stays isolated.
+ * the browser. The `/client` subpath (already wired in package.json)
+ * stands ready for the bundle-tightening commit that activates it.
  */
 
 import { assertNoPHI } from './domain/assert-no-phi';
@@ -67,10 +80,10 @@ export {
 export { buildHstsValue, buildSecurityHeaders, currentHstsPhase } from './domain/headers-builder';
 export { isSafeRedirect } from './domain/redirect-validator';
 
-// Forms-canonical domain stubs — exported so the contract test surface is
-// locked at the extraction commit. Bodies fill in at the forms-canonical
-// commit per D113.
-export { generateCsrfToken, verifyCsrf, type CsrfVerifyInput } from './domain/csrf';
+// Forms-canonical domain stubs (D113). CSRF lives at the `/server`
+// subpath because csrf.ts imports node:crypto; co-locating it here
+// would pull node:crypto into every webpack client bundle that
+// imports any other symbol from this barrel.
 export { makeHoneypotField, verifyHoneypot, type HoneypotField } from './domain/honeypot';
 export { makeRenderTimestamp, verifyTimeTrap, type TimeTrapVerifyInput } from './domain/time-trap';
 

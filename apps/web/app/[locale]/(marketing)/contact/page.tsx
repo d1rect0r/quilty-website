@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import dynamic from 'next/dynamic';
-import { generateCsrfToken, makeHoneypotField, makeRenderTimestamp } from '@quilty/security';
+import { makeHoneypotField, makeRenderTimestamp } from '@quilty/security';
+import { generateCsrfToken } from '@quilty/security/server';
 import type { Metadata } from 'next';
 
 /**
