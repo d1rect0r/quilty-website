@@ -1,0 +1,20 @@
+# GENERATED FILE — do not hand-edit.
+# Source: packages/tokens/src/platforms/flutter-theme-extension.mjs
+#
+# `dart analyze --fatal-warnings` runs in the publish workflow at
+# `.github/workflows/publish-flutter.yml`. Without this file the
+# analyser falls back to Dart's default ruleset, which silently
+# skips the flutter_lints recommendations declared in pubspec.yaml's
+# dev_dependencies.
+
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  errors:
+    # Long-line emission is acceptable for generated code; enforce
+    # only the safety-critical rules.
+    lines_longer_than_80_chars: ignore

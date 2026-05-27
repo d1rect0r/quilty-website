@@ -1,5 +1,6 @@
 import StyleDictionary from 'style-dictionary';
 import { registerQuiltyTailwindV4Format } from './platforms/tailwind-v4-theme.mjs';
+import { registerQuiltyFlutterFormat } from './platforms/flutter-theme-extension.mjs';
 
 /**
  * Style Dictionary v5 build for @quilty/tokens.
@@ -24,6 +25,7 @@ import { registerQuiltyTailwindV4Format } from './platforms/tailwind-v4-theme.mj
  */
 
 registerQuiltyTailwindV4Format();
+registerQuiltyFlutterFormat();
 
 const config = {
   log: {
@@ -47,6 +49,23 @@ const config = {
           destination: 'globals-generated.css',
           format: 'css/quilty-tailwind-v4-globals',
         },
+      ],
+    },
+    flutter: {
+      // Flutter target consumes the raw DTCG values (OKLCH for
+      // colors, dimension strings for spacing/radius). The Flutter
+      // formatter handles its own normalisation: culori parses OKLCH
+      // and emits ARGB32 hex per ADR-0020 Decision E gamut-mapping
+      // policy; dimensions are converted from rem/px to Flutter
+      // logical-pixel doubles.
+      transforms: ['name/kebab'],
+      buildPath: 'dist/flutter/',
+      files: [
+        { destination: 'lib/quilty_tokens.dart', format: 'dart/quilty-theme-extension' },
+        { destination: 'lib/src/colors.dart', format: 'dart/quilty-theme-extension' },
+        { destination: 'lib/src/spacing.dart', format: 'dart/quilty-theme-extension' },
+        { destination: 'lib/src/radius.dart', format: 'dart/quilty-theme-extension' },
+        { destination: 'lib/src/theme.dart', format: 'dart/quilty-theme-extension' },
       ],
     },
   },

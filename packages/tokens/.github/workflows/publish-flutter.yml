@@ -1,0 +1,83 @@
+# Flutter token publish workflow — ARMED but NOT ACTIVATED.
+#
+# This workflow publishes `dist/flutter/` to the configured pub.dev
+# registry on a tag push that matches `tokens-v*`. At M1.6 it is
+# scaffolded only; the first publish fires at the M3 visual-identity
+# lock per ADR-0020 Decision F + TW-012 in the trigger watchlist.
+#
+# Activation requirements (deferred to M3):
+#   - PUB_HOSTED_URL secret (private pub registry URL)
+#   - PUB_TOKEN secret (auth token from `dart pub token add`)
+#   - Branch protection rule allowing only the @quilty release owners
+#     to push `tokens-v*` tags.
+#
+# When activated:
+#   1. Remove `publish_to: none` from `dist/flutter/pubspec.yaml`
+#      (the canonical `dart pub publish --force` invocation refuses
+#      to proceed while `publish_to: none` is set; --force only
+#      bypasses the interactive confirmation, NOT this gate). The
+#      pubspec.yaml emitter at activation time should drop the line
+#      OR set it to `publish_to: ${PUB_HOSTED_URL}` directly.
+#   2. Bump @quilty/tokens npm version + tokens-v<X.Y.Z> tag IN THE
+#      SAME COMMIT.
+#   3. Push the tag. This workflow runs `dart pub publish --force`
+#      against `dist/flutter/`.
+#   4. Confirm the published version appears in the consumer at
+#      ~/AppBuilding/quilty's pubspec.yaml within 30 min.
+#
+# Cross-references:
+#   - ADR-0020 Decision F (npm + pub.dev synchronized version policy)
+#   - TW-012 trigger watchlist entry (activation gate)
+
+name: Publish @quilty/tokens Flutter package
+
+on:
+  push:
+    tags:
+      - 'tokens-v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'quilty'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.5.0
+
+      - name: Setup Node + pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install + build tokens
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @quilty/tokens build
+
+      - name: Configure pub registry auth
+        # `dart pub token add` is the canonical CI pattern; it writes
+        # the credential to `pub-tokens.json` (NOT the legacy
+        # `pub-credentials.json` schema, which only works for the
+        # public pub.dev OAuth flow). `--env-var PUB_TOKEN` keeps the
+        # token off disk; the CLI reads it from the env at publish
+        # time. See https://dart.dev/tools/pub/cmd/pub-token.
+        env:
+          PUB_TOKEN: ${{ secrets.PUB_TOKEN }}
+          PUB_HOSTED_URL: ${{ secrets.PUB_HOSTED_URL }}
+        run: dart pub token add "$PUB_HOSTED_URL" --env-var PUB_TOKEN
+
+      - name: Verify generated Dart syntax
+        working-directory: packages/tokens/dist/flutter
+        run: dart analyze --fatal-warnings
+
+      - name: Publish
+        working-directory: packages/tokens/dist/flutter
+        env:
+          PUB_HOSTED_URL: ${{ secrets.PUB_HOSTED_URL }}
+        run: dart pub publish --force
