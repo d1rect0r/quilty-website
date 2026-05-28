@@ -4,12 +4,21 @@
  * Invoked from a client island in the root layout. Production-only
  * by design: `next dev` uses Turbopack with HMR + on-demand chunk
  * resolution, neither of which plays nicely with cache-first SW
- * strategies (D.4 ADR-0022 §Dev-mode behaviour).
+ * strategies (per ADR-0022 §Dev-mode behaviour).
  *
  * Fires on the `load` event so the registration doesn't compete
  * with critical-path resource fetches; first-load LCP isn't blocked
  * by the SW install.
+ *
+ * Phase-A D4-B4 fix: registration errors now route through the
+ * client container's errorReporter chokepoint (Sentry-wrapped),
+ * NOT a swallowed catch. `window.onerror` does not capture
+ * Promise rejections from event listeners, so the prior
+ * empty-catch silently lost CSP-blocked / quota-exceeded failures.
  */
+
+import { getClientContainer } from '@/lib/get-container';
+import { makeClientContainer } from '@/composition.client';
 
 export function registerServiceWorker(): void {
   if (typeof window === 'undefined') return;
@@ -18,29 +27,60 @@ export function registerServiceWorker(): void {
 
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch((err: unknown) => {
-      // Registration failure isn't user-facing; log to the
-      // chokepoint logger so PHI scrubbing applies. The browser
-      // surface (window.console.error) is intentionally NOT
-      // called here — Web Almanac 2024 audit found 30% of sites
-      // ship console errors that bleed into Sentry sample stream.
-      if (err instanceof Error) {
-        // Eat the error; SW registration failure is best-effort.
-        // Production observability captures via window.onerror.
-      }
+      // Route through the chokepoint logger + errorReporter so PHI
+      // scrubbing applies + the failure shows up in Sentry. The
+      // browser surface (window.console.error) is intentionally
+      // NOT called — Web Almanac 2024 audit found ~30% of sites
+      // ship console errors that bleed into observability noise.
+      const container = getClientContainer(makeClientContainer);
+      const error = err instanceof Error ? err : new Error('Service Worker registration failed');
+      container.errorReporter.captureException(error, {
+        boundary: 'sw-register',
+        scope: 'service-worker',
+      });
+      container.logger.warn('sw_registration_failed', {
+        boundary: 'sw-register',
+        error_name: error.name,
+      });
     });
   });
 }
 
 /**
  * Logout signal — invoked by the sign-out handler so the active SW
- * flushes all caches before the next sign-in user lands.
+ * flushes all caches, unregisters itself, then posts back so this
+ * client side can hard-reload.
+ *
+ * The SW responds with `{ type: 'LOGOUT_CACHES_CLEARED' }`; the
+ * `messageHandler` here drives the reload so the next sign-in user
+ * lands on a freshly fetched page with no stale SW state.
+ *
+ * TODO(auth-integration): wire `clearServiceWorkerCaches()` from
+ * the sign-out Route Handler client callback when real-auth lands
+ * (tracked at TW-014 in docs/runbook/trigger-watchlist.md).
+ * Without this call, shared-device scenarios expose cached portal
+ * responses to the next user — see ADR-0022 §Decision D for the
+ * design contract.
  */
 export function clearServiceWorkerCaches(): void {
   if (typeof window === 'undefined') return;
   if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.ready
     .then((registration) => {
+      const messageHandler = (event: MessageEvent): void => {
+        if (event.data && event.data.type === 'LOGOUT_CACHES_CLEARED') {
+          navigator.serviceWorker.removeEventListener('message', messageHandler);
+          window.location.reload();
+        }
+      };
+      navigator.serviceWorker.addEventListener('message', messageHandler);
       registration.active?.postMessage({ type: 'LOGOUT_CLEAR_CACHES' });
+      // Fallback hard-reload if the SW doesn't ack within 2s
+      // (Safari edge cases where the message event doesn't fire).
+      window.setTimeout(() => {
+        navigator.serviceWorker.removeEventListener('message', messageHandler);
+        window.location.reload();
+      }, 2000);
     })
     .catch(() => undefined);
 }
