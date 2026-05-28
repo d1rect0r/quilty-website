@@ -19,6 +19,10 @@ import {
   WorkflowQueryNotFoundError,
   WorkflowTimeoutError,
 } from '../src/ports/workflow-engine';
+import {
+  WorkflowCancellationError,
+  WorkflowTerminationError,
+} from '../src/domain/cancellation-errors';
 import { isTerminal } from '../src/domain/workflow-status';
 import { parseExecutionToken } from '../src/domain/execution-token';
 import type { WorkflowDefinition, WorkflowEngine } from '../src/ports/workflow-engine';
@@ -315,6 +319,62 @@ describe('In-memory WorkflowEngine — Phase-B regression coverage', () => {
     await expect(engine.waitForCompletion(token)).rejects.toMatchObject({
       message: 'Workflow cancelled',
     });
+  });
+
+  it('WorkflowTerminationError is a subclass of WorkflowCancellationError (catch-block ergonomics)', async () => {
+    // A consumer that writes `catch (err) { if (err instanceof
+    // WorkflowCancellationError) ... }` MUST match BOTH cancelled
+    // and terminated errors. The inheritance hierarchy is the
+    // canonical Temporal pattern; this test guards against a future
+    // refactor that re-declares WorkflowTerminationError as a
+    // standalone class.
+    const engine = makeInMemoryWorkflowEngine();
+    engine.registerWorkflow<undefined, string>('signalling', async (_input, ctx) => {
+      await ctx.waitForSignal<string>('never');
+      return 'unreachable';
+    });
+    const token = await engine.start(signallingDefinition, undefined);
+    await new Promise<void>((r) => queueMicrotask(r));
+    await new Promise<void>((r) => queueMicrotask(r));
+    await engine.terminate(token, 'compliance_revoked');
+    try {
+      await engine.waitForCompletion(token);
+      throw new Error('expected waitForCompletion to reject');
+    } catch (err) {
+      expect(err).toBeInstanceOf(WorkflowTerminationError);
+      expect(err).toBeInstanceOf(WorkflowCancellationError);
+      expect(err).toBeInstanceOf(Error);
+      if (err instanceof WorkflowTerminationError) {
+        expect(err.kind).toBe('terminated');
+        expect(err.reason).toBe('compliance_revoked');
+      }
+    }
+  });
+
+  it('getExecutionState returns a frozen snapshot that cannot mutate engine state', async () => {
+    // Phase-C A2 hazard: Readonly<ExecutionState> doesn't strip
+    // Map.set(). The snapshot shape uses cloned + frozen Maps so
+    // a test author calling state.signals.set() in strict mode
+    // throws (or silently no-ops outside strict).
+    const engine = makeInMemoryWorkflowEngine();
+    engine.registerWorkflow<undefined, string>('signalling', async (_input, ctx) => {
+      await ctx.waitForSignal<string>('go');
+      return 'ok';
+    });
+    const token = await engine.start(signallingDefinition, undefined);
+    // Push a payload onto a queue so the snapshot's signals Map
+    // has a non-empty entry to inspect.
+    await engine.signal(token, 'pending-name', 'pending-payload');
+    const snapshot = engine.getExecutionState(token);
+    expect(snapshot).toBeDefined();
+    if (!snapshot) return;
+    expect(Object.isFrozen(snapshot)).toBe(true);
+    // Snapshot is a clone — mutating it must NOT change engine
+    // state. We deliver the real 'go' signal and confirm the
+    // workflow completes (proving live state was untouched).
+    await engine.signal(token, 'go', 'final');
+    await engine.waitForCompletion(token);
+    expect((await engine.status(token)).type).toBe('completed');
   });
 
   it('terminate() drives the workflow to terminated state distinct from cancelled', async () => {

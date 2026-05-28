@@ -20,9 +20,20 @@ export const ROUTE_THRESHOLDS: Record<string, RouteThresholds> = {
   /**
    * CloudFront edge-cached static assets (Tailwind CSS bundle,
    * fonts, /workbox/* runtime, OG/favicon images). Hits the CDN
-   * edge — no Lambda invocation. Vercel Speed Insights 2026
-   * canon splits this from `static_html` because the cache-HIT
-   * floor is 5-10x lower than the cache-MISS path.
+   * edge — no Lambda invocation. Splits this from `static_html`
+   * because the cache-HIT floor is 5-10x lower than the cache-MISS
+   * path; per-tier visibility surfaces a degraded cache-hit ratio
+   * BEFORE p95 of a merged tier crosses the alarm threshold.
+   *
+   * CALIBRATION NOTE: targets are aspirational against typical
+   * CloudFront cache-HIT latencies (5-15ms p50 from a nearby PoP;
+   * 60-120ms p95 at the tail of PoP coverage; >200ms p99 under
+   * burst traffic that forwards to origin). The first real-traffic
+   * baseline against the live CloudFront distribution (post-launch
+   * per TW-018) should validate or replace these numbers. SST
+   * deploys via CloudFront — NOT Vercel Fluid Compute, which has
+   * a different execution-model latency profile (in-region
+   * compute+edge colocation vs CloudFront's PoP+origin split).
    */
   static_asset: { p50: 40, p95: 80, p99: 200, errorRate: 0.0005 },
   /**

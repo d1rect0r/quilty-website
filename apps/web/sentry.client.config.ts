@@ -5,6 +5,34 @@ import * as Sentry from '@sentry/nextjs';
 const phiScrubber = makePhiScrubber();
 
 /**
+ * Gate Sentry init on a CSP-coherent DSN host. The portal CSP
+ * `connect-src` only allows the pinned `o<orgId>.ingest.us.sentry.io`
+ * subdomain (per the csp-builder `pinnedSentryHostOrNull` policy).
+ * If the DSN points at a non-pinned host, every SDK POST would be
+ * CSP-blocked and the browser would emit a violation report on
+ * every transport attempt — a runaway feedback loop where every
+ * CSP-violation report itself fires a CSP-violation report.
+ *
+ * Returning `false` here skips `Sentry.init()` entirely; the SDK's
+ * exported APIs no-op when uninitialised, so no transport, no loop,
+ * no console error spam. Operators see no Sentry events until they
+ * provision a real canonical DSN.
+ */
+function shouldInitializeSentryClient(): boolean {
+  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+  if (typeof dsn !== 'string' || dsn.trim().length === 0) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(dsn);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== 'https:') return false;
+  // Same shape the CSP pin enforces server-side.
+  return /^o[0-9]+\.ingest\.us\.sentry\.io$/.test(parsed.hostname);
+}
+
+/**
  * Sentry client-side config per D42a + D68 + D67.
  *
  * Replay posture (D68):
@@ -26,42 +54,46 @@ const phiScrubber = makePhiScrubber();
  *   - Drops any breadcrumb or extra context containing PHI keys
  */
 
-Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ?? 'development',
+const SENTRY_CLIENT_ENABLED = shouldInitializeSentryClient();
 
-  // Tracing — Sentry auto-consumes the OTel spans emitted from instrumentation.ts.
-  tracesSampleRate: 0.1,
+if (SENTRY_CLIENT_ENABLED) {
+  Sentry.init({
+    dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ?? 'development',
 
-  // Replay — error-triggered only (HIPAA-aligned, per D68). The
-  // integration is added below via lazyLoadIntegration so the worker
-  // chunk only ships when an error actually fires.
-  replaysSessionSampleRate: 0,
-  replaysOnErrorSampleRate: 1.0,
+    // Tracing — Sentry auto-consumes the OTel spans emitted from instrumentation.ts.
+    tracesSampleRate: 0.1,
 
-  // beforeSend — last line of defense. The PHIScrubber adapter
-  // (D67 + D148) centralises the chokepoint logic that previously was
-  // duplicated across server / client / edge configs. See
-  // sentry.server.config.ts for the chokepoint rationale.
-  beforeSend(event) {
-    return phiScrubber.scrubSentryEvent(event) as typeof event | null;
-  },
+    // Replay — error-triggered only (HIPAA-aligned, per D68). The
+    // integration is added below via lazyLoadIntegration so the worker
+    // chunk only ships when an error actually fires.
+    replaysSessionSampleRate: 0,
+    replaysOnErrorSampleRate: 1.0,
 
-  beforeBreadcrumb(breadcrumb) {
-    // Strip PHI-shaped fields from breadcrumb data + message. The message
-    // is free text the Sentry SDK populates from navigation events, fetch
-    // URLs, and console output — a fetch breadcrumb's message may contain
-    // a query-string fragment if D31's URL-no-PHI invariant is ever
-    // violated; sanitizing here defends in depth.
-    if (breadcrumb.data) {
-      breadcrumb.data = sanitize(breadcrumb.data) as Record<string, unknown>;
-    }
-    if (breadcrumb.message) {
-      breadcrumb.message = sanitize(breadcrumb.message);
-    }
-    return breadcrumb;
-  },
-});
+    // beforeSend — last line of defense. The PHIScrubber adapter
+    // (D67 + D148) centralises the chokepoint logic that previously was
+    // duplicated across server / client / edge configs. See
+    // sentry.server.config.ts for the chokepoint rationale.
+    beforeSend(event) {
+      return phiScrubber.scrubSentryEvent(event) as typeof event | null;
+    },
+
+    beforeBreadcrumb(breadcrumb) {
+      // Strip PHI-shaped fields from breadcrumb data + message. The message
+      // is free text the Sentry SDK populates from navigation events, fetch
+      // URLs, and console output — a fetch breadcrumb's message may contain
+      // a query-string fragment if D31's URL-no-PHI invariant is ever
+      // violated; sanitizing here defends in depth.
+      if (breadcrumb.data) {
+        breadcrumb.data = sanitize(breadcrumb.data) as Record<string, unknown>;
+      }
+      if (breadcrumb.message) {
+        breadcrumb.message = sanitize(breadcrumb.message);
+      }
+      return breadcrumb;
+    },
+  });
+}
 
 /**
  * Replay integration is added through `wrapReplay` so the D68 floor
@@ -75,6 +107,6 @@ Sentry.init({
  * Container property) would create two init code paths with different
  * enforcement coverage.
  */
-if (typeof window !== 'undefined') {
+if (SENTRY_CLIENT_ENABLED && typeof window !== 'undefined') {
   void wrapReplay({ adapter: makeSentryReplay() }).initialize();
 }

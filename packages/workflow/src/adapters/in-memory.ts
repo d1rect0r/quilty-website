@@ -37,12 +37,17 @@ import {
 import { type WorkflowStatus } from '../domain/workflow-status';
 import { isValidCancelReason, type WorkflowCancelReason } from '../domain/workflow-status';
 import { WorkflowCancellationError, WorkflowTerminationError } from '../domain/cancellation-errors';
+import {
+  snapshotExecutionState,
+  type ExecutionStateSnapshot,
+} from '../domain/execution-state-snapshot';
 
-// Cancellation/termination error classes live in
-// `../domain/cancellation-errors` so this adapter file stays under
-// the 500-line readability ceiling. Re-exported for backwards-
+// Cancellation/termination error classes + ExecutionStateSnapshot
+// live in `../domain/*` so this adapter file stays under the
+// 500-line readability ceiling. Re-exported for backwards-
 // compatibility with the prior import path.
 export { WorkflowCancellationError, WorkflowTerminationError } from '../domain/cancellation-errors';
+export type { ExecutionStateSnapshot } from '../domain/execution-state-snapshot';
 
 /**
  * Internal signal-waiter shape. The push-model registry replaces
@@ -114,10 +119,19 @@ export interface InMemoryWorkflowEngine extends WorkflowEngine {
   readonly advanceTime: (ms: number) => Promise<void>;
 
   /**
-   * Inspect raw execution state — testing-only escape hatch.
-   * Production code paths never call this.
+   * Inspect a deep-frozen snapshot of execution state — testing-only
+   * escape hatch. Production code paths never call this. Returns
+   * undefined when the token doesn't reference a known execution.
+   *
+   * The snapshot is a DEEP CLONE of the live ExecutionState with
+   * `Object.freeze` applied to its `Map`-shaped fields, so test
+   * authors cannot accidentally mutate engine state through the
+   * returned reference. The prior `Readonly<ExecutionState>`
+   * shape was a shallow type-level hint only — `state.signals.set()`
+   * would silently mutate the live state because Map methods are
+   * not stripped by the `Readonly<T>` utility.
    */
-  readonly getExecutionState: (token: ExecutionToken) => Readonly<ExecutionState> | undefined;
+  readonly getExecutionState: (token: ExecutionToken) => ExecutionStateSnapshot | undefined;
 }
 
 interface SleepWaiter {
@@ -466,7 +480,9 @@ export function makeInMemoryWorkflowEngine(): InMemoryWorkflowEngine {
 
     getExecutionState(token) {
       if (token.kind !== 'in-memory') return undefined;
-      return executions.get(token.id);
+      const live = executions.get(token.id);
+      if (!live) return undefined;
+      return snapshotExecutionState(live);
     },
   };
 }
