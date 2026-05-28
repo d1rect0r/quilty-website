@@ -100,7 +100,7 @@ describe('In-memory WorkflowEngine — 6-method contract', () => {
       return 'done';
     });
     const token = await engine.start(cancellableDefinition, { wait: 100 });
-    await engine.cancel(token, 'user requested');
+    await engine.cancel(token, 'user_requested');
     await engine.advanceTime(100);
     await expect(engine.waitForCompletion(token)).rejects.toMatchObject({
       name: 'WorkflowCancellationError',
@@ -108,7 +108,7 @@ describe('In-memory WorkflowEngine — 6-method contract', () => {
     const final = await engine.status(token);
     expect(final.type).toBe('cancelled');
     if (final.type === 'cancelled') {
-      expect(final.reason).toBe('user requested');
+      expect(final.reason).toBe('user_requested');
     }
   });
 
@@ -216,7 +216,7 @@ describe('In-memory WorkflowEngine — Phase-B regression coverage', () => {
     // Yield twice so the workflow body parks its waiter.
     await new Promise<void>((r) => queueMicrotask(r));
     await new Promise<void>((r) => queueMicrotask(r));
-    await engine.cancel(token, 'test-cancel');
+    await engine.cancel(token, 'operator_requested');
     await expect(engine.waitForCompletion(token)).rejects.toMatchObject({
       name: 'WorkflowCancellationError',
     });
@@ -284,5 +284,29 @@ describe('In-memory WorkflowEngine — Phase-B regression coverage', () => {
     expect(() => parseExecutionToken(null)).toThrow(/must be an object/);
     expect(() => parseExecutionToken({ kind: 'sfn' })).toThrow(/missing executionArn/);
     expect(() => parseExecutionToken({ kind: 'wat' })).toThrow(/unknown token kind/);
+  });
+
+  it('terminate() drives the workflow to terminated state distinct from cancelled', async () => {
+    // Phase-A enterprise D3-E1 + D3-E5: cancel/terminate must
+    // surface as distinct terminal states so HIPAA auditors can
+    // distinguish user-cooperative cancellation from ops-initiated
+    // forcible kill.
+    const engine = makeInMemoryWorkflowEngine();
+    engine.registerWorkflow<undefined, string>('signalling', async (_input, ctx) => {
+      await ctx.waitForSignal<string>('never');
+      return 'unreachable';
+    });
+    const token = await engine.start(signallingDefinition, undefined);
+    await new Promise<void>((r) => queueMicrotask(r));
+    await new Promise<void>((r) => queueMicrotask(r));
+    await engine.terminate(token, 'compliance_revoked');
+    await expect(engine.waitForCompletion(token)).rejects.toMatchObject({
+      name: 'WorkflowTerminationError',
+    });
+    const final = await engine.status(token);
+    expect(final.type).toBe('terminated');
+    if (final.type === 'terminated') {
+      expect(final.reason).toBe('compliance_revoked');
+    }
   });
 });

@@ -35,13 +35,23 @@ import {
   type ExecutionToken,
 } from '../domain/execution-token';
 import { type WorkflowStatus } from '../domain/workflow-status';
+import type { WorkflowCancelReason } from '../domain/workflow-status';
 
 export class WorkflowCancellationError extends Error {
-  constructor(reason?: string) {
-    super(`Workflow cancelled${reason ? `: ${reason}` : ''}`);
-    // Explicit string-literal assignment so the class name survives
-    // webpack class-name minification (mirrors WorkflowEngineError).
-    this.name = 'WorkflowCancellationError';
+  readonly reason: WorkflowCancelReason | undefined;
+  /**
+   * Distinguishes cooperative cancel() from forcible terminate() so
+   * the workflow body's catch site (or its finally / cleanup
+   * handler) can branch on the kind. `kind: 'terminated'` means
+   * NO cleanup window per Temporal canon — handlers MUST exit
+   * without further await.
+   */
+  readonly kind: 'cancelled' | 'terminated';
+  constructor(reason?: WorkflowCancelReason, kind: 'cancelled' | 'terminated' = 'cancelled') {
+    super(`Workflow ${kind}${reason ? `: ${reason}` : ''}`);
+    this.name = kind === 'terminated' ? 'WorkflowTerminationError' : 'WorkflowCancellationError';
+    this.reason = reason;
+    this.kind = kind;
   }
 }
 
@@ -66,7 +76,8 @@ interface ExecutionState {
   signals: Map<string, unknown[]>;
   signalWaiters: Map<string, SignalWaiter[]>;
   queryHandlers: Map<string, () => unknown>;
-  cancellationReason?: string;
+  cancellationReason?: WorkflowCancelReason;
+  cancelKind?: 'cancelled' | 'terminated';
   resolveCompletion?: (value: unknown) => void;
   rejectCompletion?: (err: unknown) => void;
   completionPromise: Promise<unknown>;
@@ -126,6 +137,29 @@ interface SleepWaiter {
   readonly resolve: () => void;
 }
 
+/**
+ * Shared cancellation/termination wiring. `cancel()` and
+ * `terminate()` differ only in the `kind` discriminator they
+ * propagate into the WorkflowCancellationError + the eventual
+ * terminal status.
+ */
+function finalizeCancellation(
+  exec: ExecutionState,
+  reason: WorkflowCancelReason | undefined,
+  kind: 'cancelled' | 'terminated',
+): void {
+  if (reason !== undefined) {
+    exec.cancellationReason = reason;
+  }
+  exec.cancelKind = kind;
+  for (const [, waiters] of exec.signalWaiters) {
+    for (const w of waiters) {
+      w.reject(new WorkflowCancellationError(reason, kind));
+    }
+  }
+  exec.signalWaiters.clear();
+}
+
 export function makeInMemoryWorkflowEngine(): InMemoryWorkflowEngine {
   let nextId = 1;
   let virtualClock = 0;
@@ -158,8 +192,8 @@ export function makeInMemoryWorkflowEngine(): InMemoryWorkflowEngine {
             reject(new WorkflowNotFoundError(`in-memory://${executionId}`));
             return;
           }
-          if (exec.cancellationReason !== undefined) {
-            reject(new WorkflowCancellationError(exec.cancellationReason));
+          if (exec.cancelKind !== undefined) {
+            reject(new WorkflowCancellationError(exec.cancellationReason, exec.cancelKind));
             return;
           }
           const queue = exec.signals.get(name);
@@ -198,12 +232,12 @@ export function makeInMemoryWorkflowEngine(): InMemoryWorkflowEngine {
       },
       isCancelled() {
         const exec = executions.get(executionId);
-        return exec?.cancellationReason !== undefined;
+        return exec?.cancelKind !== undefined;
       },
       throwIfCancelled() {
         const exec = executions.get(executionId);
-        if (exec?.cancellationReason !== undefined) {
-          throw new WorkflowCancellationError(exec.cancellationReason);
+        if (exec?.cancelKind !== undefined) {
+          throw new WorkflowCancellationError(exec.cancellationReason, exec.cancelKind);
         }
       },
     };
@@ -250,18 +284,34 @@ export function makeInMemoryWorkflowEngine(): InMemoryWorkflowEngine {
         impl(input, ctx)
           .then((output) => {
             // Re-check cancellation: if the body returned normally
-            // but a cancel was issued mid-flight, prefer the
-            // cancelled terminal state.
+            // but a cancel/terminate was issued mid-flight, prefer
+            // the terminal state matching the kind that fired.
             const cancelReason = state.cancellationReason;
-            if (cancelReason !== undefined) {
-              const cancelledAt = new Date();
-              state.status = {
-                type: 'cancelled',
-                startedAt,
-                cancelledAt,
-                reason: cancelReason,
-              };
-              rejectCompletion(new WorkflowCancellationError(cancelReason));
+            const cancelKind = state.cancelKind;
+            if (cancelKind !== undefined) {
+              const terminalAt = new Date();
+              if (cancelKind === 'terminated') {
+                state.status =
+                  cancelReason !== undefined
+                    ? {
+                        type: 'terminated',
+                        startedAt,
+                        terminatedAt: terminalAt,
+                        reason: cancelReason,
+                      }
+                    : { type: 'terminated', startedAt, terminatedAt: terminalAt };
+              } else {
+                state.status =
+                  cancelReason !== undefined
+                    ? {
+                        type: 'cancelled',
+                        startedAt,
+                        cancelledAt: terminalAt,
+                        reason: cancelReason,
+                      }
+                    : { type: 'cancelled', startedAt, cancelledAt: terminalAt };
+              }
+              rejectCompletion(new WorkflowCancellationError(cancelReason, cancelKind));
               return;
             }
             const completedAt = new Date();
@@ -271,12 +321,29 @@ export function makeInMemoryWorkflowEngine(): InMemoryWorkflowEngine {
           })
           .catch((err) => {
             if (err instanceof WorkflowCancellationError) {
-              const cancelledAt = new Date();
+              const terminalAt = new Date();
               const cancelReason = state.cancellationReason;
-              state.status =
-                cancelReason !== undefined
-                  ? { type: 'cancelled', startedAt, cancelledAt, reason: cancelReason }
-                  : { type: 'cancelled', startedAt, cancelledAt };
+              if (err.kind === 'terminated') {
+                state.status =
+                  cancelReason !== undefined
+                    ? {
+                        type: 'terminated',
+                        startedAt,
+                        terminatedAt: terminalAt,
+                        reason: cancelReason,
+                      }
+                    : { type: 'terminated', startedAt, terminatedAt: terminalAt };
+              } else {
+                state.status =
+                  cancelReason !== undefined
+                    ? {
+                        type: 'cancelled',
+                        startedAt,
+                        cancelledAt: terminalAt,
+                        reason: cancelReason,
+                      }
+                    : { type: 'cancelled', startedAt, cancelledAt: terminalAt };
+              }
               rejectCompletion(err);
               return;
             }
@@ -295,19 +362,12 @@ export function makeInMemoryWorkflowEngine(): InMemoryWorkflowEngine {
       return exec.status;
     },
 
-    async cancel(token, reason) {
-      const exec = getExecution(token);
-      const cancelReason = reason ?? 'Cancelled by caller';
-      exec.cancellationReason = cancelReason;
-      // Reject every parked signal-waiter so the workflow body's
-      // `await ctx.waitForSignal(...)` exits with a
-      // WorkflowCancellationError on the next microtask tick.
-      for (const [, waiters] of exec.signalWaiters) {
-        for (const w of waiters) {
-          w.reject(new WorkflowCancellationError(cancelReason));
-        }
-      }
-      exec.signalWaiters.clear();
+    async cancel(token: ExecutionToken, reason?: WorkflowCancelReason): Promise<void> {
+      finalizeCancellation(getExecution(token), reason, 'cancelled');
+    },
+
+    async terminate(token: ExecutionToken, reason?: WorkflowCancelReason): Promise<void> {
+      finalizeCancellation(getExecution(token), reason, 'terminated');
     },
 
     async signal(token, signalName, payload) {

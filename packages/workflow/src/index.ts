@@ -19,7 +19,7 @@
 export type { ExecutionToken, ExecutionTokenPayload } from './domain/execution-token';
 export { parseExecutionToken, summarizeExecutionToken } from './domain/execution-token';
 
-export type { WorkflowStatus } from './domain/workflow-status';
+export type { WorkflowCancelReason, WorkflowStatus } from './domain/workflow-status';
 export { isTerminal } from './domain/workflow-status';
 
 export type { WorkflowDefinition, WorkflowEngine } from './ports/workflow-engine';
@@ -36,5 +36,5 @@ export {
   StepFunctionsAdapterNotActivatedError,
 } from './adapters/step-functions';
 
-export type { TemporalAdapterOptions } from './adapters/temporal';
+export type { TemporalAdapterOptions, TemporalPayloadCodec } from './adapters/temporal';
 export { makeTemporalAdapter, TemporalAdapterNotActivatedError } from './adapters/temporal';

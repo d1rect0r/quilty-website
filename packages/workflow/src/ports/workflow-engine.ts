@@ -27,7 +27,7 @@
  */
 
 import type { ExecutionToken } from '../domain/execution-token';
-import type { WorkflowStatus } from '../domain/workflow-status';
+import type { WorkflowCancelReason, WorkflowStatus } from '../domain/workflow-status';
 
 export interface WorkflowDefinition<TInput, TOutput> {
   readonly name: string;
@@ -64,11 +64,25 @@ export interface WorkflowEngine {
   /**
    * Request graceful cancellation. The engine emits the cancellation
    * signal; the workflow's own cancellation handler decides what
-   * cleanup to run. Optional `reason` surfaces in the workflow's
-   * audit trail (CloudWatch logs for SFN, Web UI history for
-   * Temporal).
+   * cleanup to run. The reason MUST be one of the closed-enum
+   * `WorkflowCancelReason` values — free-text was rejected per
+   * ADR-0021 §HIPAA to prevent PHI from flowing into CloudWatch /
+   * Temporal event history. Sensitive context lives in the
+   * originating audit log keyed by correlation ID.
    */
-  readonly cancel: (token: ExecutionToken, reason?: string) => Promise<void>;
+  readonly cancel: (token: ExecutionToken, reason?: WorkflowCancelReason) => Promise<void>;
+
+  /**
+   * Forcibly terminate a workflow with NO cancellation handler
+   * window — mirrors Temporal's `WorkflowHandle.terminate()` /
+   * SFN's `StopExecution(cause='terminate')`. Use cancel() for
+   * cooperative user-initiated cancellation (account-delete
+   * grace flow rollback); use terminate() for ops-initiated kill
+   * paths (PHI-leak incident response, runaway workflow). The
+   * audit trail distinction is required for HIPAA reviewers per
+   * ADR-0021 §HIPAA Decision E.
+   */
+  readonly terminate: (token: ExecutionToken, reason?: WorkflowCancelReason) => Promise<void>;
 
   /**
    * Send a typed signal to a running workflow. Semantics match
