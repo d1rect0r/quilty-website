@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 // Explicit `robots` re-statement rather than layout-cascade only:
 // a "Delete your account" surface appearing in a SERP is a HIPAA-
-// alignment + UX exposure for a consumer mental-health product.
+// alignment + UX exposure for a consumer vaping cessation product.
 export const metadata: Metadata = {
   title: 'Delete account',
   robots: { index: false, follow: false },

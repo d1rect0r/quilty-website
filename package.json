@@ -1,7 +1,7 @@
 {
   "name": "quilty-website",
   "version": "0.1.0",
-  "description": "Quilty's public-facing website — Turborepo + pnpm monorepo.",
+  "description": "Quilty's public-facing website — HIPAA-aligned consumer vaping cessation product (DTC, FDA general-wellness lane). Turborepo + pnpm monorepo.",
   "private": true,
   "packageManager": "pnpm@10.10.0",
   "engines": {

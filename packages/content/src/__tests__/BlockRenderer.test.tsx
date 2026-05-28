@@ -106,7 +106,7 @@ describe('BlockSchema discriminated union', () => {
   it('accepts a TestimonialQuote block', () => {
     const input: Block = {
       type: 'TestimonialQuote',
-      quote: 'Quilty changed my approach to mental health.',
+      quote: 'Quilty helped me quit vaping for good.',
       attribution: 'Jane D.',
       role: 'Customer since 2024',
     };

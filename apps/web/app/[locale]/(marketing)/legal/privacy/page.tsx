@@ -166,9 +166,9 @@ export default function PrivacyPolicyPage() {
         chokepoint discipline.
       </p>
       <p className="text-fg-muted mt-4">
-        Clinical interactions (mental-health inferences, mood + activity logs, therapist
-        communications where applicable) are processed by the mobile product against a separate,
-        audited backend, not by the website tier.
+        Vaping cessation interactions (craving logs, quit-streak, trigger tags, in-app coaching
+        conversations) are processed by the mobile product against a separate, audited backend, not
+        by the website tier.
       </p>
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">Sensitive data classes</h2>

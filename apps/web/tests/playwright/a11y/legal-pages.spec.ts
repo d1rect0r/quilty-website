@@ -72,7 +72,7 @@ test('@a11y /en/account/privacy has no axe-core WCAG 2.2 AA violations', async (
 test('@a11y /en/account/privacy is NOT indexable (signed-in surface)', async ({ page }) => {
   await page.goto('/en/account/privacy');
   // Robots noindex is load-bearing — a signed-in DSAR hub reaching a
-  // SERP for a HIPAA-aligned consumer mental-health product is a
+  // SERP for a HIPAA-aligned consumer vaping cessation product is a
   // brand + compliance exposure.
   const noindexMeta = await page.locator('meta[name="robots"][content*="noindex"]').count();
   expect(noindexMeta).toBeGreaterThanOrEqual(1);

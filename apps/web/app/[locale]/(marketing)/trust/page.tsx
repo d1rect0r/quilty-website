@@ -110,9 +110,9 @@ export default function TrustCenterPage() {
       <h1 className="text-fg-default text-4xl font-semibold">Trust Center</h1>
 
       <p className="text-fg-muted mt-6">
-        Quilty operates as a HIPAA-aligned consumer mental-health product. This page summarises our
-        security posture, compliance status, and where to find the details. We update it on every
-        meaningful change.
+        Quilty operates as a HIPAA-aligned consumer vaping cessation product. This page summarises
+        our security posture, compliance status, and where to find the details. We update it on
+        every meaningful change.
       </p>
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">Our security posture</h2>

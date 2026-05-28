@@ -2,11 +2,14 @@
 
 > **quilty-website** — Quilty's public-facing website.
 > Marketing site + account portal + subscription management surface.
-> HIPAA-aligned consumer mental-health (Quilty).
+> HIPAA-aligned consumer **vaping cessation** product (Quilty).
+> DTC at Phase 0 → not a HIPAA Business Associate. BA-ready architecture for Phase 1+ B2B (employer wellness / health-plan) channels per D176-D178 + ADR-0023 / ADR-0024 / ADR-0025 / ADR-0026.
+> Non-prescription, non-DTx; FDA general-wellness lane (FD&C Act §520(o)(1)(B)).
+> One-liner: _Quilty is an evidence-based vaping cessation program — a coach in your pocket to help you quit vaping for good._
 
 ## Status
 
-M1.6 Workstream B closed (2026-05-26). Foundation phase complete: M1 scaffold → M1.5 foundation refactor → M1.6/A cleanup → M1.6/B enterprise-seam locks all landed. Workstreams **C (operational discipline)** + **D (promoted defers)** remain from the locked `docs/m1.6_foundation_finishing_plan.md`. Sprint metrics in `docs/m1.6_verification_report.md`: 689 tests across 13 test-bearing workspaces, 98.13% type-coverage, 15/15 verify gates green, 3 new packages (`@quilty/api-client`, `@quilty/test-fixtures`, `cf-functions`), 2 new ADRs (0016 DynamoDB, 0017 HTTP client + resilience). All structural decisions D1-D49 + Round-5 revisions + D50-D69 + U1-U8 locked — see `docs/website_strategy_discussion.md` and `docs/research/round_5_independent_review/`.
+M1.6 Workstreams C + D closed + Phase-B / Phase-C retroactive audit + doc-reconciliation pass landed. Foundation phase complete. Sprint metrics: 857+ tests across 17 workspaces, ≥98% type-coverage, 17/17 verify gates green, 3 new packages (`@quilty/search`, `@quilty/tokens`, `@quilty/workflow`), 9 new ADRs (0018 bundle budgets, 0019 search, 0020 design tokens, 0021 workflow engine, 0022 service worker, 0023 vaping-cessation regulatory classification, 0024 multi-state CHD posture, 0025 retention + research carve-out, 0026 pre-AI compliance shape). All structural decisions D1-D175 + U1-U10 + D176-D178 (vaping-cessation framing reconciliation) locked — see `docs/website_strategy_discussion.md`.
 
 ---
 

@@ -5,10 +5,10 @@ import type { Metadata } from 'next';
 // renders as plain "Quilty" rather than "Home · Quilty" — a11y
 // reviewer flagged "Home" as too vague for WCAG 2.4.2 Page Titled).
 // The identity-discovery milestone may replace this with a topical homepage title
-// ("Quilty — Mental health, made personal") once the voice lands.
+// ("Quilty — Quit vaping for good") once the voice lands.
 export const metadata: Metadata = {
   description:
-    'Quilty is a peer-set mental-health product for people building sustainable mental wellness — private, evidence-anchored, and designed for the long haul. Learn how Quilty supports your routine without third-party tracking.',
+    'Quilty is an evidence-based vaping cessation program — a coach in your pocket to help adults quit vaping for good. Private, evidence-anchored, and designed for the long haul. No third-party tracking.',
   // Per-page canonical + self-referencing hreflang. The root layout no
   // longer ships a blanket canonical; every
   // marketing page MUST declare its own. `x-default` points at the English
@@ -35,7 +35,7 @@ export default function HomePage() {
           structure (single-section pages especially). */}
       <section className="mx-auto max-w-4xl px-6 py-24 text-center">
         <h1 className="text-fg-default text-balance text-5xl font-semibold tracking-tight">
-          Mental health, made personal.
+          Quit vaping for good.
         </h1>
         <p className="text-fg-muted mt-6 text-lg">
           The identity-discovery milestone will replace this hero with real voice + visual. The

@@ -72,7 +72,7 @@ describe('MedicalWebPage JSON-LD', () => {
       siteUrl: SITE,
       url: `${SITE}/science`,
       name: 'The Science Behind Quilty',
-      description: 'Evidence-informed mental health support.',
+      description: 'Evidence-informed vaping cessation support.',
       lastReviewed: null,
       reviewedBy: null,
     });

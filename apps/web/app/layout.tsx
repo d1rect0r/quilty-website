@@ -26,7 +26,8 @@ import './globals.css';
  */
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
-const SITE_DESCRIPTION = 'Quilty — a mental-health peer-set product.';
+const SITE_DESCRIPTION =
+  'Quilty — an evidence-based vaping cessation program. A coach in your pocket to help you quit vaping for good.';
 const SITE_TITLE = 'Quilty';
 const OG_IMAGE_ALT = 'Quilty — geometric Q wordmark on a neutral background.';
 

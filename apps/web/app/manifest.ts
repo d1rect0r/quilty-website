@@ -33,7 +33,8 @@ export default function manifest(): MetadataRoute.Manifest {
     id: '/',
     name: 'Quilty',
     short_name: 'Quilty',
-    description: 'Quilty — a mental-health peer-set product.',
+    description:
+      'Quilty — an evidence-based vaping cessation program. A coach in your pocket to help you quit vaping for good.',
     start_url: '/',
     scope: '/',
     display: 'standalone',

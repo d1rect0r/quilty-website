@@ -6,9 +6,10 @@
  * SES once the AWS sandbox is lifted + a BAA is in force).
  *
  * D31 invariant — zero PHI in email content. Email subject + body MUST
- * NOT contain identifying clinical fields (free-text symptom notes,
- * therapy session content, anything from a mental-health prompt
- * response). Transactional emails are scoped to identity/auth/billing:
+ * NOT contain identifying clinical or cessation-engagement fields
+ * (free-text craving notes, in-app coaching conversations, mood/trigger
+ * tags, anything from a vaping cessation prompt response). Transactional
+ * emails are scoped to identity/auth/billing:
  *   - email-verification
  *   - password-reset
  *   - account-deletion-confirmation

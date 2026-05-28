@@ -57,7 +57,7 @@ const TRAINING_BOTS = [
   'Bytespider',
   'TikTokSpider',
   // YandexBot is not a foundation-model training crawler per se,
-  // but a US-focused mental-health product has no Russian-market
+  // but a US-focused vaping cessation product has no Russian-market
   // intent. Blocking the general-index crawler keeps Quilty out of
   // a market we cannot legally + practically serve.
   'YandexBot',

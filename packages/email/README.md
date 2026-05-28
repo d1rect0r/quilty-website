@@ -8,7 +8,7 @@ Single hexagonal port: `EmailSender.send(envelope) → Promise<EmailSendResult>`
 
 ## D31 invariant — zero PHI
 
-Email subject + body MUST NOT carry mental-health clinical content. The `EmailKind` closed-set union (`email_verification`, `password_reset`, `account_deletion_confirmation`, `subscription_renewal_receipt`, `sign_in_from_new_device_alert`) is the contract — adding a kind requires a HIPAA review at schema-change time, not at call-site time. The `wrapEmailSender({ adapter, sanitizer })` factory composes the PHI sanitizer chokepoint over the adapter; the dep-cruiser rule + ESLint chokepoint enforce that the composition root cannot consume a raw adapter.
+Email subject + body MUST NOT carry vaping cessation engagement content or clinical inferences. The `EmailKind` closed-set union (`email_verification`, `password_reset`, `account_deletion_confirmation`, `subscription_renewal_receipt`, `sign_in_from_new_device_alert`) is the contract — adding a kind requires a HIPAA / state-CHD review at schema-change time, not at call-site time (see ADR-0023 + ADR-0024). The `wrapEmailSender({ adapter, sanitizer })` factory composes the PHI sanitizer chokepoint over the adapter; the dep-cruiser rule + ESLint chokepoint enforce that the composition root cannot consume a raw adapter.
 
 ## Public API
 

@@ -1,7 +1,7 @@
 {
   "name": "web",
   "version": "0.1.0",
-  "description": "Quilty public website — Next.js 16 App Router + TypeScript strict.",
+  "description": "Quilty public website — HIPAA-aligned consumer vaping cessation product (DTC, FDA general-wellness lane). Next.js 16 App Router + TypeScript strict.",
   "private": true,
   "type": "module",
   "scripts": {

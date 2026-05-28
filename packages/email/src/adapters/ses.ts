@@ -8,9 +8,10 @@
  *      cuts the daily-cap + sender-restriction limits.
  *   2. AWS BAA execution covering the SES account — without the BAA,
  *      any email content that could be construed as relating to a
- *      mental-health condition (even a password-reset confirmation
- *      mentioning the user's account in a sensitive context) creates
- *      HIPAA exposure on the deliverer side.
+ *      vaping cessation engagement context (even a password-reset
+ *      confirmation mentioning the user's account in a sensitive
+ *      context) creates HIPAA / state-CHD exposure on the deliverer
+ *      side once the Phase-1 BAA chain activates.
  *
  * See `docs/runbook/dmarc-ramp.md` for the DMARC progressive-ramp
  * sequence (D117) and `docs/runbook/baa-inventory.md` for the BAA

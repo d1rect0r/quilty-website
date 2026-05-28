@@ -134,10 +134,11 @@ export default function ConsumerHealthDataPrivacyPage() {
       </p>
       <ul className="text-fg-muted mt-4 list-disc space-y-2 pl-6">
         <li>
-          <strong className="text-fg-default">Mental-health inferences</strong> — derived from your
-          interaction patterns with the mobile product. These inferences are derived + held
-          exclusively in the mobile product + its dedicated backend account. The website tier
-          carries no derivative of these inferences — not raw, not aggregated, not pseudonymised.
+          <strong className="text-fg-default">Vaping cessation engagement inferences</strong> —
+          derived from your interaction patterns with the mobile product (craving logs, quit-streak,
+          trigger tags). These inferences are derived + held exclusively in the mobile product + its
+          dedicated backend account. The website tier carries no derivative of these inferences —
+          not raw, not aggregated, not pseudonymised.
         </li>
         <li>
           <strong className="text-fg-default">

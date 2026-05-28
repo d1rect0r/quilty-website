@@ -1,6 +1,6 @@
 # Quilty Website
 
-Quilty's public-facing website — marketing, account portal, and subscription management surface for [Quilty](https://my-quilty.com).
+Quilty's public-facing website — marketing, account portal, and subscription management surface for [Quilty](https://my-quilty.com), a HIPAA-aligned consumer vaping cessation product (DTC, FDA general-wellness lane per ADR-0023).
 
 ## Status
 
