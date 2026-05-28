@@ -49,7 +49,13 @@
         "@quilty/content",
         "@quilty/shared-types",
         "@quilty/tokens",
-        "openapi-typescript"
+        "openapi-typescript",
+        "workbox-core",
+        "workbox-expiration",
+        "workbox-precaching",
+        "workbox-routing",
+        "workbox-strategies",
+        "workbox-sw"
       ]
     },
     "cf-functions": {

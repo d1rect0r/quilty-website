@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { cookies, headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { verifyHoneypot, verifyTimeTrap } from '@quilty/security';
@@ -65,18 +65,28 @@ const RATE_LIMIT_POLICY = { limit: 5, windowMs: 10 * 60 * 1000 } as const;
  * configured at the WAF tier (handled outside this file).
  */
 function isLoadTestBypass(headerStore: Awaited<ReturnType<typeof headers>>): boolean {
-  const envToken = process.env['RATELIMIT_BYPASS_TOKEN'];
-  if (!envToken || envToken.length === 0) return false;
+  const envTokenRaw = process.env['RATELIMIT_BYPASS_TOKEN'];
+  // Trim guards against env-injection regression where an operator
+  // accidentally exports `RATELIMIT_BYPASS_TOKEN=" "` (whitespace-only):
+  // the empty-after-trim check refuses to arm the bypass on that
+  // configuration. Both raw and trimmed checks are required because
+  // `?.trim()` returns the empty string for undefined; we need the
+  // explicit nullish guard first.
+  if (envTokenRaw == null) return false;
+  const envToken = envTokenRaw.trim();
+  if (envToken.length === 0) return false;
   const headerToken = headerStore.get('x-load-test-bypass');
   if (!headerToken) return false;
-  // Constant-time compare so the failed-bypass code path doesn't
-  // leak length / character timing about the configured token.
-  if (headerToken.length !== envToken.length) return false;
-  let mismatch = 0;
-  for (let i = 0; i < envToken.length; i += 1) {
-    mismatch |= envToken.charCodeAt(i) ^ headerToken.charCodeAt(i);
-  }
-  return mismatch === 0;
+  // True constant-time compare: compute SHA-256 of BOTH sides and
+  // compare the fixed-length digests via Node's timingSafeEqual.
+  // Hashing first defeats the length-oracle that a direct
+  // `headerToken.length !== envToken.length` short-circuit (or even
+  // a padded XOR loop iterated to the longer side) leaks. SHA-256
+  // digests are always 32 bytes regardless of input length, so the
+  // path through timingSafeEqual is constant-time across ANY input.
+  const envDigest = createHash('sha256').update(envToken).digest();
+  const headerDigest = createHash('sha256').update(headerToken).digest();
+  return timingSafeEqual(envDigest, headerDigest);
 }
 
 function jsonResult(envelope: ContactFormResult, status: number): NextResponse {
@@ -248,6 +258,17 @@ export async function POST(request: Request): Promise<NextResponse> {
   // the bypass token from `tests/load/lib/bypass-token.ts`; without
   // it, k6 hits the rate-limit ceiling within the first 5 iterations.
   const bypassRateLimit = isLoadTestBypass(headerStore);
+  if (bypassRateLimit) {
+    // Audit-trail per D42d: every bypass MUST land in CloudWatch
+    // (the only server-side authoritative trail for D31 zero-PHI
+    // posture). The log carries the correlation ID only — no token
+    // fragment, no header value — so a leaked-token incident is
+    // greppable without exposing the secret on the way to the log.
+    container.logger.info('contact_form_rate_limit_bypassed', {
+      route: '/api/contact',
+      request_id: correlationId,
+    });
+  }
   const ipKey = `contact:ip:${clientIp}`;
   // Hash the email before using it as the rate-limit key. The raw
   // email is a HIPAA §164.514(b)(2)(i) direct identifier; storing it

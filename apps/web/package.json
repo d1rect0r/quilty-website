@@ -10,7 +10,7 @@
     "dev": "next dev",
     "icons:build": "node scripts/build-icons.mjs",
     "lint": "eslint app components lib instrumentation.ts proxy.ts sentry.client.config.ts sentry.server.config.ts sentry.edge.config.ts next.config.ts --max-warnings 0",
-    "prebuild": "velite build --config ../../velite.config.ts",
+    "prebuild": "velite build --config ../../velite.config.ts && node scripts/vendor-workbox.mjs",
     "start": "next start",
     "test": "vitest run",
     "test:a11y": "playwright test --grep @a11y",
@@ -75,6 +75,12 @@
     "sharp": "^0.34.5",
     "tailwindcss": "4.3.0",
     "typescript": "^5.7.2",
-    "vitest": "2.1.8"
+    "vitest": "2.1.8",
+    "workbox-core": "7.3.0",
+    "workbox-expiration": "7.3.0",
+    "workbox-precaching": "7.3.0",
+    "workbox-routing": "7.3.0",
+    "workbox-strategies": "7.3.0",
+    "workbox-sw": "7.3.0"
   }
 }

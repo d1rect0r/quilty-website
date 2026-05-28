@@ -57,6 +57,14 @@ build/
 !packages/tokens/dist/
 !packages/tokens/dist/**
 
+# Workbox runtime bundles vendored at build time by
+# `apps/web/scripts/vendor-workbox.mjs` (runs in apps/web's prebuild
+# step). NOT committed because the source-of-truth is the
+# `workbox-*` npm packages pinned in apps/web/package.json — a fresh
+# clone runs `pnpm install` then `pnpm build` and the vendor script
+# repopulates the directory.
+apps/web/public/workbox/
+
 # OpenAPI codegen target (regenerated from Rust backend)
 packages/shared-types/src/generated/
 

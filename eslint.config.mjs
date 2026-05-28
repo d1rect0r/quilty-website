@@ -337,6 +337,16 @@ export default tseslint.config(
       // script pattern; observability-chokepoint discipline applies to
       // runtime code paths, not to pre-commit / build-verify scripts.
       'packages/tokens/scripts/verify-css-diff.mjs',
+      // apps/web/scripts/vendor-workbox.mjs is the same pattern — a
+      // build-time CLI that copies Workbox runtime files into
+      // public/workbox/ during the prebuild hook.
+      'apps/web/scripts/vendor-workbox.mjs',
+      // apps/web/public/sw.js is the hand-rolled Service Worker.
+      // It executes in the SW thread (no DOM, no logger import); the
+      // fallback console.warn surfaces a Workbox-load failure in the
+      // browser DevTools where SW developers operate. The chokepoint
+      // discipline applies to RSC + Lambda runtime, not the SW thread.
+      'apps/web/public/sw.js',
     ],
     rules: {
       'no-console': 'off',
