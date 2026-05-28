@@ -125,12 +125,17 @@ if (typeof workbox !== 'undefined' && workbox) {
     try {
       const keys = await caches.keys();
       await Promise.all(keys.map((k) => caches.delete(k)));
-      await self.registration.unregister();
-      // Notify the client that posted the message so it can reload.
+      // Notify the client BEFORE calling unregister() — some Safari
+      // versions terminate the SW context synchronously on
+      // unregister, dropping any in-flight postMessage. The client
+      // listens for LOGOUT_CACHES_CLEARED to trigger its reload,
+      // and the 2s fallback in register.ts handles the residual
+      // race. Reverses the order from PB-5 per Phase-C HIPAA W-4.
       const source = event.source;
       if (source && 'postMessage' in source) {
         source.postMessage({ type: 'LOGOUT_CACHES_CLEARED' });
       }
+      await self.registration.unregister();
     } catch (err) {
       // Best-effort; if the caches API rejects (Safari edge cases),
       // the client-side fallback in register.ts still triggers a

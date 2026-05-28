@@ -286,6 +286,37 @@ describe('In-memory WorkflowEngine — Phase-B regression coverage', () => {
     expect(() => parseExecutionToken({ kind: 'wat' })).toThrow(/unknown token kind/);
   });
 
+  it('cancel() rejects free-text reasons that bypass the WorkflowCancelReason type via `as` cast', async () => {
+    // Phase-C HIPAA W-1: closes the `someString as WorkflowCancelReason`
+    // cast loophole that would otherwise plant PHI in the workflow
+    // state record + CloudWatch.
+    const engine = makeInMemoryWorkflowEngine();
+    engine.registerWorkflow<undefined, string>('signalling', async () => 'ok');
+    const token = await engine.start(signallingDefinition, undefined);
+    await expect(
+      engine.cancel(token, 'Cancelled: john@example.com' as unknown as 'user_requested'),
+    ).rejects.toThrow(/closed enum values/);
+  });
+
+  it('Error.message contains only the kind discriminator (NEVER the reason)', async () => {
+    // Phase-C HIPAA C-2: Sentry uses Error.message as the issue
+    // title; keeping reason out of the message removes the
+    // structural risk that a future enum addition or cast plants
+    // PHI in the issue title.
+    const engine = makeInMemoryWorkflowEngine();
+    engine.registerWorkflow<undefined, string>('signalling', async (_input, ctx) => {
+      await ctx.waitForSignal<string>('never');
+      return 'unreachable';
+    });
+    const token = await engine.start(signallingDefinition, undefined);
+    await new Promise<void>((r) => queueMicrotask(r));
+    await new Promise<void>((r) => queueMicrotask(r));
+    await engine.cancel(token, 'compliance_revoked');
+    await expect(engine.waitForCompletion(token)).rejects.toMatchObject({
+      message: 'Workflow cancelled',
+    });
+  });
+
   it('terminate() drives the workflow to terminated state distinct from cancelled', async () => {
     // Phase-A enterprise D3-E1 + D3-E5: cancel/terminate must
     // surface as distinct terminal states so HIPAA auditors can

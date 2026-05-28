@@ -17,31 +17,38 @@
  * empty-catch silently lost CSP-blocked / quota-exceeded failures.
  */
 
-import { getClientContainer } from '@/lib/get-container';
-import { makeClientContainer } from '@/composition.client';
-
 export function registerServiceWorker(): void {
   if (typeof window === 'undefined') return;
   if (!('serviceWorker' in navigator)) return;
   if (process.env.NODE_ENV !== 'production') return;
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch((err: unknown) => {
-      // Route through the chokepoint logger + errorReporter so PHI
-      // scrubbing applies + the failure shows up in Sentry. The
-      // browser surface (window.console.error) is intentionally
-      // NOT called — Web Almanac 2024 audit found ~30% of sites
-      // ship console errors that bleed into observability noise.
-      const container = getClientContainer(makeClientContainer);
-      const error = err instanceof Error ? err : new Error('Service Worker registration failed');
-      container.errorReporter.captureException(error, {
-        boundary: 'sw-register',
-        scope: 'service-worker',
-      });
-      container.logger.warn('sw_registration_failed', {
-        boundary: 'sw-register',
-        error_name: error.name,
-      });
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(async (err: unknown) => {
+      // Lazy-import the container factory so the registrar island
+      // doesn't drag composition.client + the full observability
+      // chain into the initial chunk graph for the registrar's
+      // bundle. Registration failure is a cold path; the dynamic
+      // import is acceptable here per Phase-C perf Warning #2.
+      try {
+        const [{ getClientContainer }, { makeClientContainer }] = await Promise.all([
+          import('@/lib/get-container'),
+          import('@/composition.client'),
+        ]);
+        const container = getClientContainer(makeClientContainer);
+        const error = err instanceof Error ? err : new Error('Service Worker registration failed');
+        container.errorReporter.captureException(error, {
+          boundary: 'sw-register',
+          scope: 'service-worker',
+        });
+        container.logger.warn('sw_registration_failed', {
+          boundary: 'sw-register',
+          error_name: error.name,
+        });
+      } catch {
+        // If the container factory itself fails to dynamic-import,
+        // the SW registration failure is unrecoverable; silent
+        // swallow matches Web Almanac 2024 canon for SW errors.
+      }
     });
   });
 }

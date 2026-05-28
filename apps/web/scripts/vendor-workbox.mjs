@@ -65,9 +65,17 @@ for (const pkgName of WORKBOX_PACKAGES) {
   const buildDir = await buildDirOf(pkgName);
   const files = await readdir(buildDir);
   for (const file of files) {
-    // Copy ONLY .js + .js.map. We don't ship .d.ts (browsers can't
-    // read it) and we don't redistribute upstream README files.
-    if (!file.endsWith('.js') && !file.endsWith('.js.map')) continue;
+    // Prod-only filter: skip `*.dev.js`, `*.dev.js.map`, and ALL
+    // `.map` files. The dev variants are 6x larger and would be
+    // served from /public/ if any client requested them directly;
+    // the SW only ever loads the .prod variants at runtime per
+    // `workbox-sw.js`'s `debug: "localhost" === self.location.hostname`
+    // gate. Source maps add no end-user debugging value (Workbox
+    // library internals) but ship Workbox source bytes to anyone
+    // who fetches them. Phase-C perf Warning #4 + #5.
+    if (file.endsWith('.dev.js') || file.endsWith('.dev.js.map')) continue;
+    if (file.endsWith('.map')) continue;
+    if (!file.endsWith('.js')) continue;
     const src = join(buildDir, file);
     const dst = join(publicDir, file);
     await copyFile(src, dst);

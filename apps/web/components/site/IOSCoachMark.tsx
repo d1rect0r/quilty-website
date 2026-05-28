@@ -19,8 +19,16 @@ import { useEffect, useRef } from 'react';
  *     non-modal: Tab would escape into background content even
  *     with `aria-modal="true"` (the attribute is an ARIA hint to
  *     screen readers only, NOT a browser focus-trap directive).
- *   - Heading is focused on open so VoiceOver / NVDA announce
- *     the dialog's accessible name immediately.
+ *   - `.showModal()` places initial focus on the first focusable
+ *     descendant (the "Got it" button); VoiceOver / NVDA announce
+ *     the dialog's accessible name via `aria-labelledby` BEFORE
+ *     reading the focused button — canonical modal AT behaviour.
+ *   - WCAG 2.5.5: `min-h-[44px]` on the action button so the
+ *     touch-target floor is met on small iOS devices.
+ *   - Focus-restore: the previously-focused element is captured at
+ *     mount and re-focused on close (works around Safari iOS
+ *     edge cases where `dialog.close()` from React cleanup
+ *     doesn't auto-restore focus per WCAG 2.4.3).
  *   - Color contrast inherits the design-token cascade (light AND
  *     dark mode covered via `--color-bg-elevated` / `--color-fg-default`).
  *
@@ -38,6 +46,9 @@ export function IOSCoachMark({ onDismiss }: { onDismiss: () => void }): React.JS
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
+    // Capture the previously-focused element so we can restore
+    // focus on close. Safari iOS doesn't reliably auto-restore.
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     // `.showModal()` is the only way to get the browser's native
     // focus-trap + inert-background semantics; the `open` attribute
     // alone produces a non-modal dialog that Tab can escape from.
@@ -52,6 +63,12 @@ export function IOSCoachMark({ onDismiss }: { onDismiss: () => void }): React.JS
     return (): void => {
       dialog.removeEventListener('cancel', onCancel);
       if (dialog.open) dialog.close();
+      // Explicit focus-restore for WCAG 2.4.3 on Safari iOS where
+      // the browser-native restore is unreliable in React-cleanup
+      // contexts.
+      if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+        previouslyFocused.focus();
+      }
     };
   }, [onDismiss]);
 
@@ -76,7 +93,7 @@ export function IOSCoachMark({ onDismiss }: { onDismiss: () => void }): React.JS
         <button
           type="button"
           onClick={onDismiss}
-          className="bg-accent-primary text-accent-fg hover:bg-accent-primary-hover w-full rounded-md px-4 py-2 text-sm font-medium"
+          className="bg-accent-primary text-accent-fg hover:bg-accent-primary-hover min-h-[44px] w-full rounded-md px-4 text-sm font-medium"
         >
           Got it
         </button>

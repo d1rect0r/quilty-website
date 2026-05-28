@@ -348,6 +348,16 @@ export function proxy(request: NextRequest): NextResponse {
     response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   }
 
+  // Workbox runtime bundles are version-pinned to `workbox-*@7.3.0`
+  // in apps/web/package.json + vendored deterministically via the
+  // prebuild script; safe to ship as immutable max-age=1y. Without
+  // this header Next.js defaults `/public/*` to `max-age=0,
+  // must-revalidate`, forcing every SW install + update check to
+  // re-fetch ~50 KB from origin (Phase-C perf Critical).
+  if (pathname.startsWith('/workbox/')) {
+    response.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+
   if (shouldNoindexPath(pathname)) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   }

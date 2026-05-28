@@ -65,9 +65,12 @@ const SENTRY_REPORT_URI = sanitizeCspValue(SENTRY_REPORT_URI_RAW);
 function pinnedSentryHostOrNull(raw: string): string | null {
   const sanitized = sanitizeCspValue(raw);
   if (!sanitized) return null;
-  // Reject wildcards + require a literal subdomain.
   if (sanitized.includes('*')) return null;
-  if (!/^https:\/\/[a-z0-9-]+\.ingest\.us\.sentry\.io$/.test(sanitized)) return null;
+  // Canonical Sentry DSN shape is `https://o<orgId>.ingest.us.sentry.io`.
+  // REGION NOTE: US-only by design — EU residency (`ingest.de.sentry.io`)
+  // would require this regex update; without it, EU DSNs silently
+  // disable portal Sentry reporting with no build-time signal.
+  if (!/^https:\/\/o[0-9]+\.ingest\.us\.sentry\.io$/.test(sanitized)) return null;
   return sanitized;
 }
 

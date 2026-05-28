@@ -35,25 +35,14 @@ import {
   type ExecutionToken,
 } from '../domain/execution-token';
 import { type WorkflowStatus } from '../domain/workflow-status';
-import type { WorkflowCancelReason } from '../domain/workflow-status';
+import { isValidCancelReason, type WorkflowCancelReason } from '../domain/workflow-status';
+import { WorkflowCancellationError, WorkflowTerminationError } from '../domain/cancellation-errors';
 
-export class WorkflowCancellationError extends Error {
-  readonly reason: WorkflowCancelReason | undefined;
-  /**
-   * Distinguishes cooperative cancel() from forcible terminate() so
-   * the workflow body's catch site (or its finally / cleanup
-   * handler) can branch on the kind. `kind: 'terminated'` means
-   * NO cleanup window per Temporal canon — handlers MUST exit
-   * without further await.
-   */
-  readonly kind: 'cancelled' | 'terminated';
-  constructor(reason?: WorkflowCancelReason, kind: 'cancelled' | 'terminated' = 'cancelled') {
-    super(`Workflow ${kind}${reason ? `: ${reason}` : ''}`);
-    this.name = kind === 'terminated' ? 'WorkflowTerminationError' : 'WorkflowCancellationError';
-    this.reason = reason;
-    this.kind = kind;
-  }
-}
+// Cancellation/termination error classes live in
+// `../domain/cancellation-errors` so this adapter file stays under
+// the 500-line readability ceiling. Re-exported for backwards-
+// compatibility with the prior import path.
+export { WorkflowCancellationError, WorkflowTerminationError } from '../domain/cancellation-errors';
 
 /**
  * Internal signal-waiter shape. The push-model registry replaces
@@ -148,13 +137,25 @@ function finalizeCancellation(
   reason: WorkflowCancelReason | undefined,
   kind: 'cancelled' | 'terminated',
 ): void {
+  if (reason !== undefined && !isValidCancelReason(reason)) {
+    // Runtime guard against `someString as WorkflowCancelReason`
+    // casts that would otherwise plant PHI in the workflow state
+    // record + CloudWatch (Phase-C HIPAA W-1).
+    throw new Error(
+      'WorkflowCancelReason must be one of the closed enum values; received non-canonical reason',
+    );
+  }
   if (reason !== undefined) {
     exec.cancellationReason = reason;
   }
   exec.cancelKind = kind;
   for (const [, waiters] of exec.signalWaiters) {
     for (const w of waiters) {
-      w.reject(new WorkflowCancellationError(reason, kind));
+      w.reject(
+        kind === 'terminated'
+          ? new WorkflowTerminationError(reason)
+          : new WorkflowCancellationError(reason, kind),
+      );
     }
   }
   exec.signalWaiters.clear();
@@ -204,7 +205,11 @@ export function makeInMemoryWorkflowEngine(): InMemoryWorkflowEngine {
             // honest (Phase-A TS-2 finding).
             const value = queue.shift();
             if (value === undefined) {
-              reject(new WorkflowNotFoundError(`signal queue corrupt: ${name}`));
+              // Signal name interpolation would surface in
+              // CloudWatch / Sentry via the error message; use a
+              // length surrogate per D67 + Phase-C HIPAA C-1. The
+              // call site has the typed `name` already.
+              reject(new WorkflowNotFoundError(`signal queue corrupt (len=${name.length})`));
               return;
             }
             resolve(value as T);
@@ -311,7 +316,11 @@ export function makeInMemoryWorkflowEngine(): InMemoryWorkflowEngine {
                       }
                     : { type: 'cancelled', startedAt, cancelledAt: terminalAt };
               }
-              rejectCompletion(new WorkflowCancellationError(cancelReason, cancelKind));
+              rejectCompletion(
+                cancelKind === 'terminated'
+                  ? new WorkflowTerminationError(cancelReason)
+                  : new WorkflowCancellationError(cancelReason, cancelKind),
+              );
               return;
             }
             const completedAt = new Date();

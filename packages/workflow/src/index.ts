@@ -20,7 +20,9 @@ export type { ExecutionToken, ExecutionTokenPayload } from './domain/execution-t
 export { parseExecutionToken, summarizeExecutionToken } from './domain/execution-token';
 
 export type { WorkflowCancelReason, WorkflowStatus } from './domain/workflow-status';
-export { isTerminal } from './domain/workflow-status';
+export { isTerminal, isValidCancelReason, VALID_CANCEL_REASONS } from './domain/workflow-status';
+
+export { WorkflowCancellationError, WorkflowTerminationError } from './domain/cancellation-errors';
 
 export type { WorkflowDefinition, WorkflowEngine } from './ports/workflow-engine';
 export {

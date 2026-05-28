@@ -102,18 +102,24 @@ function isBeforeInstallPromptEvent(e: Event): e is BeforeInstallPromptEvent {
 // the live value. React reconciles by re-rendering with the client
 // snapshot AFTER hydration completes, so the initial markup matches
 // across server/client. No setState-in-effect required.
-const subscribePlatform = (callback: () => void): (() => void) => {
+const subscribePlatform: () => () => void = () => () => undefined;
+
+// Cross-tab dismissal sync: when another tab writes the dismissal
+// key, the `storage` event fires on this tab; we forward the
+// notification so useSyncExternalStore re-reads localStorage.
+const subscribeDismissed = (callback: () => void): (() => void) => {
   if (typeof window === 'undefined') return () => undefined;
-  // Platform detection is stable across the page lifecycle (no
-  // event triggers platform changes), so subscribe is a no-op.
-  window.addEventListener('resize', callback, { passive: true });
-  return () => window.removeEventListener('resize', callback);
+  const onStorage = (e: StorageEvent): void => {
+    if (e.key === null || e.key === DISMISSAL_STORAGE_KEY) callback();
+  };
+  window.addEventListener('storage', onStorage);
+  return () => window.removeEventListener('storage', onStorage);
 };
 
 export function InstallPrompt(): React.JSX.Element | null {
   const platform = useSyncExternalStore(subscribePlatform, detectPlatform, () => null);
   const dismissedSnapshot = useSyncExternalStore(
-    subscribePlatform,
+    subscribeDismissed,
     () => readDismissedAt() !== null,
     () => false,
   );
@@ -168,22 +174,27 @@ export function InstallPrompt(): React.JSX.Element | null {
   if (platform === 'standard' && deferredPrompt) {
     return (
       <section
-        aria-label="Install Quilty as an app"
+        aria-labelledby="install-prompt-heading"
         className="bg-bg-elevated border-border-default text-fg-default fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border p-4 shadow-lg"
       >
-        <p className="mb-3 text-sm">Install Quilty for quick access from your home screen.</p>
+        <h2 id="install-prompt-heading" className="mb-2 text-sm font-semibold">
+          Install Quilty as an app
+        </h2>
+        <p className="text-fg-muted mb-3 text-sm">
+          Install Quilty for quick access from your home screen.
+        </p>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={handleInstallClick}
-            className="bg-accent-primary text-accent-fg hover:bg-accent-primary-hover rounded px-3 py-1.5 text-sm font-medium"
+            className="bg-accent-primary text-accent-fg hover:bg-accent-primary-hover min-h-[44px] rounded px-4 text-sm font-medium"
           >
             Install
           </button>
           <button
             type="button"
             onClick={handleDismiss}
-            className="text-fg-muted hover:text-fg-default px-3 py-1.5 text-sm"
+            className="text-fg-muted hover:text-fg-default min-h-[44px] px-4 text-sm"
           >
             Not now
           </button>

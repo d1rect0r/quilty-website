@@ -8,8 +8,13 @@
 
 export {
   makeInMemoryWorkflowEngine,
-  WorkflowCancellationError,
   type InMemoryWorkflowEngine,
   type WorkflowContext,
   type WorkflowImpl,
 } from '../adapters/in-memory';
+
+// Re-export the error classes + the closed-enum cancel-reason type
+// from this subpath so test authors get everything they need from a
+// single import (per Phase-C TS Warning #3).
+export { WorkflowCancellationError, WorkflowTerminationError } from '../domain/cancellation-errors';
+export type { WorkflowCancelReason } from '../domain/workflow-status';

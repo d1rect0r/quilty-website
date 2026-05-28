@@ -18,6 +18,28 @@ export type WorkflowCancelReason =
   | 'parent_cancelled';
 
 /**
+ * Runtime-checked allowlist of valid cancel reasons. The type alias
+ * above is erased at runtime; this set is what adapters check
+ * `reason` values against before passing them into workflow state.
+ * Required to close the `"raw-string" as WorkflowCancelReason` cast
+ * loophole Phase-C HIPAA W-1 flagged: a free-text string with PHI
+ * would otherwise pass type-checking and land in CloudWatch /
+ * Temporal event history.
+ */
+export const VALID_CANCEL_REASONS = new Set<WorkflowCancelReason>([
+  'user_requested',
+  'operator_requested',
+  'system_timeout',
+  'compliance_revoked',
+  'superseded_by_retry',
+  'parent_cancelled',
+]);
+
+export function isValidCancelReason(value: unknown): value is WorkflowCancelReason {
+  return typeof value === 'string' && VALID_CANCEL_REASONS.has(value as WorkflowCancelReason);
+}
+
+/**
  * WorkflowStatus — discriminated union of execution states across all
  * supported engines. Closed union so exhaustive switch in callers
  * surfaces compile-time errors when a future engine state isn't
