@@ -104,9 +104,96 @@ The port + adapters live in `@quilty/workflow`. Actual workflow _definitions_ (s
 
 ## Activation triggers (cross-references)
 
-- **M7 — Step Functions activation**: first workflow definition lands. TW-013 in `docs/runbook/trigger-watchlist.md`.
-- **Mature — Temporal Cloud swap**: cascading workflow complexity (typically 3rd-4th definition needing signal/query). Same TW-013 entry, second-stage activation.
+- **Step Functions activation**: first workflow definition lands (DSAR / account-delete / payment-dunning). TW-013 in `docs/runbook/trigger-watchlist.md`.
+- **Temporal Cloud swap**: cascading workflow complexity (typically 3rd-4th definition needing signal/query). Same TW-013 entry, second-stage activation.
 - **Phase-1 account split — SCP enforcement**: when `marketing-prod` account is vended, SCP forbids non-BAA-tagged SFN access.
+
+## Amendments (Phase-B fix-pass)
+
+The retroactive 3-agent QA loop (post initial commit) surfaced
+several enterprise-canon gaps and PHI-defense items; this section
+lists the changes that landed against the original Decisions A-F
+without re-numbering them.
+
+### Decision G — `terminate` as the 7th method (post Phase-A D3-E1)
+
+Temporal distinguishes cooperative `cancel()` (issues
+`CancelledFailure` into the workflow so its handler runs) from
+forcible `terminate()` (no cleanup window — `TerminatedFailure`).
+SFN's `StopExecution(cause)` collapses both into one API call, but
+the cause discriminator preserves the distinction at the engine
+boundary. The port surface now exposes `terminate(token, reason?)`
+as a separate method so:
+
+- HIPAA auditors can distinguish user-cooperative cancellation
+  from ops-initiated forcible kill in the workflow state record.
+- The future Temporal swap is engine-only — no call-site rename.
+- The in-memory fake throws `WorkflowCancellationError` with
+  `kind: 'terminated'` so a workflow body's catch handler can
+  branch on the kind.
+
+The `terminated` terminal status was added to `WorkflowStatus` to
+match.
+
+### Decision H — `cancel(reason)` / `terminate(reason)` use the
+
+`WorkflowCancelReason` closed enum (post Phase-A HIP-H1)
+
+Free-text `reason` was the dominant PHI sink at the cancel boundary
+(operator notes can carry email addresses, names, account context).
+The port surface now restricts reason to a closed union of 6
+canonical buckets:
+
+- `user_requested`
+- `operator_requested`
+- `system_timeout`
+- `compliance_revoked`
+- `superseded_by_retry`
+- `parent_cancelled`
+
+Sensitive context lives in the originating audit log keyed by
+correlation ID, NEVER in the workflow's own state record. This
+eliminates the CloudWatch / Temporal event-history PHI risk at
+adapter activation.
+
+### Decision I — `TemporalPayloadCodec` slot reserved in the
+
+Temporal adapter (post Phase-A D3-E2)
+
+Temporal Cloud's HIPAA posture is "BAA + SOC 2 Type II + HSM-KMS"
+PLUS a mandatory client-side `PayloadCodec` that encrypts payload
+bytes BEFORE they hit Temporal's event history. Without the codec,
+parameter bytes (S3 URIs, request IDs, even synthetic correlation
+IDs) appear in event history as plaintext — Temporal's own docs
+call this out as the canonical PHI risk.
+
+`TemporalAdapterOptions.payloadCodec` is reserved at the M1.6
+skeleton; the activation commit will refuse to instantiate without
+a codec when a HIPAA-tagged workflow is wired.
+
+### Decision J — Deferrals reserved for the activation roadmap
+
+These items surfaced in the enterprise-canon comparison and are
+documented here rather than addressed at the lift commit:
+
+- **`executeUpdate` (Temporal Updates GA 2025)** — synchronous
+  mutation with return value, distinct from signal (fire-and-forget)
+  and query (read-only). DSAR "what's my completion ETA + reschedule"
+  needs this; deferred to the Temporal-swap commit. SFN has no
+  native equivalent and emulation would be heavy.
+- **`ctx.condition(predicate, timeoutMs)`** — Temporal's combined
+  signal-or-timeout helper. Defer to the activation commit — easy
+  to add as a thin `waitForSignal` + `sleep` wrapper without
+  port-shape changes.
+- **`startChild`** — Temporal's parent-child workflow primitive
+  with cascading cancellation semantics. Body-level
+  `engine.start(childDef, …)` works for the first 1-2 activations
+  (payment-dunning); the canonical Temporal child-workflow shape
+  ships at the swap commit if cancellation cascade becomes
+  necessary.
+
+These are tracked as part of the TW-013 activation work, NOT as
+separate watchlist entries.
 
 ## Anti-patterns to avoid
 

@@ -19,17 +19,18 @@ The HIPAA-specific risk: a misconfigured SW caches an `/account/*` route fragmen
 
 We will ship a hand-rolled Workbox-based Service Worker at `apps/web/public/sw.js`, registered via `workbox-window`-shaped patterns from a client island in `app/layout.tsx`, with cache strategies + a `<InstallPrompt>` component flag-gated until activation (TW-015).
 
-### Decision A — Library: hand-rolled Workbox (NOT next-pwa, NOT @serwist/next)
+### Decision A — Library: hand-rolled Workbox, **self-hosted at `/workbox/`** (NOT next-pwa, NOT @serwist/next)
 
 User-locked. `next-pwa` is single-maintainer abandonware (no releases since 2023; 3 unresolved bug threads naming Next.js 14+ incompatibility). `@serwist/next` is a 2024 fork in the same neighbourhood with healthier maintenance but a small contributor base.
 
-Hand-rolling Workbox via `importScripts('https://storage.googleapis.com/workbox-cdn/...')` at the SW boundary:
+**Self-host the Workbox runtime bundles** under `/workbox/` rather than loading from `https://storage.googleapis.com/workbox-cdn/...`. Revised post Phase-A bug-hunter: a CDN-loaded `importScripts(...)` is governed by the page's `script-src` directive, and our `script-src 'self'` policy would BLOCK the CDN load under enforce, silently degrading the SW to a no-op (no NetworkOnly exclusion for `/api/auth/*`, no LOGOUT_CACHES_CLEARED handler — all PHI defenses vanish). The `apps/web/scripts/vendor-workbox.mjs` script copies the `workbox-{sw,core,routing,strategies,expiration,precaching}` 7.3 build files into `apps/web/public/workbox/` during the `prebuild` hook; `workbox.setConfig({ modulePathPrefix: '/workbox/' })` pins the lazy-module loader to the same-origin copy.
+
+Hand-rolling Workbox (vs a npm plugin):
 
 - **Zero plugin lock-in.** When a plugin's API breaks, we don't have to fork it.
-- **No build-step changes.** The SW file is plain JS served from `public/`; no webpack / next-pwa wrapper hooks the Next.js build pipeline.
+- **Minimal build-step changes.** The SW file is plain JS served from `public/`; the vendor script is ~50 LOC and runs in `prebuild`. No next-pwa wrapper hooks the Next.js build pipeline.
 - **Standard Workbox primitives** (CacheFirst, NetworkFirst, ExpirationPlugin) — same primitives every PWA tutorial uses, no Quilty-specific abstractions for a future maintainer to learn.
-
-Trade: the CDN-loaded `workbox-sw.js` has a graceful no-op fallback if the CDN is unreachable. At activation we may switch to a self-hosted Workbox bundle if the CDN dependency becomes operationally inconvenient.
+- **Pinned dep, audit-clean path.** A Workbox advisory triggers a normal `pnpm audit` + dependabot bump path; a CDN-side regression would have no audit visibility.
 
 ### Decision B — Cache strategies per route type
 
@@ -56,8 +57,13 @@ The component handles two platforms:
 
 - `Cache-Control: no-cache, no-store, must-revalidate` on `/sw.js` (set in `proxy.ts`) so a stale SW doesn't suppress future updates.
 - CSP `worker-src 'self'` (added to both marketing + portal CSP builders) — restricts SW registration to same-origin scripts.
-- `clients.postMessage('LOGOUT_CLEAR_CACHES')` flushes ALL caches on user sign-out so the next sign-in user sees no stale data.
+- `clients.postMessage('LOGOUT_CLEAR_CACHES')` triggers a 3-step purge:
+  1. SW clears all `caches`.
+  2. SW calls `self.registration.unregister()` — without this, the SW stays active for the next sign-in user's first request, even though caches are empty.
+  3. SW posts `LOGOUT_CACHES_CLEARED` back to the originating client, which hard-reloads via `window.location.reload()`. A 2s timeout fallback handles Safari edge cases where the message event doesn't fire.
 - `cleanupOutdatedCaches()` on SW `activate` prunes prior-version caches automatically.
+- `request.method !== 'GET'` short-circuit inside `isExcluded()` so Server Actions (POST to the same route URLs a navigation would use) bypass every Workbox cache strategy. Belt-and-braces beyond the per-strategy `request.mode === 'navigate'` checks.
+- Locale exclusion regex `[a-z]{2,}(-[a-z0-9]+)*` covers BCP 47 locales (`pt-BR`, `zh-Hant`) rather than the original `[a-z]{2}` which missed any multi-segment tag and silently allowed PHI account routes through the NetworkFirst cache.
 
 ### Decision E — Production-only registration
 
@@ -73,14 +79,14 @@ The registrar island at `lib/sw/register.ts` short-circuits in `next dev` (NODE_
 
 ### Negative / Trade-offs
 
-- **CDN dependency.** `importScripts('https://storage.googleapis.com/...')` adds a third-party origin to the SW initialisation path. Mitigated by the graceful no-op fallback when the CDN is unreachable. At first launch with real traffic we may self-host the Workbox bundle.
+- **Vendored Workbox bytes ship in every prod build.** ~80KB of vendored runtime files in `public/workbox/`. Trade is intentional: zero CDN dependency + clean script-src policy.
 - **Cache-strategy churn.** Adding a new route family means adding a new exclusion or registerRoute call. Documented in `apps/web/public/sw.js` comments + ADR table above.
 - **No SSR/RSC support in SW context.** Service Workers run in their own thread with no DOM access; React 19 server components don't compose. The SW handles network shaping only.
 
 ## Activation triggers (cross-references)
 
 - **TW-015 — Install-prompt activation**: first install-conversion-intent measurement signal. Flip `features.install_prompt_enabled` + mount `<InstallPrompt>` in marketing layout.
-- **CDN self-host migration**: if the Google CDN Workbox dependency becomes operationally inconvenient (CDN-side regression, regional access issue), copy the Workbox bundle to `apps/web/public/workbox/` and update the `importScripts` URL.
+- **TW-014 — `clearServiceWorkerCaches()` wiring at sign-out**: when real auth lands, the sign-out Route Handler client callback MUST call `clearServiceWorkerCaches()` (exported from `apps/web/lib/sw/register.ts`). The function is wired with a TODO + ADR cross-ref so the future implementer can't miss it.
 
 ## Anti-patterns to avoid
 
