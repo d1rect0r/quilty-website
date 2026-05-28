@@ -11,7 +11,7 @@
 
 ## Why no `ruf=` (forensic reports)
 
-RFC 7489 forensic reports include verbatim message header + body fragments from failed mail. On a HIPAA-aligned consumer-mental-health surface, even transactional email fragments (an `auth.my-quilty.com` MFA code, a password-reset link embedding a username) could land outside a BAA-covered channel if delivered to an unscoped mailbox. This runbook intentionally OMITS the `ruf=` tag — aggregate (`rua=`) reports are sufficient for the progressive-ramp diagnostic flow + RUF activation would require a BAA-covered SES-inbound + S3 pipeline with retention controls, which is out of scope for the ramp.
+RFC 7489 forensic reports include verbatim message header + body fragments from failed mail. On a HIPAA-aligned consumer vaping cessation surface (ADR-0023 + ADR-0024), even transactional email fragments (an `auth.my-quilty.com` MFA code, a password-reset link embedding a username) could land outside a BAA-covered channel if delivered to an unscoped mailbox. This runbook intentionally OMITS the `ruf=` tag — aggregate (`rua=`) reports are sufficient for the progressive-ramp diagnostic flow + RUF activation would require a BAA-covered SES-inbound + S3 pipeline with retention controls, which is out of scope for the ramp.
 
 ## Pre-flight
 

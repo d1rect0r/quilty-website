@@ -210,12 +210,13 @@ Pace: scope → direction → scaffold → small features → integrate auth →
 **Effort:** 3-5 days
 **Drive:** Autonomous
 
-**Deliverables (7 pages):**
+**Deliverables (8 pages):**
 
 - `/` — homepage with placeholder hero, value prop, CTA
 - `/privacy` — placeholder privacy policy (lawyer review at M8)
 - `/terms` — placeholder Terms of Service
 - `/support` — real contact email + basic FAQ
+- `/resources` — canonical public-health cessation resources (per ADR-0023 + research): 1-800-QUIT-NOW (national quitline), smokefree.gov (NCI/HHS), state-specific quitlines, Truth Initiative's This Is Quitting (DITCHVAPE → 88709), CDC Tips From Former Smokers. Explicit "Quilty is not affiliated with…" copy. NO claim of CDC/NCI endorsement. Quilty is one option among many; users self-call (no PHI handoff).
 - `/account/delete` — deep-linkable deletion landing page (Apple/Google requirement)
 - `/404` — branded
 - `/500` — branded
@@ -279,8 +280,10 @@ Pace: scope → direction → scaffold → small features → integrate auth →
 - Internal nav between marketing pages
 - App Store / Play "smart banners" via meta tags
 - Updated sitemap.ts
+- **Marketing-copy review gate per ADR-0023 (FDA general-wellness lane):** every page passes a copy-discipline lint that rejects `digital therapeutic` / `DTx` / `prescription` / `FDA-cleared` / `clinically proven` (without an explicit RCT citation) / `medical-grade` / `treat` / `cure` / `diagnose` / `addiction recovery` / `wellness app` / `quit smoking app`. Approved hedged phrasing: "may help reduce risk," "supports quitting," "evidence-informed." This is a build-time gate, not just a soft review — the lint runs in CI on every PR touching MDX content + page route files.
+- **WA MHMDA + MD MODPA cross-state CHD copy review per ADR-0024:** marketing copy must not imply collection of consumer health data beyond what's strictly necessary for the requested feature; no profiling-style language; explicit GPC posture mentioned in privacy preview.
 
-**Decision gate before M5:** marketing pages convert (or at least feel like they could). Lighthouse + Core Web Vitals still green. Page weight budget honored.
+**Decision gate before M5:** marketing pages convert (or at least feel like they could). Lighthouse + Core Web Vitals still green. Page weight budget honored. **Marketing-copy lint passes on all pages with zero exemptions.**
 
 ### M5 — Account portal v0 (static)
 
@@ -365,6 +368,8 @@ Pace: scope → direction → scaffold → small features → integrate auth →
 - BAA with Stripe signed (if processing health-related data; consult lawyer)
 - Sign in with Apple integration ready (Cognito IdP federation; D6 Managed Login supports SiwA natively)
 
+**DTC-only at M7 per D178.** Phase 0 billing is Stripe + Apple Pay + Sign in with Apple — DTC consumer flow only. No insurance claims, no employer-wellness PHI flow, no Change-Healthcare-style intermediary. **Quilty is not a HIPAA Business Associate at M7.** The architecture is BA-ready (Phase-1 marketing-prod account split, PHI sanitizer chokepoint, OpenAPI surface for downstream BAA chain), but no PHI flows to insurers because no B2B contract exists yet. B2B billing pathway is reserved for the TW-010 + TW-013 trigger: first signed B2B contract with claims-billing requirement → activate a separate `billing-b2b` crate + Change-Healthcare integration + BAA signing flow + employer-cohort dashboard (k≥11 anonymity per HHS HCUP). The split keeps the M7 DTC delivery clean and prevents premature B2B-shape from contaminating the consumer subscription model.
+
 **Deliverables:**
 
 - Stripe Customer Portal embed with deep links to subscription/payment/cancellation
@@ -398,7 +403,7 @@ Pace: scope → direction → scaffold → small features → integrate auth →
 - `Sec-GPC: 1` (Global Privacy Control) honored at edge (Lambda@Edge or BFF middleware)
 - Server-side ConsentState — SDK loading gated by consent for analytics/marketing
 - "Your Privacy Choices" link in global footer + privacy policy
-- "Limit Use of My Sensitive Personal Information" link (CPRA — mental-health is sensitive PI)
+- "Limit Use of My Sensitive Personal Information" link (CPRA — vaping/nicotine cessation behavioral data is sensitive PI; SUD adjacency under CMIA AB-2089)
 - Accessibility statement (WCAG 2.2 AA conformance)
 - Manual a11y audit (TPGi or Deque) — pre-EU-launch requirement (EAA June 2025)
 - Business name + physical address in footer (Stripe + GDPR identity disclosure)
@@ -528,7 +533,11 @@ To land before public launch:
 - [ ] Accessibility manual audit complete (TPGi or Deque)
 - [ ] HIPAA NPP posted + linked prominently
 - [ ] CCPA "Your Privacy Choices" link in footer + relevant pages
-- [ ] CPRA "Limit Use of Sensitive PI" link (mental-health = sensitive PI)
+- [ ] CPRA "Limit Use of Sensitive PI" link (vaping cessation behavioral data = sensitive PI under CCPA/CPRA + CMIA AB-2089 SUD inclusion)
+- [ ] WA MHMDA opt-in consent UI + separate sharing consent + standalone sale authorization (private right of action up to $25k treble; first lawsuit Feb 2025)
+- [ ] MD MODPA "strictly necessary" data minimization review (effective Oct 1 2025; sale of sensitive data prohibited even with consent)
+- [ ] Marketing-copy review gate per ADR-0023: NO use of `digital therapeutic` / `DTx` / `prescription` / `FDA-cleared` / `clinically proven` (without RCT citation) / `medical-grade` / `treat` / `cure` / `diagnose` / `addiction recovery` / `wellness app` / `quit smoking app`
+- [ ] Geofencing audit: no ad-buy targets within 2,000 ft of any in-person healthcare provider per WA MHMDA + adjacent state laws
 - [ ] FTC Health Breach Notification Rule (HBNR) procedures documented
 
 ### External integrations

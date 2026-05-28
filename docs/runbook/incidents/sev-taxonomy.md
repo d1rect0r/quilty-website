@@ -1,9 +1,11 @@
 # SEV Taxonomy — 4-tier severity classification (D130)
 
 > The canonical SEV1-SEV4 classification for the Quilty website
-> tier. HIPAA-aligned consumer mental-health context: SEV1 + PHI
-> exposure auto-triggers the HHS OCR notification pipeline under
-> §164.404 (60-day window from discovery).
+> tier. HIPAA-aligned consumer vaping cessation context (ADR-0023 +
+> ADR-0024): SEV1 + CHD/PHI exposure auto-triggers the FTC HBNR
+> 60-day notification pipeline at Phase 0 (Quilty is not a HIPAA
+> covered entity; HBNR + state CHD laws apply); transitions to HHS
+> OCR §164.404 60-day window at Phase 1 once BAAs are in place.
 
 ---
 
@@ -29,14 +31,17 @@ Any of the following classifies a SEV1 incident:
 - **Full-site outage.** `/api/health` returns non-200 for ≥15
   minutes from both regions Sentry Uptime polls (US-East + EU-West),
   OR the site is unreachable end-to-end via curl.
-- **PHI exposure.** Unsecured Protected Health Information (HIPAA
-  Privacy Rule §164.402 — names + clinical context, MRN, biometric,
-  insurance details, mental-health assessment results) is rendered
-  to any third party (cookies sent to analytics, query strings
-  logged externally, error payloads shipped to a non-BAA-covered
-  vendor, etc.). Cerebral $7M settlement is the canonical
-  precedent — tracking-pixel exfiltration without BAAs counts as
-  an exposure even if no malicious intent.
+- **CHD / PHI exposure.** Unsecured Consumer Health Data (per
+  WA MHMDA + MD MODPA + CA CMIA AB-2089 + FTC HBNR — names + vaping
+  cessation engagement context, craving logs, mood/trigger tags,
+  identifiable user state tied to health-condition surface) or
+  Protected Health Information (Phase 1+ HIPAA Privacy Rule §164.402)
+  is rendered to any third party (cookies sent to analytics, query
+  strings logged externally, error payloads shipped to a non-BAA-
+  covered vendor, etc.). Cerebral $7M + Monument + BetterHelp $7.8M +
+  GoodRx $1.5M FTC settlements are the canonical precedents —
+  tracking-pixel exfiltration without BAAs / consent counts as an
+  exposure even if no malicious intent.
 - **Payment-system failure.** Stripe checkout returns 5xx for
   ≥10 minutes OR Apple Pay sheet fails to invoke (post-Stripe-
   activation; deferred today, but the SEV1 classification stays

@@ -49,9 +49,10 @@ Reference baseline + why we set 30 min rather than 60 min:
 Linear's published pre-revenue runbook documents a 1-hour
 acknowledge target + 4-hour mitigation. We set acknowledge
 tighter than Linear's published baseline because the HIPAA-aligned
-posture for a consumer mental-health surface raises the cost of
-delayed PHI-exposure response (§164.404 60-day clock starts at
-discovery, not at acknowledgement — see SEV taxonomy). The
+posture for a consumer vaping cessation surface (see ADR-0023 +
+ADR-0024) raises the cost of delayed CHD-exposure response (FTC HBNR
+60-day clock + §164.404 60-day clock both start at discovery, not at
+acknowledgement — see SEV taxonomy). The
 30-minute target is aggressive for a solo founder; if it becomes
 unsustainable in practice (e.g., when SEV1 alerts fire while the
 founder is asleep, in meetings, or travelling), relax to Linear's

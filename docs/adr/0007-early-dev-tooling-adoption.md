@@ -118,8 +118,9 @@ initially proposed). All are MIT/Apache 2.0 with zero SaaS dependency.
 **Trade-offs explicitly considered + rejected:**
 
 - **Biome / oxlint as ESLint replacement.** Faster but no jsx-a11y
-  parity; D22 WCAG 2.2 AA + the consumer-mental-health risk profile
-  needs jsx-a11y strict. Revisit at M5+ if parity lands.
+  parity; D22 WCAG 2.2 AA + the consumer vaping cessation product risk
+  profile (see ADR-0023 + ADR-0024) needs jsx-a11y strict. Revisit at
+  M5+ if parity lands.
 - **Storybook over Ladle.** When component playground lands at M3+,
   Ladle (Uber: 15,896 stories migrated) is the cheaper, faster
   default for our React-only single-framework codebase. Storybook's
