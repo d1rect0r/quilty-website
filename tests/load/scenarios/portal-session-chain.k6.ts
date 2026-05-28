@@ -32,14 +32,19 @@ export const options = {
 };
 
 export default function portalSessionChain(): void {
-  // Auth-refresh roundtrip; the portal entry routes pre-activation
-  // will return 404 — that's fine for the load test, the goal is
-  // exercising the proxy + cookie-decode + session-fetch latency
-  // path. Switch to authenticated `/account/profile` after M6.
+  // Auth-refresh roundtrip. PRE-AUTH-INTEGRATION (TW-014): the
+  // `/api/auth/session` route returns 404 because the Cognito
+  // wiring + session-store endpoint haven't landed. The check
+  // below accepts 404 explicitly during this window so the
+  // scenario can still exercise the proxy + cookie-decode +
+  // edge-routing latency path. When real auth ships, swap the
+  // 404 acceptance for 200|401 ONLY (a 404 then signals a route
+  // regression that should fail CI).
   const res = http.get(`${SITE_URL}/api/auth/session`, {
     tags: { scenario: SCENARIO_NAME },
   });
   check(res, {
-    'status is 200 or 401': (r) => r.status === 200 || r.status === 401,
+    'status is 200, 401, or 404 (pre-auth-integration)': (r) =>
+      r.status === 200 || r.status === 401 || r.status === 404,
   });
 }

@@ -37,13 +37,31 @@ interface ContactFixture {
   readonly turnstile_token: string;
 }
 
+const SYNTHETIC_EMAIL_DOMAIN = '@loadtest.my-quilty.app';
+
 const fixtures = new SharedArray<ContactFixture>('contact_submissions', () => {
-  // Loaded at scenario init from `@quilty/test-fixtures` export at
-  // `tests/load/fixtures/contact-submissions.json`. The file is
-  // generated offline by `pnpm --filter @quilty/test-fixtures
-  // export:load-test` (TW-025 — until that activates, k6 expects
-  // the file to exist or fails fast at the SharedArray load.
-  return JSON.parse(open('../fixtures/contact-submissions.json'));
+  // Loaded at scenario init from `tests/load/fixtures/contact-submissions.json`.
+  // The committed seed file holds 5 synthetic submissions; the
+  // `@quilty/test-fixtures` factory will produce richer fixtures
+  // when TW-025 activates. Until then, the seed file is enough
+  // for the scenario to run end-to-end against a local dev server.
+  const parsed = JSON.parse(open('../fixtures/contact-submissions.json')) as ContactFixture[];
+  // Defense-in-depth against accidental production data load: every
+  // fixture email MUST end in the synthetic-only domain, OR the
+  // scenario refuses to run. This is the Cerebral-failure-mode
+  // safeguard at the k6 boundary — even a misconfigured dev
+  // fixture cannot send acknowledgement emails to real users.
+  for (const fx of parsed) {
+    if (!fx.email.endsWith(SYNTHETIC_EMAIL_DOMAIN)) {
+      throw new Error(
+        `fixture email ${fx.email} not in synthetic domain ${SYNTHETIC_EMAIL_DOMAIN}; refusing to load`,
+      );
+    }
+  }
+  if (parsed.length === 0) {
+    throw new Error('contact-submission: fixture array empty; cannot run scenario');
+  }
+  return parsed;
 });
 
 export const options = {
@@ -61,9 +79,14 @@ export const options = {
 };
 
 export default function contactSubmission(): void {
-  const fixture = fixtures[__VU % fixtures.length] ?? fixtures[0];
+  // `fixtures.length === 0` is rejected at SharedArray init above;
+  // the modulo here is safe and the `?? fixtures[0]` is belt-and-
+  // braces against an empty-after-init edge case (k6 init runs
+  // once per file load; the guard avoids `__VU % 0 → NaN`).
+  const idx = fixtures.length > 0 ? __VU % fixtures.length : 0;
+  const fixture = fixtures[idx] ?? fixtures[0];
   if (!fixture) {
-    throw new Error('contact-submission: no fixtures loaded');
+    throw new Error('contact-submission: no fixtures available');
   }
   const res = http.post(`${SITE_URL}/api/contact`, JSON.stringify(fixture), {
     tags: { scenario: SCENARIO_NAME },

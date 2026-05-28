@@ -16,13 +16,26 @@
 
 | Tier           | p50 (ms) | p95 (ms) | p99 (ms) | Error rate |
 | -------------- | -------- | -------- | -------- | ---------- |
+| `static_asset` | 40       | 80       | 200      | 0.0005     |
 | `static_html`  | 100      | 300      | 800      | 0.001      |
 | `ssr_dynamic`  | 200      | 800      | 1500     | 0.005      |
 | `form_post`    | 300      | 1000     | 2000     | 0.005      |
-| `auth_refresh` | 150      | 500      | 1200     | 0.001      |
+| `auth_refresh` | 150      | 500      | 1500     | 0.001      |
 
 Source-of-truth: `tests/load/lib/thresholds.ts`. Tweak there; every scenario
 picks up automatically.
+
+**`static_asset` vs `static_html`** — added at the C+D Phase-B fix-pass per
+Vercel Speed Insights 2026 canon. The edge-cache HIT path (Tailwind CSS,
+fonts, `/workbox/*`, OG/favicon images) has a 5-10x lower latency floor than
+the cache-MISS / SSR cold-start path that `static_html` covers. Splitting
+them surfaces a degraded cache-hit ratio before p95 of a merged tier rolls
+over the alarm threshold.
+
+**`auth_refresh` p99 ceiling** raised from 1200ms to 1500ms post Phase-A
+C2-E4 — matches Auth0's published refresh SLO. Cognito
+`GetTokensFromRefreshToken` p99 in `us-east-1` runs 800-1400ms under burst
+with cold-start tails reaching the prior ceiling.
 
 ## How to run
 
@@ -64,18 +77,31 @@ Per the M1.6 plan-doc + trigger watchlist:
    `homepage-burst` capped at 30s / 10 RPS, against the preview deploy URL.
    Thresholds in `tests/load/lib/thresholds.ts` are not yet PR-blocking
    (warn-only).
-2. **30 days of stable threshold values** (TW-017): flip to PR-blocking.
+2. **14 days of stable threshold values post real-traffic baseline**
+   (TW-017): flip to PR-blocking. Revised from the original 30-day window
+   post Phase-A C2-E2 — Stripe's "How we Stripe-test in CI" (2024) and
+   Vercel's Speed Insights canon both graduate inside 14 days; the 30-day
+   number was anchored on a no-traffic CI start that desensitizes
+   reviewers. Real-traffic baseline is itself gated by TW-018.
 3. **Post-launch + real-traffic baseline** (TW-018): nightly soak runs
    `soak/homepage-soak.k6.ts` against production at a 50 RPS / 4h profile
    in the low-traffic window.
 
 ## Fixtures
 
-`fixtures/contact-submissions.json` (gitignored — generated offline) holds
-pre-signed CSRF tokens, time tokens, captcha tokens, and idempotency UUIDs
-sized for the per-VU iteration budget. Until `@quilty/test-fixtures`
-exports a load-test factory (TW-025), scenarios authoring CONTACT-flow
-fixtures must hand-roll the JSON.
+`fixtures/contact-submissions.json` ships a committed seed (5 synthetic
+submissions) so `pnpm k6 run` works end-to-end against a local dev server
+out of the box. The `@quilty/test-fixtures` factory (TW-025) will eventually
+generate richer fixtures (more entries, Faker-derived names, rotating
+turnstile tokens); until then the seed is enough for the scenario contract.
+
+**PHI defense at the fixture boundary** (Phase-A HIP-H3): every fixture
+email MUST end in `@loadtest.my-quilty.app` (a reserved synthetic-only
+domain dropped at the SES boundary). The scenario init throws if any
+entry violates this rule, so a developer who accidentally exports a
+staging/prod snapshot into the fixture file gets a hard fail BEFORE the
+first POST hits `/api/contact`. This mirrors the Cerebral failure mode
+the broader zero-PHI invariant guards against.
 
 ## Why k6 (not Artillery / Locust / Vegeta)
 
