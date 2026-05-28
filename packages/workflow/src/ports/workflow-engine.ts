@@ -112,22 +112,47 @@ export interface WorkflowEngine {
   ) => Promise<TOutput>;
 }
 
+/**
+ * Base error class for all workflow-engine failures. Subclasses
+ * assign `this.name` to an explicit string literal (NOT
+ * `new.target.name`) so the class name survives webpack class-name
+ * minification — `new.target.name` produces a mangled identifier
+ * like `"t"` under standard production minification, defeating the
+ * log-grep ergonomics tests rely on.
+ *
+ * Static, PHI-free message template per D148.
+ */
 export class WorkflowEngineError extends Error {
-  // Static, PHI-free message template per D148.
   constructor(message: string, cause?: unknown) {
     super(message, { cause });
-    this.name = new.target.name;
+    this.name = 'WorkflowEngineError';
   }
 }
 
 export class WorkflowTimeoutError extends WorkflowEngineError {
   constructor(timeoutMs: number) {
     super(`Workflow did not complete within ${timeoutMs}ms`);
+    this.name = 'WorkflowTimeoutError';
   }
 }
 
 export class WorkflowNotFoundError extends WorkflowEngineError {
   constructor(tokenSummary: string) {
     super(`Workflow execution not found: ${tokenSummary}`);
+    this.name = 'WorkflowNotFoundError';
+  }
+}
+
+/**
+ * Thrown when a `query()` call references a handler name that was
+ * never registered on the workflow body. Distinct from
+ * `WorkflowNotFoundError` (which signals the execution is gone);
+ * callers can catch this specifically to surface a 404 vs 410
+ * distinction at the HTTP boundary.
+ */
+export class WorkflowQueryNotFoundError extends WorkflowEngineError {
+  constructor(queryName: string) {
+    super(`Query handler not registered: ${queryName}`);
+    this.name = 'WorkflowQueryNotFoundError';
   }
 }

@@ -14,8 +14,13 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { makeInMemoryWorkflowEngine } from '../src/adapters/in-memory';
-import { WorkflowNotFoundError, WorkflowTimeoutError } from '../src/ports/workflow-engine';
+import {
+  WorkflowNotFoundError,
+  WorkflowQueryNotFoundError,
+  WorkflowTimeoutError,
+} from '../src/ports/workflow-engine';
 import { isTerminal } from '../src/domain/workflow-status';
+import { parseExecutionToken } from '../src/domain/execution-token';
 import type { WorkflowDefinition, WorkflowEngine } from '../src/ports/workflow-engine';
 
 const noopDefinition: WorkflowDefinition<{ x: number }, { y: number }> = {
@@ -194,5 +199,90 @@ describe('In-memory WorkflowEngine — vendor-specific behaviours', () => {
     const token = await engine.start(signallingDefinition, undefined);
     const state = engine.getExecutionState(token);
     expect(state?.definitionName).toBe('signalling');
+  });
+});
+
+describe('In-memory WorkflowEngine — Phase-B regression coverage', () => {
+  it('waitForSignal rejects with WorkflowCancellationError on cancel(token) while parked', async () => {
+    // Phase-A bug-hunter D3-B1: the prior microtask-spin model
+    // never rejected a parked waiter on cancel(); this asserts the
+    // push-model registry's cancel-walk wires through.
+    const engine = makeInMemoryWorkflowEngine();
+    engine.registerWorkflow<undefined, string>('signalling', async (_input, ctx) => {
+      await ctx.waitForSignal<string>('never-arrives');
+      return 'unreachable';
+    });
+    const token = await engine.start(signallingDefinition, undefined);
+    // Yield twice so the workflow body parks its waiter.
+    await new Promise<void>((r) => queueMicrotask(r));
+    await new Promise<void>((r) => queueMicrotask(r));
+    await engine.cancel(token, 'test-cancel');
+    await expect(engine.waitForCompletion(token)).rejects.toMatchObject({
+      name: 'WorkflowCancellationError',
+    });
+  });
+
+  it('waitForCompletion timeout clears the setTimeout handle (no event-loop hold)', async () => {
+    // Phase-A bug-hunter D3-B2: validating the handle is cleared
+    // is awkward without inspecting the event loop, but the
+    // observable contract is that a fast-completing workflow with
+    // a long timeout returns immediately on resolution AND a
+    // subsequent status() reports `completed` (NOT `timed-out`).
+    const engine = makeInMemoryWorkflowEngine();
+    engine.registerWorkflow<undefined, string>('signalling', async () => 'fast');
+    const token = await engine.start(signallingDefinition, undefined);
+    const result = await engine.waitForCompletion<string>(token, { timeout: 60_000 });
+    expect(result).toBe('fast');
+    const finalStatus = await engine.status(token);
+    expect(finalStatus.type).toBe('completed');
+  });
+
+  it('emits timed-out terminal status when waitForCompletion times out', async () => {
+    // Phase-A bug-hunter D3-B6: status() previously returned
+    // 'running' indefinitely after a timeout reject.
+    const engine = makeInMemoryWorkflowEngine();
+    engine.registerWorkflow<{ wait: number }, string>('cancellable', async (input, ctx) => {
+      await ctx.sleep(input.wait);
+      return 'done';
+    });
+    const token = await engine.start(cancellableDefinition, { wait: 1_000_000 });
+    await expect(engine.waitForCompletion(token, { timeout: 50 })).rejects.toBeInstanceOf(
+      WorkflowTimeoutError,
+    );
+    const finalStatus = await engine.status(token);
+    expect(finalStatus.type).toBe('timed-out');
+  });
+
+  it('query against an unregistered handler throws WorkflowQueryNotFoundError (NOT NotFoundError)', async () => {
+    // Phase-A bug-hunter D3-B7: distinguishing "execution gone"
+    // from "query gone" makes the HTTP status mapping unambiguous.
+    const engine = makeInMemoryWorkflowEngine();
+    engine.registerWorkflow<undefined, string>('signalling', async (_input, ctx) => {
+      await ctx.waitForSignal<undefined>('done');
+      return 'ok';
+    });
+    const token = await engine.start(signallingDefinition, undefined);
+    await new Promise<void>((r) => queueMicrotask(r));
+    await expect(engine.query(token, 'missing')).rejects.toBeInstanceOf(WorkflowQueryNotFoundError);
+    await engine.signal(token, 'done', undefined);
+    await engine.waitForCompletion(token);
+  });
+
+  it('parseExecutionToken round-trips a JSON-serialised in-memory token', () => {
+    // Phase-A bug-hunter D3-B5 + TS-7: the brand is compile-time
+    // only, so deserialised tokens MUST re-pass through this
+    // validator before being typed as ExecutionToken.
+    const original = JSON.stringify({ kind: 'in-memory', id: '42' });
+    const parsed = parseExecutionToken(JSON.parse(original));
+    expect(parsed.kind).toBe('in-memory');
+    if (parsed.kind === 'in-memory') {
+      expect(parsed.id).toBe('42');
+    }
+  });
+
+  it('parseExecutionToken rejects malformed shapes with a legible error', () => {
+    expect(() => parseExecutionToken(null)).toThrow(/must be an object/);
+    expect(() => parseExecutionToken({ kind: 'sfn' })).toThrow(/missing executionArn/);
+    expect(() => parseExecutionToken({ kind: 'wat' })).toThrow(/unknown token kind/);
   });
 });

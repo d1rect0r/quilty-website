@@ -39,6 +39,7 @@ export class TemporalAdapterNotActivatedError extends WorkflowEngineError {
         '3rd-4th workflow definition) per ADR-0021. See ' +
         'packages/workflow/src/adapters/README.md.',
     );
+    this.name = 'TemporalAdapterNotActivatedError';
   }
 }
 

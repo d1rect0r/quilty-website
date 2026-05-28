@@ -25,6 +25,7 @@
 
 import {
   WorkflowNotFoundError,
+  WorkflowQueryNotFoundError,
   WorkflowTimeoutError,
   type WorkflowEngine,
 } from '../ports/workflow-engine';
@@ -36,10 +37,24 @@ import {
 import { type WorkflowStatus } from '../domain/workflow-status';
 
 export class WorkflowCancellationError extends Error {
-  override readonly name = 'WorkflowCancellationError';
   constructor(reason?: string) {
     super(`Workflow cancelled${reason ? `: ${reason}` : ''}`);
+    // Explicit string-literal assignment so the class name survives
+    // webpack class-name minification (mirrors WorkflowEngineError).
+    this.name = 'WorkflowCancellationError';
   }
+}
+
+/**
+ * Internal signal-waiter shape. The push-model registry replaces
+ * the prior microtask polling loop in `waitForSignal` (Phase-A
+ * bug-hunter D3-B1): a `signal()` call directly resolves any
+ * parked waiter, so a signal that never arrives no longer burns
+ * CPU on every microtask tick.
+ */
+interface SignalWaiter {
+  readonly resolve: (value: unknown) => void;
+  readonly reject: (err: unknown) => void;
 }
 
 interface ExecutionState {
@@ -49,6 +64,7 @@ interface ExecutionState {
   status: WorkflowStatus;
   output?: unknown;
   signals: Map<string, unknown[]>;
+  signalWaiters: Map<string, SignalWaiter[]>;
   queryHandlers: Map<string, () => unknown>;
   cancellationReason?: string;
   resolveCompletion?: (value: unknown) => void;
@@ -136,38 +152,38 @@ export function makeInMemoryWorkflowEngine(): InMemoryWorkflowEngine {
         exec.queryHandlers.set(name, handler);
       },
       async waitForSignal<T>(name: string): Promise<T> {
-        return new Promise((resolve, reject) => {
+        return new Promise<T>((resolve, reject) => {
           const exec = executions.get(executionId);
           if (!exec) {
             reject(new WorkflowNotFoundError(`in-memory://${executionId}`));
             return;
           }
-          const queue = exec.signals.get(name);
-          if (queue && queue.length > 0) {
-            resolve(queue.shift() as T);
+          if (exec.cancellationReason !== undefined) {
+            reject(new WorkflowCancellationError(exec.cancellationReason));
             return;
           }
-          const checkSignal = () => {
-            const current = executions.get(executionId);
-            if (!current) {
-              reject(new WorkflowNotFoundError(`in-memory://${executionId}`));
+          const queue = exec.signals.get(name);
+          if (queue && queue.length > 0) {
+            // Narrow `unknown | undefined` to a defined value before
+            // resolving — the length check guarantees defined at
+            // runtime, but the explicit narrow keeps the type-checker
+            // honest (Phase-A TS-2 finding).
+            const value = queue.shift();
+            if (value === undefined) {
+              reject(new WorkflowNotFoundError(`signal queue corrupt: ${name}`));
               return;
             }
-            if (current.cancellationReason !== undefined) {
-              reject(new WorkflowCancellationError(current.cancellationReason));
-              return;
-            }
-            const q = current.signals.get(name);
-            if (q && q.length > 0) {
-              resolve(q.shift() as T);
-              return;
-            }
-            // Microtask poll — the fake doesn't use real timers; the
-            // signal arrives via signal() which calls deliverSignal()
-            // and triggers a re-check.
-            queueMicrotask(checkSignal);
-          };
-          queueMicrotask(checkSignal);
+            resolve(value as T);
+            return;
+          }
+          // Park a resolver in the push-model registry; `signal()`
+          // wakes it directly, `cancel()` rejects all parked waiters.
+          const waiters = exec.signalWaiters.get(name) ?? [];
+          waiters.push({
+            resolve: (value) => resolve(value as T),
+            reject,
+          });
+          exec.signalWaiters.set(name, waiters);
         });
       },
       async sleep(ms) {
@@ -218,6 +234,7 @@ export function makeInMemoryWorkflowEngine(): InMemoryWorkflowEngine {
         startedAt,
         status: { type: 'pending', startedAt },
         signals: new Map(),
+        signalWaiters: new Map(),
         queryHandlers: new Map(),
         completionPromise,
         resolveCompletion,
@@ -280,37 +297,86 @@ export function makeInMemoryWorkflowEngine(): InMemoryWorkflowEngine {
 
     async cancel(token, reason) {
       const exec = getExecution(token);
-      exec.cancellationReason = reason ?? 'Cancelled by caller';
+      const cancelReason = reason ?? 'Cancelled by caller';
+      exec.cancellationReason = cancelReason;
+      // Reject every parked signal-waiter so the workflow body's
+      // `await ctx.waitForSignal(...)` exits with a
+      // WorkflowCancellationError on the next microtask tick.
+      for (const [, waiters] of exec.signalWaiters) {
+        for (const w of waiters) {
+          w.reject(new WorkflowCancellationError(cancelReason));
+        }
+      }
+      exec.signalWaiters.clear();
     },
 
     async signal(token, signalName, payload) {
       const exec = getExecution(token);
+      // Push-model: if a waiter is parked, resolve it directly.
+      // Falls back to queueing the payload for the next
+      // `waitForSignal` call (matches Temporal SignalChannel
+      // canonical semantics).
+      const waiters = exec.signalWaiters.get(signalName);
+      if (waiters && waiters.length > 0) {
+        const waiter = waiters.shift();
+        if (waiter) {
+          waiter.resolve(payload);
+          return;
+        }
+      }
       const queue = exec.signals.get(signalName) ?? [];
       queue.push(payload);
       exec.signals.set(signalName, queue);
     },
 
-    async query(token, queryName) {
+    async query<TResult>(token: ExecutionToken, queryName: string): Promise<TResult> {
       const exec = getExecution(token);
       const handler = exec.queryHandlers.get(queryName);
       if (!handler) {
-        throw new WorkflowNotFoundError(`query not registered: ${queryName}`);
+        throw new WorkflowQueryNotFoundError(queryName);
       }
-      return handler() as never;
+      // Query handler is dynamically keyed by string; the registry
+      // can't preserve the per-name TResult, so the cast crosses
+      // the unknown→TResult boundary here intentionally. Callers
+      // typed `query<number>(...)` keep correct downstream
+      // narrowing; an `as never` would be the bottom-type loophole.
+      return handler() as TResult;
     },
 
-    async waitForCompletion(token, opts) {
+    async waitForCompletion<TOutput>(
+      token: ExecutionToken,
+      opts?: { readonly timeout?: number },
+    ): Promise<TOutput> {
       const exec = getExecution(token);
       if (opts?.timeout !== undefined) {
         const timeoutMs = opts.timeout;
-        return Promise.race([
-          exec.completionPromise as Promise<never>,
-          new Promise<never>((_, reject) => {
-            setTimeout(() => reject(new WorkflowTimeoutError(timeoutMs)), timeoutMs);
-          }),
-        ]);
+        let timerHandle: ReturnType<typeof setTimeout> | undefined;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timerHandle = setTimeout(() => {
+            // Emit the `timed-out` terminal status BEFORE rejecting
+            // so a follow-up `status()` call observes the canonical
+            // terminal state — Phase-A bug-hunter D3-B6.
+            const current = executions.get(exec.id);
+            if (current && current.status.type === 'running') {
+              const timedOutAt = new Date();
+              current.status = {
+                type: 'timed-out',
+                startedAt: current.startedAt,
+                timedOutAt,
+              };
+            }
+            reject(new WorkflowTimeoutError(timeoutMs));
+          }, timeoutMs);
+        });
+        try {
+          return (await Promise.race([exec.completionPromise, timeoutPromise])) as TOutput;
+        } finally {
+          // Clear the handle whichever race-side won so we don't
+          // hold the event loop open (Phase-A bug-hunter D3-B2).
+          if (timerHandle !== undefined) clearTimeout(timerHandle);
+        }
       }
-      return exec.completionPromise as Promise<never>;
+      return (await exec.completionPromise) as TOutput;
     },
 
     async advanceTime(ms) {

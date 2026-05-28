@@ -46,3 +46,48 @@ export function summarizeExecutionToken(token: ExecutionToken): string {
       return `in-memory://${token.id}`;
   }
 }
+
+/**
+ * Parse a JSON-deserialised token payload back into the branded
+ * `ExecutionToken` type. The brand is compile-time only, so a token
+ * round-tripped through JSON.stringify + JSON.parse needs this
+ * validator to re-mint the brand AND assert the runtime shape is
+ * coherent. When the Step Functions adapter activates per ADR-0021
+ * (DynamoDB-backed token storage between Lambda invocations),
+ * every read MUST go through this function — without it, the type
+ * checker accepts any structurally-valid `ExecutionTokenPayload`
+ * cast as `ExecutionToken` (including a malformed one a malicious
+ * user could construct from a known schema).
+ */
+export function parseExecutionToken(raw: unknown): ExecutionToken {
+  if (raw === null || typeof raw !== 'object') {
+    throw new Error('parseExecutionToken: token must be an object');
+  }
+  const candidate = raw as { kind?: unknown } & Record<string, unknown>;
+  if (candidate.kind === 'sfn') {
+    if (typeof candidate['executionArn'] !== 'string') {
+      throw new Error('parseExecutionToken: sfn token missing executionArn');
+    }
+    return makeExecutionToken({
+      kind: 'sfn',
+      executionArn: candidate['executionArn'],
+    });
+  }
+  if (candidate.kind === 'temporal') {
+    if (typeof candidate['workflowId'] !== 'string' || typeof candidate['runId'] !== 'string') {
+      throw new Error('parseExecutionToken: temporal token missing workflowId/runId');
+    }
+    return makeExecutionToken({
+      kind: 'temporal',
+      workflowId: candidate['workflowId'],
+      runId: candidate['runId'],
+    });
+  }
+  if (candidate.kind === 'in-memory') {
+    if (typeof candidate['id'] !== 'string') {
+      throw new Error('parseExecutionToken: in-memory token missing id');
+    }
+    return makeExecutionToken({ kind: 'in-memory', id: candidate['id'] });
+  }
+  throw new Error(`parseExecutionToken: unknown token kind ${String(candidate.kind)}`);
+}

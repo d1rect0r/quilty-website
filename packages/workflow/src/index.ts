@@ -17,7 +17,7 @@
  */
 
 export type { ExecutionToken, ExecutionTokenPayload } from './domain/execution-token';
-export { summarizeExecutionToken } from './domain/execution-token';
+export { parseExecutionToken, summarizeExecutionToken } from './domain/execution-token';
 
 export type { WorkflowStatus } from './domain/workflow-status';
 export { isTerminal } from './domain/workflow-status';
@@ -26,6 +26,7 @@ export type { WorkflowDefinition, WorkflowEngine } from './ports/workflow-engine
 export {
   WorkflowEngineError,
   WorkflowNotFoundError,
+  WorkflowQueryNotFoundError,
   WorkflowTimeoutError,
 } from './ports/workflow-engine';
 

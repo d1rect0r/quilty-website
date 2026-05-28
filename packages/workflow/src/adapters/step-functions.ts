@@ -52,6 +52,7 @@ export class StepFunctionsAdapterNotActivatedError extends WorkflowEngineError {
         'definition landing per ADR-0021 (DSAR pipeline / account-delete / ' +
         'payment-dunning workflow). See packages/workflow/src/adapters/README.md.',
     );
+    this.name = 'StepFunctionsAdapterNotActivatedError';
   }
 }
 
