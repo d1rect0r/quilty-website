@@ -47,6 +47,33 @@ const SENTRY_INGEST_HOST =
 const SENTRY_REPORT_URI = sanitizeCspValue(SENTRY_REPORT_URI_RAW);
 
 /**
+ * Strict-only Sentry host for portal `connect-src` — must be a
+ * pinned project DSN subdomain (e.g. `https://o12345.ingest.us.sentry.io`),
+ * NEVER a wildcard. the HIPAA/CSP sweep finding on portal exfiltration vectors finding: a wildcard portal
+ * connect-src allows any Sentry project's ingest endpoint to
+ * receive POST data, so a misconfigured DSN silently forwards
+ * portal error payloads (which may include user IDs, session
+ * fragments) to a different org's project.
+ *
+ * Resolution: returns the env-var value ONLY when it matches a
+ * literal `https://<subdomain>.ingest.us.sentry.io` pattern with
+ * no `*`. Returns `null` when no acceptable pin is configured;
+ * the portal-tier builder then omits the Sentry origin entirely
+ * (Sentry reporting from portal pages is OFF until a project DSN
+ * lands in infra).
+ */
+function pinnedSentryHostOrNull(raw: string): string | null {
+  const sanitized = sanitizeCspValue(raw);
+  if (!sanitized) return null;
+  // Reject wildcards + require a literal subdomain.
+  if (sanitized.includes('*')) return null;
+  if (!/^https:\/\/[a-z0-9-]+\.ingest\.us\.sentry\.io$/.test(sanitized)) return null;
+  return sanitized;
+}
+
+const SENTRY_INGEST_HOST_PINNED = pinnedSentryHostOrNull(SENTRY_INGEST_HOST_RAW);
+
+/**
  * Per-route additional-origin sanitizer. Each entry MUST match an
  * absolute https/http origin; any value with `;`, whitespace, or
  * malformed scheme is silently dropped to prevent CSP injection.
@@ -114,13 +141,20 @@ export function buildPortalCsp(nonce: string, opts: CspOptions = {}): string {
   const dev = opts.isDevelopment ?? false;
   const extraScripts = sanitizeAdditionalOrigins(opts.additionalScriptSrc);
   const extraConnects = sanitizeAdditionalOrigins(opts.additionalConnectSrc);
+  // Portal connect-src REJECTS the wildcard Sentry ingest fallback
+  // — a wildcard here is an any-Sentry-project exfiltration vector
+  // per the HIPAA/CSP sweep finding on portal exfiltration vectors. Until SENTRY_INGEST_HOST is pinned to a
+  // specific `https://o<id>.ingest.us.sentry.io` subdomain in
+  // production env, portal pages don't forward to Sentry at all
+  // (the Sentry browser SDK will fail-silent on the blocked POST).
+  const portalSentryHost = SENTRY_INGEST_HOST_PINNED ? ` ${SENTRY_INGEST_HOST_PINNED}` : '';
   const directives: string[] = [
     `default-src 'self'`,
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ''}${extraScripts}`,
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data: blob:`,
     `font-src 'self' data:`,
-    `connect-src 'self' ${SENTRY_INGEST_HOST}${extraConnects}`,
+    `connect-src 'self'${portalSentryHost}${extraConnects}`,
     `media-src 'self'`,
     `object-src 'none'`,
     `worker-src 'self'`,

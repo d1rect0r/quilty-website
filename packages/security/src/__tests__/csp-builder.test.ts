@@ -82,6 +82,19 @@ describe('buildPortalCsp', () => {
     const csp = buildPortalCsp('nonce');
     expect(csp).toContain(`require-trusted-types-for 'script'`);
   });
+
+  it('REJECTS wildcard Sentry ingest host in connect-src (portal exfiltration guard)', () => {
+    // Module is loaded with the default unset SENTRY_INGEST_HOST,
+    // so the wildcard fallback `https://*.ingest.us.sentry.io`
+    // never reaches the portal builder. Marketing tier still
+    // allows the wildcard pre-launch (informational tier); portal
+    // tier MUST NOT — otherwise a misconfigured DSN exfiltrates
+    // portal error payloads to any other Sentry project.
+    const csp = buildPortalCsp('abc123');
+    expect(csp).not.toContain('*.ingest.us.sentry.io');
+    // The connect-src directive still includes 'self'.
+    expect(csp).toMatch(/connect-src 'self'/);
+  });
 });
 
 describe('isPortalRoute', () => {
