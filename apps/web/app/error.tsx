@@ -18,10 +18,40 @@ interface ErrorPageProps {
 // work, try again" sequence does.
 const RETRY_WINDOW_MS = 5_000;
 
+// sessionStorage key for the previous retry timestamp. The error
+// boundary remounts on every reset() (the failing component throws
+// again on retry, so React unmounts + remounts ErrorPage with a
+// fresh ref + state). A `useRef` therefore cannot track cross-mount
+// state. sessionStorage survives the remount and is cleared on tab
+// close — the right scope for "two clicks within a session window."
+const RETRY_STORAGE_KEY = 'quilty:error-last-reset-at';
+
+function readLastResetAt(): number | null {
+  if (typeof window === 'undefined') return null;
+  const raw = window.sessionStorage.getItem(RETRY_STORAGE_KEY);
+  if (raw === null) return null;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function writeLastResetAt(value: number | null): void {
+  if (typeof window === 'undefined') return;
+  if (value === null) {
+    window.sessionStorage.removeItem(RETRY_STORAGE_KEY);
+  } else {
+    window.sessionStorage.setItem(RETRY_STORAGE_KEY, String(value));
+  }
+}
+
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const lastResetAt = useRef<number | null>(null);
-  const [permanentFallback, setPermanentFallback] = useState(false);
+  // Always mount in the recoverable state — the retry button must
+  // remain visible after click 1 (the user has not yet exhausted
+  // their attempt). The transition to permanent fallback is driven
+  // only by the second click's `handleReset` reading the previous
+  // attempt's timestamp from sessionStorage (which DOES survive the
+  // reset() remount, unlike a useRef).
+  const [permanentFallback, setPermanentFallback] = useState<boolean>(false);
 
   useEffect(() => {
     // The Container's errorReporter is the wrapped Sentry adapter:
@@ -54,11 +84,16 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 
   const handleReset = () => {
     const now = Date.now();
-    if (lastResetAt.current !== null && now - lastResetAt.current < RETRY_WINDOW_MS) {
+    const last = readLastResetAt();
+    if (last !== null && now - last < RETRY_WINDOW_MS) {
       setPermanentFallback(true);
+      // Clear the marker so a future error (after navigating away
+      // and returning, or after a successful recovery) starts a
+      // fresh retry window rather than re-triggering the fallback.
+      writeLastResetAt(null);
       return;
     }
-    lastResetAt.current = now;
+    writeLastResetAt(now);
     reset();
   };
 

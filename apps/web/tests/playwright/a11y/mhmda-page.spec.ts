@@ -64,12 +64,21 @@ test('@a11y /en/legal/consumer-health-data-privacy names the sensitive-data clas
   page,
 }) => {
   await page.goto('/en/legal/consumer-health-data-privacy');
-  await expect(page.getByText(/sensitive data class/i)).toBeVisible();
-  await expect(page.getByText(/CCPA §1798\.140/)).toBeVisible();
-  await expect(page.getByText(/GDPR Article 9/)).toBeVisible();
+  // Scope to the Sensitive-data classification section so the strict-
+  // mode locator does not match the citations elsewhere on the page
+  // (the page mentions the WA MHMDA + CCPA + GDPR in multiple
+  // contexts — categories, retention, rights). The D153 contract is
+  // about the dedicated classification section naming all three.
+  const section = page
+    .locator('section, main, article, div')
+    .filter({ has: page.getByRole('heading', { name: /sensitive-data classification/i }) })
+    .first();
+  await expect(section.getByText(/sensitive data class/i).first()).toBeVisible();
+  await expect(section.getByText(/CCPA §1798\.140/)).toBeVisible();
+  await expect(section.getByText(/GDPR Article 9/)).toBeVisible();
   // The Washington My Health My Data Act is the third leg of the
   // D153 classification + the surface this entire page implements.
   // A regression that drops the Act's name while keeping the other
   // two citations would otherwise pass silently.
-  await expect(page.getByText(/Washington My Health My Data Act/)).toBeVisible();
+  await expect(section.getByText(/Washington My Health My Data Act/).first()).toBeVisible();
 });

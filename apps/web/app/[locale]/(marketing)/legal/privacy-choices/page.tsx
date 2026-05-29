@@ -187,9 +187,10 @@ export default function PrivacyChoicesPage() {
         expiry); confirming the link is sufficient identity verification for routine requests.
       </p>
       <p className="text-fg-muted mt-4">
-        We do <strong className="text-fg-default">not</strong> require government-issued photo ID
-        for routine privacy requests. EDPB Guidelines 01/2022 + the Dutch DPA&apos;s €525K DPG Media
-        fine flag photo-ID-as-routine-DSAR-friction as an anti-pattern.
+        We do <strong className="text-fg-default">not</strong>
+        {
+          ' require government-issued photo ID for routine privacy requests. EDPB Guidelines 01/2022 + the Dutch DPA’s €525K DPG Media fine flag photo-ID-as-routine-DSAR-friction as an anti-pattern.'
+        }
       </p>
 
       <h2 className="text-fg-default mt-12 text-2xl font-semibold">How long we take</h2>

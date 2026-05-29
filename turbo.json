@@ -33,7 +33,13 @@
     "dev": {
       "cache": false,
       "persistent": true,
-      "env": ["NEXT_PUBLIC_*", "CSRF_SECRET", "QUILTY_SITE_ORIGIN", "RATELIMIT_BYPASS_TOKEN"]
+      "env": [
+        "NEXT_PUBLIC_*",
+        "CSRF_SECRET",
+        "QUILTY_SITE_ORIGIN",
+        "RATELIMIT_BYPASS_TOKEN",
+        "QUILTY_TEST_BOOM_ENABLED"
+      ]
     },
     "start": {
       "dependsOn": ["build"],
@@ -45,7 +51,8 @@
         "PORT",
         "CSRF_SECRET",
         "QUILTY_SITE_ORIGIN",
-        "RATELIMIT_BYPASS_TOKEN"
+        "RATELIMIT_BYPASS_TOKEN",
+        "QUILTY_TEST_BOOM_ENABLED"
       ]
     },
     "lint": {
@@ -70,12 +77,22 @@
     },
     "test:a11y": {
       "dependsOn": ["^build"],
-      "env": ["CSRF_SECRET", "QUILTY_SITE_ORIGIN", "RATELIMIT_BYPASS_TOKEN"],
+      "env": [
+        "CSRF_SECRET",
+        "QUILTY_SITE_ORIGIN",
+        "RATELIMIT_BYPASS_TOKEN",
+        "QUILTY_TEST_BOOM_ENABLED"
+      ],
       "outputs": ["playwright-report/**", "test-results/**"]
     },
     "test:e2e": {
       "dependsOn": ["^build"],
-      "env": ["CSRF_SECRET", "QUILTY_SITE_ORIGIN", "RATELIMIT_BYPASS_TOKEN"],
+      "env": [
+        "CSRF_SECRET",
+        "QUILTY_SITE_ORIGIN",
+        "RATELIMIT_BYPASS_TOKEN",
+        "QUILTY_TEST_BOOM_ENABLED"
+      ],
       "outputs": ["playwright-report/**", "test-results/**"]
     },
     "clean": {

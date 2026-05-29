@@ -99,6 +99,35 @@ function jsonResult(envelope: ContactFormResult, status: number): NextResponse {
   });
 }
 
+/**
+ * Derive the HTTP status code from a cached `ContactFormResult`. The
+ * idempotency cache stores only the envelope (per D113); on a duplicate
+ * submission the route returns the cached envelope with this status
+ * code so the response is byte-identical to the live path. A blanket
+ * `cached.ok ? 200 : 400` would collapse 403 / 429 / 502 into 400 and
+ * mask the original failure semantics for callers that branch on
+ * status (Playwright contract tests, third-party retry policies, etc).
+ *
+ * Honeypot trip intentionally returns 200 even though `ok: true`
+ * (the bot must not learn it was filtered); the live path matches.
+ */
+function statusForResult(envelope: ContactFormResult): number {
+  if (envelope.ok) return 200;
+  switch (envelope.reason) {
+    case 'csrf':
+      return 403;
+    case 'rate_limit':
+      return 429;
+    case 'send_failed':
+      return 502;
+    case 'validation':
+    case 'time_trap':
+    case 'captcha':
+    default:
+      return 400;
+  }
+}
+
 function readExpectedOrigin(): string {
   return process.env['QUILTY_SITE_ORIGIN'] ?? 'http://localhost:3000';
 }
@@ -151,7 +180,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (idemKeyRaw.length > 0) {
     const cached = claimIdempotent<ContactFormResult>(`contact:${idemKeyRaw}`);
     if (cached) {
-      return jsonResult(cached, cached.ok ? 200 : 400);
+      return jsonResult(cached, statusForResult(cached));
     }
   }
 

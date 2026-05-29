@@ -24,8 +24,13 @@ test('@a11y /dev/boom triggers the error boundary with role=alert + focus on hea
 }) => {
   await page.goto('/dev/boom');
 
-  // role="alert" + ARIA19 attributes on the announcement region
-  const alert = page.locator('[role="alert"]');
+  // role="alert" + ARIA19 attributes on the announcement region. Scope
+  // to the error-boundary section to disambiguate from Next.js's
+  // built-in `<div id="__next-route-announcer__" role="alert">` route-
+  // change announcer (which is always present on every App Router
+  // page) — without the scope, the locator resolves to 2+ elements
+  // and the strict-mode toBeVisible() assertion fails.
+  const alert = page.locator('section[aria-labelledby="error-heading"] [role="alert"]');
   await expect(alert).toBeAttached();
   await expect(alert).toHaveAttribute('aria-live', 'assertive');
   await expect(alert).toHaveAttribute('aria-atomic', 'true');
@@ -73,7 +78,8 @@ test('@a11y /dev/boom retry-fallback — two reset clicks within 5s reveal perma
   // The role=alert region must re-announce when its body text flips
   // from the recoverable copy to the permanent-fallback copy. The
   // copy delta is the screen-reader-observable evidence that the
-  // live region fired.
-  const alert = page.locator('[role="alert"]');
+  // live region fired. Scope to the error-boundary section to skip
+  // Next.js's built-in `__next-route-announcer__` role=alert.
+  const alert = page.locator('section[aria-labelledby="error-heading"] [role="alert"]');
   await expect(alert).toContainText(/could not recover/i);
 });

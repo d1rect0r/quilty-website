@@ -51,8 +51,13 @@ test('@security @privacy GPC cookie payload decodes to a FORCE-OFF state', async
 
   // Cookie line shape: `__Host-quilty_consent=<base64>; Path=/; ...`.
   // Decode the base64 segment via the Web atob path (matches the
-  // proxy.ts edge-runtime encode).
-  const rawValue = (consentCookie ?? '').split(';')[0]?.split('=')[1] ?? '';
+  // proxy.ts edge-runtime encode). Next.js's response.cookies.set()
+  // serialiser URL-encodes the value (the trailing `==` padding of
+  // base64 becomes `%3D%3D` in the wire form), so the test must
+  // decodeURIComponent before atob — atob throws InvalidCharacterError
+  // on the literal `%` byte.
+  const rawValueEncoded = (consentCookie ?? '').split(';')[0]?.split('=')[1] ?? '';
+  const rawValue = decodeURIComponent(rawValueEncoded);
   const decoded: unknown = JSON.parse(atob(rawValue));
   expect(decoded).not.toBeNull();
   expect(typeof decoded).toBe('object');

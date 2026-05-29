@@ -166,6 +166,12 @@ jobs:
     env:
       CSRF_SECRET: ci-test-only-csrf-secret-32chars-min-aaa
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      # Enables the /dev/boom error-boundary test route in production
+      # builds — the route gated by `NODE_ENV !== 'production'` would
+      # otherwise 404, blocking the error-boundary Playwright suite.
+      # Set ONLY inside the CI test runner; never in any deployable
+      # image. See apps/web/app/dev/boom/page.tsx for the gate logic.
+      QUILTY_TEST_BOOM_ENABLED: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

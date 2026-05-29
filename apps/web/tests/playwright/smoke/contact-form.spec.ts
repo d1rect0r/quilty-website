@@ -29,12 +29,32 @@ test.describe('@forms /contact', () => {
     await expect(page.getByRole('button', { name: /send message/i })).toBeVisible();
   });
 
-  test('mints the __Host-quilty_csrf cookie on render', async ({ context }) => {
-    const cookies = await context.cookies();
-    const csrfCookie = cookies.find((c) => c.name === CSRF_COOKIE_NAME);
-    expect(csrfCookie).toBeDefined();
-    expect(csrfCookie?.secure).toBe(true);
-    expect(csrfCookie?.sameSite).toBe('Lax');
+  test('mints the __Host-quilty_csrf cookie on render', async ({ request }) => {
+    // Inspect the response Set-Cookie header directly rather than
+    // `context.cookies()` after a navigation. WebKit (Safari) refuses
+    // to store `Secure` cookies received over plain HTTP — Chromium
+    // and Firefox treat localhost as a "potentially trustworthy"
+    // origin per the spec's exception, but Safari is strict. In a
+    // real production deploy the connection is HTTPS so the cookie
+    // lands in every browser; this test asserts the proxy.ts mint
+    // logic by reading the wire form, which is browser-independent.
+    const response = await request.get('/en/contact', { maxRedirects: 0 });
+    const setCookieHeaders = response
+      .headersArray()
+      .filter((h) => h.name.toLowerCase() === 'set-cookie')
+      .map((h) => h.value);
+    const csrfHeader = setCookieHeaders.find((c) => c.startsWith(`${CSRF_COOKIE_NAME}=`));
+    expect(csrfHeader).toBeDefined();
+    expect(csrfHeader ?? '').toMatch(/Secure/i);
+    expect(csrfHeader ?? '').toMatch(/Path=\//i);
+    expect(csrfHeader ?? '').toMatch(/SameSite=lax/i);
+    // No Domain attribute — required by the __Host- prefix per
+    // OWASP. A leaked Domain attribute would let a subdomain
+    // overwrite the cookie.
+    expect(csrfHeader ?? '').not.toMatch(/Domain=/i);
+    // Token value shape: `<base64url(32 bytes)>.<base64url(HMAC-SHA-256)>`.
+    const tokenValue = csrfHeader?.split(';')[0]?.split('=')[1] ?? '';
+    expect(tokenValue).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
   });
 
   test('Zod validation: empty email blocks submit + surfaces inline error', async ({ page }) => {
@@ -51,6 +71,15 @@ test.describe('@forms /contact', () => {
   test('Origin-mismatch attack: bare POST without correct origin returns 403 csrf', async ({
     request,
   }) => {
+    // Unique UUID per test invocation. The Route Handler keeps an
+    // in-memory idempotency cache that persists across requests within
+    // the same server process; a static UUID would cause retries
+    // (Playwright retries failed tests up to 2× in CI) + cross-browser
+    // runs (chromium then webkit) to hit the cached envelope, and the
+    // cache currently collapses all failure statuses to 400 (see
+    // lib/idempotency.ts — `cached.ok ? 200 : 400`), masking the live
+    // 403. Fresh UUID per run forces the live path every time.
+    const idempotencyKey = crypto.randomUUID();
     const res = await request.post('/api/contact', {
       headers: {
         'content-type': 'application/json',
@@ -65,7 +94,7 @@ test.describe('@forms /contact', () => {
         time_token: Buffer.from(JSON.stringify({ t: Date.now() - 3000 }), 'utf-8').toString(
           'base64url',
         ),
-        idempotency_key: '00000000-0000-4000-8000-000000000001',
+        idempotency_key: idempotencyKey,
         turnstile_token: 'pending',
       },
     });
@@ -93,6 +122,9 @@ test.describe('@forms /contact', () => {
     const cookies = await page.context().cookies();
     const csrfCookie = cookies.find((c) => c.name === CSRF_COOKIE_NAME);
     test.skip(!csrfCookie, 'CSRF cookie not minted — env-dependent scenario');
+    // Unique idempotency key per invocation — see the comment in the
+    // Origin-mismatch test for the in-memory cache reasoning.
+    const idempotencyKey = crypto.randomUUID();
     const res = await request.post('/api/contact', {
       headers: {
         'content-type': 'application/json',
@@ -108,7 +140,7 @@ test.describe('@forms /contact', () => {
         time_token: Buffer.from(JSON.stringify({ t: Date.now() - 3000 }), 'utf-8').toString(
           'base64url',
         ),
-        idempotency_key: '00000000-0000-4000-8000-000000000002',
+        idempotency_key: idempotencyKey,
         turnstile_token: 'pending',
         fax_number: 'bot-fill',
       },
