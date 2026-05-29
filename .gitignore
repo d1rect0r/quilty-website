@@ -65,8 +65,15 @@ build/
 # repopulates the directory.
 apps/web/public/workbox/
 
-# OpenAPI codegen target (regenerated from Rust backend)
-packages/shared-types/src/generated/
+# OpenAPI codegen target (regenerated from Rust backend via
+# `node apps/web/scripts/codegen-api-types.mjs`). The generated files
+# ARE committed to source so the workspace stays self-contained at
+# every checkout — matches the @quilty/shared-types/src/index.ts
+# docstring. CI cannot run codegen because the OpenAPI spec lives in
+# the sibling `quilty-aws` repo which is not vended here. When the
+# codegen-CI publish pipeline activates (ADR-0003 trigger), this
+# ignore can be reintroduced and the publish step takes over.
+# packages/shared-types/src/generated/
 
 # Test artifacts
 coverage/
