@@ -7,9 +7,14 @@ import { defineConfig, devices } from '@playwright/test';
  * Safari = highest user surface; Chrome covers the rest). Add Firefox
  * if Lighthouse CI flags a Gecko-specific regression.
  *
- * Test orchestration: spawns `pnpm dev` once via global-setup; tears
- * down via global-teardown. Switch to `pnpm build && pnpm start` for
- * production-mode assertions once the build path stabilises.
+ * Test orchestration: spawns the dev/prod server once via the
+ * webServer config; tears down via global-teardown. In CI we use
+ * `pnpm build && pnpm start` for production-mode assertions —
+ * Turbopack hot-compilation in dev mode is too flaky for the wider
+ * CI test budget (a slow first-route compile blows past Playwright's
+ * 30s test timeout, even though the test itself takes <1s on a warm
+ * server). Locally we keep `pnpm dev` with `reuseExistingServer: true`
+ * so developers get immediate feedback after `pnpm dev` is already up.
  *
  * Tag conventions:
  *   - `@a11y` — axe-core assertions; tagged tests run via `pnpm test:a11y`
@@ -59,10 +64,18 @@ export default defineConfig({
   ],
   webServer: process.env.CI
     ? {
-        command: 'pnpm dev',
+        // Production build + start — avoids Turbopack dev-mode
+        // compile races that previously caused systemic Playwright
+        // failures across error-boundary, legal-pages, mhmda-page,
+        // gpc-force-off, and contact-form suites. Build happens BEFORE
+        // Playwright runs (the `Next.js build` job in ci.yml runs in
+        // parallel; here we expect `.next/` to already exist from
+        // the previous step). Timeout is generous to allow `next start`
+        // cold boot under runner load.
+        command: 'pnpm start',
         url: 'http://localhost:3000',
         reuseExistingServer: false,
-        timeout: 60_000,
+        timeout: 90_000,
       }
     : {
         command: 'pnpm dev',

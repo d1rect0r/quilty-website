@@ -156,11 +156,16 @@ jobs:
     # CI-only test secret committed in plaintext on purpose — it never
     # touches a production code path (production reads the SST secret
     # via the website-baseline Pulumi vending layer). `turbo.json`
-    # `test:e2e` env allowlist propagates this through `pnpm dev` to
-    # next dev to proxy.ts; without it, the Server Component throws
-    # at HMAC setup and the form's hidden CSRF input is unverifiable.
+    # `test:e2e` env allowlist propagates this through the build + start
+    # tasks to proxy.ts; without it, proxy.ts throws at HMAC setup
+    # and the form's hidden CSRF input is unverifiable.
+    #
+    # NEXT_PUBLIC_SITE_URL is required by app/layout.tsx + metadata
+    # builders at build time; the value matches the local Playwright
+    # baseURL so absolute-URL canonical/og fields resolve consistently.
     env:
       CSRF_SECRET: ci-test-only-csrf-secret-32chars-min-aaa
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -171,6 +176,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter web exec playwright install --with-deps chromium webkit
       - run: pnpm --filter web exec velite build --config ../../velite.config.ts
+      # Production build before Playwright runs. playwright.config.ts
+      # spawns `pnpm start` in CI mode (not `pnpm dev`) to avoid
+      # Turbopack hot-compile races that previously caused systemic
+      # test failures across error-boundary / legal-pages / mhmda-page /
+      # gpc-force-off / contact-form suites.
+      - run: pnpm --filter web build
       - run: pnpm --filter web test:e2e
       - if: failure()
         uses: actions/upload-artifact@v4
