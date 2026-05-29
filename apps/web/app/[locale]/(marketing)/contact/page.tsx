@@ -1,7 +1,6 @@
 import { cookies } from 'next/headers';
 import dynamic from 'next/dynamic';
 import { makeHoneypotField, makeRenderTimestamp } from '@quilty/security';
-import { generateCsrfToken } from '@quilty/security/server';
 import type { Metadata } from 'next';
 
 /**
@@ -31,8 +30,12 @@ const ContactForm = dynamic(
  * /contact route.
  *
  * Server Component responsibilities:
- *   1. Mint a fresh CSRF token + write it to a `__Host-`-prefixed
- *      cookie so the Route Handler can verify the double-submit pair.
+ *   1. READ the `__Host-quilty_csrf` cookie that proxy.ts minted on
+ *      this request. Next.js 16 hardened the `cookies()` API to be
+ *      read-only outside Server Actions invoked from the client,
+ *      Route Handlers, and middleware (proxy.ts). The mint happens
+ *      at the proxy layer via the Web Crypto `generateCsrfTokenEdge()`
+ *      helper; this page only reads.
  *   2. Mint a fresh time-trap token. The token's render timestamp
  *      becomes the lower-bound check at submission.
  *   3. Mint a honeypot field name (random per render so a bot
@@ -92,38 +95,18 @@ export default async function ContactPage() {
   const timeToken = makeRenderTimestamp();
   const honeypot = makeHoneypotField();
 
-  // Reuse the existing CSRF cookie when present so a user with
-  // multiple /contact tabs open doesn't have tab 1's hidden-input
-  // token invalidated by tab 2's render. Mint a fresh token only
-  // when the cookie is absent (first visit or post-expiry). The
-  // cookie's HMAC signature + the time-trap window are the
-  // freshness controls; the cookie itself is durable for the session.
-  const existingCookie = cookieStore.get(CSRF_COOKIE_NAME)?.value ?? null;
-  const csrfToken = existingCookie ?? generateCsrfToken();
-
-  if (existingCookie === null) {
-    // SECURITY: `httpOnly: false` is load-bearing for the OWASP
-    // canonical double-submit pattern (D10 + D53) — the Client
-    // Component reads the token from `document.cookie` to forward
-    // it in the `X-Quilty-CSRF` header. Flipping to `httpOnly: true`
-    // would break the third layer of the triple-defense. The
-    // residual risk is stored XSS: an XSS payload on the page can
-    // read the cookie + forge a same-origin POST, collapsing the
-    // triple-defense to one layer (Origin/Referer). Mitigations:
-    // the strict CSP (no `unsafe-inline`, no third-party script-src
-    // on this route today), Trusted Types (D57), and the HMAC-signed
-    // token (a same-site oversight that wrote a cookie cannot mint
-    // a valid signature without the server-held secret). Do NOT
-    // flip this flag thinking httpOnly is strictly better; CSP +
-    // Trusted Types + the HMAC signature are the layered defense.
-    cookieStore.set({
-      name: CSRF_COOKIE_NAME,
-      value: csrfToken,
-      httpOnly: false,
-      secure: true,
-      sameSite: 'lax',
-      path: '/',
-    });
+  // Read the CSRF token that proxy.ts minted on this request. The mint
+  // logic lives in middleware because Next.js 16 forbids `cookies().set()`
+  // during Server Component render — proxy.ts uses `request.cookies.set()`
+  // (visible to this read) + `response.cookies.set()` (browser persistence)
+  // before the page renders. A null value here means the page was
+  // reached without proxy.ts running (route-matcher misconfiguration);
+  // we throw rather than rendering an unverifiable form.
+  const csrfToken = cookieStore.get(CSRF_COOKIE_NAME)?.value;
+  if (csrfToken === undefined) {
+    throw new Error(
+      'CSRF cookie missing — proxy.ts should have minted it for /contact routes. Verify the proxy.ts matcher and isFormsRoute() coverage.',
+    );
   }
 
   return (

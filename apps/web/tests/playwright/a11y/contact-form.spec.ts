@@ -84,11 +84,16 @@ test.describe('@a11y /contact form', () => {
     const successOutput = page.locator('output[id$="-success"]');
     await expect(successOutput).toHaveAttribute('aria-live', 'polite');
 
-    // Error region — explicit role=alert overrides the implicit
-    // role=status; aria-live=assertive for transient submit failures.
-    const errorOutput = page.locator('output[id$="-error"]');
-    await expect(errorOutput).toHaveAttribute('role', 'alert');
-    await expect(errorOutput).toHaveAttribute('aria-live', 'assertive');
+    // Error region — `<div role="alert" aria-live="assertive">`
+    // (NOT `<output role="alert">`). Per ARIA 1.2 §6.6.3 + the
+    // ContactForm.tsx comment: stacking role="alert" on `<output>`
+    // (which carries an implicit role="status" via HTML-AAM) produces
+    // an AT role-conflict that NVDA + JAWS 2024 resolve inconsistently.
+    // A plain div with explicit role + aria-live + aria-atomic is the
+    // load-bearing shape.
+    const errorRegion = page.locator('div[id$="-error"][role="alert"]');
+    await expect(errorRegion).toHaveAttribute('aria-live', 'assertive');
+    await expect(errorRegion).toHaveAttribute('aria-atomic', 'true');
   });
 
   test('honeypot field is hidden from AT (aria-hidden parent + tabindex=-1)', async ({ page }) => {

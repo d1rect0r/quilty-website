@@ -148,16 +148,17 @@ jobs:
     needs: install
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # `CSRF_SECRET` is required by the /contact Server Component which
-    # mints a fresh CSRF token on every render (D113 canonical 8-piece
-    # form pattern). The HMAC primitive enforces ≥ 32 chars at runtime
+    # `CSRF_SECRET` is required by proxy.ts which mints the
+    # `__Host-quilty_csrf` cookie on first /contact GET via the
+    # Web Crypto `generateCsrfTokenEdge()` helper (D113 + open risk #7
+    # closure). The HMAC primitive enforces ≥ 32 chars at runtime
     # (≥ 256 bits of entropy for HMAC-SHA-256). The value below is a
     # CI-only test secret committed in plaintext on purpose — it never
     # touches a production code path (production reads the SST secret
-    # via the website-baseline Pulumi vending layer). Without the env
-    # var the SSR render throws + the Playwright e2e + a11y suite
-    # cannot navigate past the error boundary; this is the test-tier
-    # analog of the unit-test `vi.stubEnv('CSRF_SECRET', ...)` pattern.
+    # via the website-baseline Pulumi vending layer). `turbo.json`
+    # `test:e2e` env allowlist propagates this through `pnpm dev` to
+    # next dev to proxy.ts; without it, the Server Component throws
+    # at HMAC setup and the form's hidden CSRF input is unverifiable.
     env:
       CSRF_SECRET: ci-test-only-csrf-secret-32chars-min-aaa
     steps:

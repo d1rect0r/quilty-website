@@ -3,6 +3,7 @@ import {
   buildMarketingCsp,
   buildPortalCsp,
   buildSecurityHeaders,
+  generateCsrfTokenEdge,
   generateNonce,
   isPortalRoute,
 } from '@quilty/security';
@@ -170,6 +171,53 @@ function applyGpcForceOffCookie(request: NextRequest, response: NextResponse): v
 }
 
 /**
+ * CSRF token cookie name (D113 8-piece form pattern; OWASP canonical
+ * double-submit). The `__Host-` prefix forces Secure + Path=/ + no
+ * Domain, mutually exclusive with parent-domain cookie sharing.
+ * Localised at module scope so the proxy.ts + page.tsx + Route Handler
+ * agree on a single literal.
+ */
+const CSRF_COOKIE_NAME = '__Host-quilty_csrf';
+
+/**
+ * Forms-bearing route check. Matches any `/{2+ letter locale}/contact`
+ * path so the CSRF cookie is minted at the proxy layer before the
+ * Server Component renders. Next.js 16 hardened `cookies()` API to be
+ * read-only outside Server Actions, Route Handlers, and middleware;
+ * proxy.ts is the only render-time-compatible mint site.
+ *
+ * Extend this matcher when subscribers / waitlist / contact-sales
+ * forms ship — every D113-pattern form needs the same cookie pre-mint.
+ */
+function isFormsRoute(pathname: string): boolean {
+  return /^\/[a-z]{2,}\/contact(\/|$)/.test(pathname);
+}
+
+/**
+ * Mint-or-reuse the CSRF cookie for forms-bearing routes. Returns the
+ * fresh token to set on the response cookies, OR `null` when the cookie
+ * already exists and no mint is needed.
+ *
+ * Mutates `request.cookies` so the downstream Server Component reads
+ * the new token via `cookies().get()` on THIS request. The response
+ * cookie is set separately by the caller so the browser persists the
+ * token for subsequent visits.
+ *
+ * Web Crypto (SubtleCrypto HMAC-SHA-256) — runs in Edge runtime
+ * without `node:crypto`. The byte-identical contract with the Node
+ * `verifyCsrf()` is locked by `packages/security/__tests__/csrf-edge.test.ts`.
+ */
+async function ensureCsrfCookieMint(request: NextRequest): Promise<string | null> {
+  if (request.cookies.has(CSRF_COOKIE_NAME)) return null;
+  const token = await generateCsrfTokenEdge();
+  // request.cookies.set mutates the underlying Cookie header so the
+  // downstream `request.headers` snapshot picks up the new pair when
+  // proxy.ts forwards via `NextResponse.next({ request: { headers } })`.
+  request.cookies.set(CSRF_COOKIE_NAME, token);
+  return token;
+}
+
+/**
  * Apply the response-side security header stack (CSP-Report-Only +
  * HSTS + COOP + CORP + nosniff + frame-options + referrer + permissions).
  * Extracted so the apex-locale redirect path AND the
@@ -271,7 +319,7 @@ function maintenanceRewrite(request: NextRequest): NextResponse | null {
   return response;
 }
 
-export function proxy(request: NextRequest): NextResponse {
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
   // Maintenance-mode gate fires before any other routing — a 503
@@ -324,6 +372,14 @@ export function proxy(request: NextRequest): NextResponse {
   const portal = isPortalRoute(pathname);
   const nonce = portal ? generateNonce() : undefined;
 
+  // CSRF cookie mint for D113 forms-bearing routes. Must run BEFORE
+  // the requestHeaders snapshot so the updated Cookie header
+  // propagates to the downstream Server Component on THIS request via
+  // `NextResponse.next({ request: { headers } })`. Next.js 16
+  // forbids `cookies().set()` in Server Components — proxy.ts is the
+  // canonical pre-render mint site (open risk #7 closure).
+  const mintedCsrfToken = isFormsRoute(pathname) ? await ensureCsrfCookieMint(request) : null;
+
   // Propagate nonce to Server Components via request header. Server Components
   // read it via `(await headers()).get('x-nonce')` and pass to <JsonLd nonce>
   // (and any other nonce-aware inline-script consumer).
@@ -335,6 +391,25 @@ export function proxy(request: NextRequest): NextResponse {
   const response = NextResponse.next({
     request: { headers: requestHeaders },
   });
+
+  // Persist the freshly-minted CSRF token to the browser via Set-Cookie
+  // so subsequent visits skip the mint. The `__Host-` prefix requires
+  // Secure + Path=/ + no Domain (mutually exclusive with parent-domain
+  // sharing). `httpOnly: false` is load-bearing — the Client Component
+  // reads `document.cookie` to forward the token in the `X-Quilty-CSRF`
+  // header (the triple-defense layer 3, D10 + D53 + OWASP). Flipping to
+  // httpOnly: true would break the custom-header layer; CSP + Trusted
+  // Types + the HMAC signature are the layered XSS defense.
+  if (mintedCsrfToken !== null) {
+    response.cookies.set({
+      name: CSRF_COOKIE_NAME,
+      value: mintedCsrfToken,
+      httpOnly: false,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+    });
+  }
 
   applySecurityHeaders(response, { portal, nonce });
 

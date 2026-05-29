@@ -80,12 +80,17 @@ export {
 export { buildHstsValue, buildSecurityHeaders, currentHstsPhase } from './domain/headers-builder';
 export { isSafeRedirect } from './domain/redirect-validator';
 
-// Forms-canonical domain stubs (D113). CSRF lives at the `/server`
-// subpath because csrf.ts imports node:crypto; co-locating it here
-// would pull node:crypto into every webpack client bundle that
-// imports any other symbol from this barrel.
+// Forms-canonical domain stubs (D113). The Node-runtime CSRF surface
+// (sync `generateCsrfToken` + `verifyCsrf`) lives at the `/server`
+// subpath because `./domain/csrf.ts` imports `node:crypto`. The
+// edge-runtime CSRF mint (`generateCsrfTokenEdge`) ships in the default
+// barrel because Web Crypto is bundle-safe in both Node and Edge
+// targets — proxy.ts (Edge) consumes it to mint-and-set the cookie on
+// first /contact GET, satisfying the Next.js 16 invariant that Server
+// Components cannot mutate cookies during render.
 export { makeHoneypotField, verifyHoneypot, type HoneypotField } from './domain/honeypot';
 export { makeRenderTimestamp, verifyTimeTrap, type TimeTrapVerifyInput } from './domain/time-trap';
+export { generateCsrfTokenEdge } from './domain/csrf-edge';
 
 // ---------------------------------------------------------------------------
 // Port factories — only ports with real state earn a factory shape
