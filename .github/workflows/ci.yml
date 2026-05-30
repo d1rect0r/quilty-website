@@ -247,7 +247,11 @@ jobs:
         # eliminates the double-build cost once the first 30-day
         # baseline lands — tracked on the C.1 watchlist.
         if: github.event_name == 'pull_request'
-        uses: andresz1/size-limit-action@v2
+        # Major-version tag `v1` (latest stable as of 2026-05-29).
+        # The action has no v2 release — refs/tags/v2 does not exist
+        # on the upstream repo, causing a "Set up job" failure with
+        # "Unable to resolve action ... v2". Pin to v1 (floating major).
+        uses: andresz1/size-limit-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           # skip_step: build — the head-branch build already ran in
