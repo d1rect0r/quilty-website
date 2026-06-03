@@ -311,17 +311,19 @@ Implementation guidance:
 
 The auth-side fleet honors these AppConfig flags. The website BFF SHOULD also respect the ones marked **[BFF-RELEVANT]**.
 
-| Flag                        | Default | Effect                                                              | BFF-relevant?                                                          |
-| --------------------------- | ------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `pkce_enforce`              | OFF     | Mobile `provider_link` fail-OPEN→CLOSED on missing PKCE             | NO — BFF must enforce regardless                                       |
-| `federation_enabled`        | ON      | Master kill for `mobile_federation` client + `provider_link/unlink` | **YES** — if OFF, BFF should hide federation UI on signin/signup pages |
-| `federation_google_enabled` | ON      | Provider-specific kill                                              | **YES** — hide Google button if OFF                                    |
-| `federation_apple_enabled`  | ON      | Provider-specific kill                                              | **YES** — hide Apple button if OFF                                     |
-| `me_identities_enabled`     | ON      | Master kill for H-FED-008                                           | **YES** — gracefully degrade `/account/security` if OFF                |
+| Flag                        | Default           | Effect                                                              | BFF-relevant?                                   |
+| --------------------------- | ----------------- | ------------------------------------------------------------------- | ----------------------------------------------- |
+| `pkce_enforce`              | OFF               | Mobile `provider_link` fail-OPEN→CLOSED on missing PKCE             | NO — BFF must enforce regardless                |
+| `federation_enabled`        | (not yet defined) | Master kill for `mobile_federation` client + `provider_link/unlink` | **YES (post-substrate)** — see correction below |
+| `federation_google_enabled` | (not yet defined) | Provider-specific kill                                              | **YES (post-substrate)** — see correction below |
+| `federation_apple_enabled`  | (not yet defined) | Provider-specific kill                                              | **YES (post-substrate)** — see correction below |
+| `me_identities_enabled`     | (not yet defined) | Master kill for H-FED-008                                           | **YES (post-substrate)** — see correction below |
 
-How to read AppConfig from the BFF: standard AWS SDK `AppConfigDataClient.getLatestConfiguration` with the application `quilty-auth` + environment `prod` + profile `kill-switches`. Cache at cold-start; refresh on a 30s timer (longer = staler kill; shorter = throttle risk).
+**Correction 2026-06-03 post-CLOSE-01a audit:** ONLY `pkce_enforce` exists in code today (`auth-user::routes::provider_link::handler.rs:153` via `kill_switch_helper::is_flag_enabled`). The other four flags above are **aspirational, not yet implemented** — filed as deferral `D-W3F-APPCONFIG-FEDERATION-KILL-SWITCHES` in `quilty-aws/docs/auth/DEFERRED_FOLLOWUPS.md`. Trigger: before the first GA federation traffic (when CLOSE-01b custom-domain cutover + your BFF M5 land together). Until then, federation is always-on at the substrate; the only kill primitive is `terraform apply auth/` with `count = 0` on the IdP resources (~5-10 min). Acceptable today (zero federation traffic); not acceptable post-GA. **For your BFF design at M5:** build the UI-side gracefully-degrade-if-flag-OFF logic anyway (mock the flag as `true` until the auth-side substrate lands); when the AppConfig flags ship, your BFF picks them up automatically. The contract from your side is sound; the auth-side runtime contract is pending.
 
-**Why this matters:** when we ramp up federation post-launch, we may need to kill-switch a misbehaving IdP at sub-minute latency. If the BFF doesn't respect the flag, users see the button + click → 503 from Cognito (because the IdP got disabled at the user-pool level). UX regression. Respect the flag.
+How to read AppConfig from the BFF (once the flags land): standard AWS SDK `AppConfigDataClient.getLatestConfiguration` with the application `quilty-auth` + environment `prod` + profile `quilty-feature-flags`. Cache at cold-start; refresh on a 30s timer (longer = staler kill; shorter = throttle risk).
+
+**Why this matters (when the flags eventually land):** when we ramp up federation post-launch, we may need to kill-switch a misbehaving IdP at sub-minute latency. If the BFF doesn't respect the flag, users see the button + click → 503 from Cognito (because the IdP got disabled at the user-pool level). UX regression. Respect the flag (when it exists).
 
 ### 4.2 Rate-limit class allocation (BFF endpoints slot into auth-side taxonomy)
 

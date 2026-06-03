@@ -37,7 +37,7 @@ Authoritative list in `federation-handoff-from-quilty-aws-2026-06-03.md`. Headli
 2. First SST deploy → unblocks the Cognito custom-domain flip.
 3. `quilty-aws/dns/` apex A-record PR (Pattern A two-step ceremony).
 4. BFF auth-callback (M5) per handoff §5 — **PKCE S256 mandatory, no fail-open**; opaque session-ID + DDB; never store IdP refresh tokens; delegate provider-unlink to auth-user.
-5. Respect AppConfig kill switches, rate-limit classes, Idempotency-Key, `traceparent` (handoff §4).
+5. Respect AppConfig kill switches, rate-limit classes, Idempotency-Key, `traceparent` (handoff §4). **Note (server correction 2026-06-03):** only `pkce_enforce` exists in code today; the four federation kill-switches (`federation_enabled`, `federation_google_enabled`, `federation_apple_enabled`, `me_identities_enabled`) are deferred (`D-W3F-APPCONFIG-FEDERATION-KILL-SWITCHES`) and the AppConfig profile is `quilty-feature-flags` (not `kill-switches`). At M5: build the degrade-if-flag-OFF UI logic but **mock the flags as `true`** until the substrate lands; they're picked up automatically when shipped.
 
 ### Open questions owed back to the server (handoff §8) — RESOLVED 2026-06-03 (see [ADR-0029](../adr/0029-bff-auth-architecture.md))
 
