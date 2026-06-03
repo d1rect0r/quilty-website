@@ -39,16 +39,18 @@ Authoritative list in `federation-handoff-from-quilty-aws-2026-06-03.md`. Headli
 4. BFF auth-callback (M5) per handoff §5 — **PKCE S256 mandatory, no fail-open**; opaque session-ID + DDB; never store IdP refresh tokens; delegate provider-unlink to auth-user.
 5. Respect AppConfig kill switches, rate-limit classes, Idempotency-Key, `traceparent` (handoff §4).
 
-### Open questions owed back to the server (handoff §8) — PENDING a dedicated decision pass
+### Open questions owed back to the server (handoff §8) — RESOLVED 2026-06-03 (see [ADR-0029](../adr/0029-bff-auth-architecture.md))
 
-1. BFF callback path: `/auth/callback` (matches allowlist) vs `/api/auth/callback` (current scaffold). _Server recommends `/auth/callback`._
-2. Refresh strategy: separate `/api/auth/refresh` route vs opaque-session + server-side refresh. _Server recommends opaque-session._
-3. `prompt=login` support for sensitive actions. _Server recommends yes._
-4. Identity-picker UX: our-side picker vs Cognito Managed Login built-in. _Server recommends our-side._
-5. Anonymous → federated upgrade: carry pre-auth state forward? _Server recommends yes, via guest-session bridge._
-6. MHMDA "sensitive action" step-up gating on `/account/security|data|delete`. _Server recommends yes._
+Locked via 3 web-research agents + AskUserQuestion ratification on 2026-06-03. Full rationale + alternatives in ADR-0029.
 
-→ These are NOT yet decided. Resolve them, then file answers as inline replies + an `S-N` revision to the strategy doc.
+1. **BFF callback path → unify under `/auth/*`.** Adopt `/auth/callback` (matches the allowlist) AND move the whole token-handler surface (login, logout, callback, backchannel-logout stub) under one `/auth/*` namespace (Auth0 v4 default). Relocate the current `/api/auth/*` stubs.
+2. **Refresh → transparent server-side.** Refresh inline in the proxy/data layer keyed on the opaque session, with single-flight per-session locking; **no client refresh route**; on failure delete session + 401. (IETF BFF BCP.)
+3. **Step-up → yes, `prompt=login` + `elevated_until`, 10-min fixed** (`max_age=600`, stored in DynamoDB) — **revises D54's 5-min window**. Gated actions: email/password change, MFA mgmt, account delete, payment-method change, **+ data export**.
+4. **Identity picker → our-side buttons.** `identity_provider`-preset deep-links via one shared typed config across web + iOS; **Sign in with Apple shown wherever social appears** (App Store §4.8).
+5. **Guest carrier → build thin carrier now, defer the promotion bridge to M5/M6.** Non-health UI state only; rotate session ID on anonymous→auth (OWASP); reconcile (not inherit) consent; health-quiz data gated behind MHMDA opt-in before collection.
+6. **Sensitive-action gating → 3 routes + billing action only.** Route-gate `/account/security`, `/account/data`, `/account/delete`; gate the payment-method-change action (not the billing view); dynamic gate wherever the backend sets `requires_step_up`.
+
+→ **Owed to the server next:** confirm the callback path = `/auth/callback` (so they finalize the `web_bff` client) and file an `S-N` revision noting the D54 window change. DynamoDB-backed fields (`elevated_until`, `requires_step_up`, `guest_state`) ship as port + in-memory + fail-closed guard now; real adapters land when AWS account placement is decided.
 
 ## Locked execution sequencing (2026-06-03)
 
