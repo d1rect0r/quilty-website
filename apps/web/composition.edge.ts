@@ -31,6 +31,11 @@ import {
   wrapLogger,
 } from '@quilty/observability';
 import { makeSanitizer } from '@quilty/security';
+import {
+  assertInMemoryAdapterAllowed,
+  resolveInMemoryGuardContext,
+  shouldEmitInMemoryAuditLog,
+} from './lib/fail-closed';
 import type { EdgeContainer } from './lib/get-container';
 
 export function makeEdgeContainer(): EdgeContainer {
@@ -40,6 +45,25 @@ export function makeEdgeContainer(): EdgeContainer {
     adapter: makeCloudWatchLogger(),
     sanitizer,
   });
+
+  // Fail-closed adapter selection (ADR-0030) — same policy as the server
+  // root. The edge tier serves real production traffic, so its in-memory
+  // ConsentStore (consent-state-bearing, D35) must not silently ship. The
+  // edge reads process.env directly (no lib/env.ts import) to stay free of
+  // the build-time-validation module on the edge runtime. The edge DynamoDB
+  // consent adapter is fetch-based and ships when QUILTY_CONSENT_TABLE is
+  // provisioned — its presence then trips the guard's "wire the real
+  // adapter" branch here just as on the server.
+  const { isProductionRuntime, allowInMemory } = resolveInMemoryGuardContext();
+  const consentStoreGuard = assertInMemoryAdapterAllowed({
+    name: 'consent-store',
+    isProductionRuntime,
+    allowInMemory,
+    realActivationEnv: process.env.QUILTY_CONSENT_TABLE,
+  });
+  if (consentStoreGuard.action === 'warn-and-use' && shouldEmitInMemoryAuditLog('consent-store')) {
+    wrappedLogger.warn('inmemory_adapter_in_production', { adapter: 'consent-store' });
+  }
 
   return {
     runtime: 'edge',
@@ -72,10 +96,11 @@ export function makeEdgeContainer(): EdgeContainer {
     }),
     featureFlags: makeEnvFlagEvaluator(),
     phiScrubber: makePhiScrubber(),
-    // In-memory ConsentStore on the Edge tier. The adapter uses only
-    // the Map Web API + plain JS — Edge-runtime-safe. The DynamoDB
-    // adapter is server-only (AWS SDK is Node-only); when it activates,
-    // a parallel Edge-compat fetch-based adapter ships here.
+    // In-memory ConsentStore on the Edge tier — guarded at construction
+    // above (ADR-0030 fail-closed). The adapter uses only the Map Web API +
+    // plain JS — Edge-runtime-safe. The DynamoDB adapter is server-only (AWS
+    // SDK is Node-only); when it activates, a parallel Edge-compat
+    // fetch-based adapter ships here.
     consentStore: makeInMemoryConsentStore(),
     // ApiClient at the Edge tier (ADR-0017). Native-fetch + retry +
     // problem-details parsing — Edge-runtime-safe (no Node-only deps).

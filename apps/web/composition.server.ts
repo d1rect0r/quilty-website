@@ -38,6 +38,12 @@ import {
   wrapLogger,
 } from '@quilty/observability';
 import { makeSanitizer } from '@quilty/security';
+import { env } from './lib/env';
+import {
+  assertInMemoryAdapterAllowed,
+  resolveInMemoryGuardContext,
+  shouldEmitInMemoryAuditLog,
+} from './lib/fail-closed';
 import type { ServerContainer } from './lib/get-container';
 
 export function makeServerContainer(): ServerContainer {
@@ -49,6 +55,30 @@ export function makeServerContainer(): ServerContainer {
     adapter: makeCloudWatchLogger(),
     sanitizer,
   });
+
+  // Fail-closed adapter selection (ADR-0030; policy in ./lib/fail-closed.ts
+  // so it is unit-testable apart from this server-only module). In
+  // production-runtime it refuses to SILENTLY fall back to an in-memory
+  // adapter; the explicit opt-in path is audit-logged once per process.
+  // Scope: the rate-limiter + consent-store in-memory adapters, which have
+  // no internal guard. The email + captcha in-memory adapters self-guard at
+  // call time (their own QUILTY_ALLOW_INMEMORY_{EMAIL,CAPTCHA}_IN_PROD flags),
+  // so they are intentionally NOT routed through here — see ADR-0030.
+  const { isProductionRuntime, allowInMemory } = resolveInMemoryGuardContext();
+  const guardInMemoryAdapter = (name: string, realActivationEnv: string | undefined): void => {
+    const { action } = assertInMemoryAdapterAllowed({
+      name,
+      isProductionRuntime,
+      allowInMemory,
+      realActivationEnv,
+    });
+    if (action === 'warn-and-use' && shouldEmitInMemoryAuditLog(name)) {
+      wrappedLogger.warn('inmemory_adapter_in_production', { adapter: name });
+    }
+  };
+
+  guardInMemoryAdapter('rate-limiter', env.QUILTY_RATE_LIMIT_TABLE);
+  guardInMemoryAdapter('consent-store', env.QUILTY_CONSENT_TABLE);
 
   return {
     runtime: 'server',
@@ -88,26 +118,34 @@ export function makeServerContainer(): ServerContainer {
     }),
     featureFlags: makeEnvFlagEvaluator(),
     phiScrubber: makePhiScrubber(),
-    // In-memory adapter is the production wiring today; the SES
-    // adapter activates once the DMARC ramp + BAA inventory both list
-    // SES as covered (see docs/runbook/*.md). The wrapper composes the
-    // PHI sanitizer chokepoint around the adapter per D67.
+    // In-memory adapter — self-guards at call time (it throws under
+    // NODE_ENV=production unless QUILTY_ALLOW_INMEMORY_EMAIL_IN_PROD=1), so
+    // it is NOT routed through the construction-time guard above. The SES
+    // adapter activates once the DMARC ramp + BAA inventory both list SES as
+    // covered (see docs/runbook/*.md). The wrapper composes the PHI sanitizer
+    // chokepoint around the adapter per D67.
     emailSender: wrapEmailSender({
       adapter: makeInMemoryEmailSender(),
       sanitizer,
     }),
-    // Default-pass in-memory verifier today (no widget rendered yet).
-    // Turnstile activates once the Cloudflare BAA + secret-key
-    // provisioning are both green (see docs/runbook/baa-inventory.md).
+    // Default-pass in-memory verifier — self-guards at call time (rejects
+    // under NODE_ENV=production unless QUILTY_ALLOW_INMEMORY_CAPTCHA_IN_PROD=1),
+    // so it is NOT routed through the construction-time guard. Turnstile
+    // activates once the Cloudflare BAA + secret-key provisioning are both
+    // green (see baa-inventory.md).
     captchaVerifier: makeInMemoryCaptchaVerifier(),
-    // In-memory sliding-window limiter is the production wiring at
-    // today — load-bearing for auth-adjacent paths. The DynamoDB
-    // adapter activates once the table + Lambda IAM grant ship.
+    // In-memory sliding-window limiter — guarded at construction above
+    // (no internal guard); load-bearing for auth-adjacent paths, so the
+    // production guard refuses it without an explicit opt-in. The DynamoDB
+    // adapter activates once QUILTY_RATE_LIMIT_TABLE + the Lambda IAM grant
+    // ship (presence of the table env then trips the guard's "wire the real
+    // adapter" branch).
     rateLimiter: makeInMemoryRateLimiter(),
-    // In-memory ConsentStore (D63). Edge tier owns its own Map; the
-    // cross-tier disjoint state is intentional pre-DynamoDB (auth
-    // callback migrate() hits the no-op branch today). DynamoDB
-    // activation gates on a single canonical store.
+    // In-memory ConsentStore (D63) — guarded at construction above (no
+    // internal guard). Edge tier owns its own Map; the cross-tier disjoint
+    // state is intentional pre-DynamoDB (auth callback migrate() hits the
+    // no-op branch today). DynamoDB activation gates on QUILTY_CONSENT_TABLE
+    // + a single canonical store.
     consentStore: makeInMemoryConsentStore(),
     // ApiClient (ADR-0017) — outbound HTTPS to the Rust backend.
     // Native-fetch transport + exponential-backoff retry + W3C
@@ -119,7 +157,7 @@ export function makeServerContainer(): ServerContainer {
     // browser-side concern (server retries don't have a UI surface
     // since the user is awaiting the Lambda response).
     apiClient: makeFetchApiClient({
-      baseUrl: process.env.QUILTY_API_BASE_URL ?? 'https://api.my-quilty.com',
+      baseUrl: env.QUILTY_API_BASE_URL ?? 'https://api.my-quilty.com',
       circuitBreaker: makeNoOpCircuitBreaker(),
       onRetry: (attempt, error) => {
         wrappedLogger.info('api_client_retry', {

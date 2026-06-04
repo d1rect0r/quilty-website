@@ -1,6 +1,14 @@
 import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
 
+// Side-effect import: runs `createEnv` at config-load time so a missing or
+// malformed environment variable FAILS THE BUILD with a clear Zod error,
+// rather than surfacing as an undefined at runtime. `next.config.ts` is the
+// one module guaranteed to load on every `next build`/`next dev` — Next.js
+// #79536 documents `instrumentation.ts` as unreliable for build-time env
+// validation. See `lib/env.ts` for the scope rationale.
+import './lib/env';
+
 type RewritesReturn = Awaited<ReturnType<NonNullable<NextConfig['rewrites']>>>;
 type RedirectsReturn = Awaited<ReturnType<NonNullable<NextConfig['redirects']>>>;
 
