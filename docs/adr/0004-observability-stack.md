@@ -1,11 +1,42 @@
-# ADR-0004: Observability stack — Sentry Business + PostHog Cloud Boost + CloudWatch + OpenTelemetry-first (Amplitude rejected for web tier)
+# ADR-0004: Observability stack — Sentry + Amplitude (web + mobile) + CloudWatch + Sentry-owned OpenTelemetry
 
-- **Status:** Accepted
-- **Date:** 2026-05-17 (locked via Round-5 audit)
+- **Status:** Accepted 2026-05-17; **analytics / flags / experiments / replay vendor + OTel transport REVISED 2026-06-04** (see Revision note below)
+- **Date:** 2026-05-17 (locked via Round-5 audit); revised 2026-06-04
 - **Deciders:** Volodymyr Petrychenko + Round-5 observability-analytics-flags research agent
-- **Related decisions:** D31 (zero-PHI), D38 (W3C traceparent), D40 (replay mask-all), D41 (server-side flag eval), D42a (Sentry errors+RUM), D42b (PostHog for web; Amplitude only for mobile), D42c (resolved by D68), D42d (CloudWatch + structured JSON), D43 (PostHog flags at trigger), D56 (OTel-first via `@vercel/otel`), D67 (PHI sanitizer + no-console + ban direct vendor SDK imports), D68 (Sentry error-triggered + PostHog consent-gated replay; `block`-class on clinical controls)
+- **Related decisions:** D31 (zero-PHI), D38 (W3C traceparent), D40 (replay mask-all), D41 (server-side flag eval), D42a (Sentry errors+RUM), **D42b _revised_ (Amplitude all-in for web + mobile — was PostHog-for-web)**, D42c (resolved by D68), D42d (CloudWatch + structured JSON), **D43 _revised_ (flags stay env-var/typed; PostHog flags dropped)**, **D56 _revised_ (OTel owned by the Sentry SDK; `@vercel/otel` removed)**, D67 (PHI sanitizer + no-console + ban direct vendor SDK imports), D68 (Sentry error-triggered replay; Amplitude Session Replay rejected), D176-D178 (vaping-cessation framing reconciliation)
 - **Related ADRs:** [ADR-0002 Session cookie pattern](0002-session-cookie-pattern.md) (PHI hash in logs), [ADR-0005 Two-tier CSP](0005-csp-two-tier.md) (Sentry as CSP report-uri sink)
 - **Related research:** `docs/research/round_5_independent_review/05-observability-analytics-flags.md`
+
+## Revision note (2026-06-04)
+
+The original decision below selected **PostHog Cloud Boost** for web analytics +
+flags + experiments + consent-gated replay. That selection has been **reversed**.
+The body and alternatives are retained as the historical record of the Round-5
+reasoning; the **current** observability stack is:
+
+- **Product analytics: Amplitude, all-in for web + mobile** (D42b-revised) — one
+  vendor across both platforms rather than PostHog-web + Amplitude-mobile. Wired
+  via the `Analytics` port through the `wrapAnalytics` consent/PHI chokepoint:
+  `amplitude-browser.ts` (Browser SDK 2, client), `amplitude-node.ts` (Node SDK,
+  server), and the no-network log adapter on the edge tier. SDK import is
+  confined to those adapter files (D67); consent + GPC gate upstream (D35).
+- **Session replay: Sentry only** (D68) — error-triggered, mask-all. PostHog
+  replay is dropped along with PostHog; **Amplitude** Session Replay remains
+  rejected (the HTML-attribute leak documented below is unchanged).
+- **Feature flags: typed env-var module** (`lib/flags/features.ts`) — the
+  PostHog-flags pivot (D43) is dropped; flags stay the safe-by-default typed
+  module until a real flag-vendor trigger fires.
+- **Distributed tracing: OWNED BY THE SENTRY SDK** (D56-revised) — `@sentry/nextjs`
+  v10 instruments OpenTelemetry itself, so the standalone `@vercel/otel`
+  dependency was **removed** (see the Item-2 Sentry-wiring change + the strategy
+  doc update-log). Business logic still uses the vendor-neutral
+  `@opentelemetry/api`; Sentry is the OTel SDK provider rather than a span
+  consumer behind `@vercel/otel`.
+
+Net effect: **two analytics/observability vendors (Sentry + Amplitude) + AWS
+CloudWatch**, not three. The PHI-sanitizer chokepoint, zero-PHI posture, and
+OTel-first business-logic rule (everything below) are **unchanged** — only the
+vendor identities for analytics/flags/replay/tracing-transport moved.
 
 ## Context
 
@@ -57,6 +88,11 @@ OR adopt vendor SDKs piecemeal without a sanitizer chokepoint (every log
 call becomes a PHI leak risk).
 
 ## Decision
+
+> **Superseded in part (2026-06-04):** the PostHog + `@vercel/otel` specifics
+> below are historical. See the **Revision note** at the top for the current
+> stack (Sentry + Amplitude + CloudWatch; Sentry-owned OTel). The
+> chokepoint/zero-PHI/OTel-first principles remain in force.
 
 **We will run Sentry Business for errors + RUM + error-triggered replay, PostHog Cloud Boost for analytics + consent-gated replay + flags + experiments, and CloudWatch for server logs — all funneled through `apps/web/lib/observability/` single-chokepoint adapters with PHI sanitizer + OpenTelemetry-first instrumentation.**
 

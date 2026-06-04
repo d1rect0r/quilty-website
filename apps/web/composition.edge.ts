@@ -77,6 +77,10 @@ export function makeEdgeContainer(): EdgeContainer {
     // the matching wiring on the Node runtime.
     analytics: wrapAnalytics({
       // See composition.server.ts for the destination fan-out rationale.
+      // Edge tier uses the no-network log adapter: `@amplitude/analytics-node`
+      // is not Edge-runtime safe, and edge route handlers are not a primary
+      // analytics-emission surface. If edge emission is ever needed, a
+      // fetch-based HTTP-V2 adapter ships here (consent stays upstream).
       destinations: new Map([
         ['product-analytics', makeAmplitudeAnalytics({ logger: wrappedLogger })],
       ]),

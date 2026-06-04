@@ -5,10 +5,10 @@
 - **Last reviewed:** 2026-05-26
 - **Deciders:** Volodymyr Petrychenko
 - **Originating discussion:** M1.6 Workstream B research (`docs/m1.6_foundation_finishing_plan.md` § B.1 + B.3); 4 user alignment decisions (circuit-breaker / TanStack Query / retry-UX / CFF-set) answered 2026-05-26
-- **Related decisions:** D5 (BFF pattern via Next.js Route Handlers), D38 (W3C `traceparent` propagation), D52 (web access-token TTL 5min, refresh 8h), D56 (OpenTelemetry-first via `@vercel/otel`), D67 (PHI sanitizer chokepoint at the wrapper-port boundary), D113 (canonical 8-piece form pattern — Idempotency-Key)
+- **Related decisions:** D5 (BFF pattern via Next.js Route Handlers), D38 (W3C `traceparent` propagation), D52 (web access-token TTL 5min, refresh 8h), D56 (OpenTelemetry-first; OTel owned by the Sentry SDK — `@vercel/otel` removed), D67 (PHI sanitizer chokepoint at the wrapper-port boundary), D113 (canonical 8-piece form pattern — Idempotency-Key)
 - **Related ADRs:** [ADR-0003](0003-openapi-codegen-direction.md), [ADR-0009](0009-hexagonal-by-boundary.md), [ADR-0010](0010-composition-root.md), [ADR-0011](0011-container-discriminated-union.md), [ADR-0013](0013-phi-scrubber-port.md), [ADR-0014](0014-port-adapter-naming.md), [ADR-0016](0016-dynamodb-data-model-policy.md)
 - **Related research:** M1.6 Wave 1 + Wave 3 enterprise-pattern research (synthesised in `/Users/d1rect0r_interneta/.claude/plans/misty-booping-rocket.md` § findings)
-- **Software versions assumed:** Next.js 16.2, TypeScript 5.7 strict, Node 24, `openapi-typescript` v7.13.x (v7 is the current stable line as of 2026-05; v8 is on roadmap but not released), `@tanstack/react-query` v5.90+, `@opentelemetry/api` v1.9+, `@vercel/otel` 2.1.x, `sonner` 2.0.x, React 19
+- **Software versions assumed:** Next.js 16.2, TypeScript 5.7 strict, Node 24, `openapi-typescript` v7.13.x (v7 is the current stable line as of 2026-05; v8 is on roadmap but not released), `@tanstack/react-query` v5.90+, `@opentelemetry/api` v1.9+ (OTel provider is `@sentry/nextjs` v10 — `@vercel/otel` removed per D56 revised), `sonner` 2.0.x, React 19
 
 ## Context
 
@@ -59,7 +59,7 @@ We will ship a new workspace package `@quilty/api-client` that lands ONE typed H
 ### Decision F — Tracing injection
 
 - **W3C `traceparent` + `baggage`** auto-injected on every outbound HTTP call inside `composeHeaders()` within the native-fetch adapter (`packages/api-client/src/adapters/fetch-helpers.ts`); the active span is read from `@opentelemetry/api` in the isolated `adapters/otel-traceparent.ts` module (ADR-0014 Rule 5).
-- **Source:** `trace.getActiveSpan()?.spanContext()` from `@opentelemetry/api` — `@vercel/otel` 2.1.x configures W3C-canonical propagators by default per D56.
+- **Source:** `trace.getActiveSpan()?.spanContext()` from `@opentelemetry/api` — the Sentry SDK's OpenTelemetry setup configures W3C-canonical propagators by default per D56 (revised — was `@vercel/otel`; the vendor-neutral `@opentelemetry/api` read is unaffected by which library provides the OTel SDK).
 - **Composition:** `traceparent: 00-{traceId}-{spanId}-{traceFlags}` per W3C-trace-context spec (`traceFlags` is the lowest bit of `ctx.traceFlags` — `01` if recording, `00` if not).
 - **Baggage** is OPTIONAL per Wave 1 + Wave 2 research; current scope ships traceparent only. Baggage injection lands at the M3+ identity-context propagation trigger (tenant_id / experiment cohort).
 

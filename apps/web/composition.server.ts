@@ -3,10 +3,11 @@
  *
  * Invoked from Server Components, Route Handlers, server actions, and the
  * proxy.ts handler. Wires server-side adapters: Sentry server SDK, the
- * Amplitude analytics adapter (currently a logger-only stub until the
- * BAA upgrade lands), CloudWatch logger, env-var feature flags. The
- * Replay port wires the in-memory adapter on the server (Sentry Replay
- * is browser-only). See ADR-0010 for the composition-root rationale.
+ * Amplitude Node analytics adapter (real SDK; dormant until
+ * AMPLITUDE_SERVER_API_KEY is provisioned), CloudWatch logger, env-var
+ * feature flags. The Replay port wires the in-memory adapter on the server
+ * (Sentry Replay is browser-only). See ADR-0010 for the composition-root
+ * rationale.
  *
  * Discipline:
  *   - Adapter modules are imported here and ONLY here in apps/web. Other
@@ -28,7 +29,7 @@ import { makeInMemoryConsentStore, makeServerConsentReader } from '@quilty/conse
 import { makeInMemoryEmailSender, wrapEmailSender } from '@quilty/email';
 import { makeInMemoryRateLimiter } from '@quilty/rate-limit';
 import {
-  makeAmplitudeAnalytics,
+  makeAmplitudeNodeAnalytics,
   makeCloudWatchLogger,
   makeEnvFlagEvaluator,
   makePhiScrubber,
@@ -49,8 +50,8 @@ import type { ServerContainer } from './lib/get-container';
 export function makeServerContainer(): ServerContainer {
   const sanitizer = makeSanitizer();
 
-  // Logger is consumed by the Amplitude analytics stub for its pre-launch
-  // CloudWatch emission, so it's constructed first.
+  // Logger is consumed by the Amplitude Node analytics adapter for its
+  // dormant pre-launch CloudWatch emission, so it's constructed first.
   const wrappedLogger = wrapLogger({
     adapter: makeCloudWatchLogger(),
     sanitizer,
@@ -100,7 +101,22 @@ export function makeServerContainer(): ServerContainer {
       // land at their respective activation triggers per ADR-0017's
       // deferral table — no port or wrapper changes needed.
       destinations: new Map([
-        ['product-analytics', makeAmplitudeAnalytics({ logger: wrappedLogger })],
+        [
+          'product-analytics',
+          // Server-tier analytics activates when AMPLITUDE_SERVER_API_KEY is
+          // provisioned (an ops/key decision); absent => dormant (log-only).
+          // Consent + GPC stay enforced upstream by wrapAnalytics. Unlike the
+          // client tier (gated by the analytics_client_enabled flag AND a
+          // public key — a browser beacon is the higher-risk, Cerebral-class
+          // exfiltration surface needing an independent kill switch), the
+          // server tier carries no third-party-script-in-browser risk, so
+          // key-presence is a sufficient activation gate.
+          makeAmplitudeNodeAnalytics({
+            logger: wrappedLogger,
+            apiKey: env.AMPLITUDE_SERVER_API_KEY,
+            enabled: true,
+          }),
+        ],
       ]),
       consentReader: makeServerConsentReader({
         headers: async () => nextHeaders(),

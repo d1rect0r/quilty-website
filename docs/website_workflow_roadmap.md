@@ -162,7 +162,7 @@ Pace: scope → direction → scaffold → small features → integrate auth →
     - `app/globals.css` — **Tailwind v4 `@theme` block CSS-first** with 3-layer token namespace (D17 — NO `tailwind.config.ts`)
     - `next.config.ts` — `trailingSlash: false`, redirects() versioned table, AASA/assetlinks.json `Content-Type: application/json` headers (S8)
     - `proxy.ts` — **Next.js 16 file-convention rename of `middleware.ts`** — owns nonce generation + two-tier CSP per-route branching (marketing static-hashed / portal nonce+strict-dynamic per D59), Trusted Types report-only (D57), security headers baseline (D33+D58), Sentry as report-uri sink (D61)
-    - `instrumentation.ts` + `sentry.{client,server,edge}.config.ts` — `@vercel/otel` bootstrap (D56) + Sentry with mask-all replay defaults (D68)
+    - `instrumentation.ts` + `instrumentation-client.ts` + `sentry.{server,edge}.config.ts` — OpenTelemetry owned by the Sentry SDK (D56 _revised — `@vercel/otel` removed_) + Sentry with mask-all replay defaults (D68)
     - `lib/security/{csp,headers}.ts` + tests
     - `lib/observability/{logger,sanitize,assertNoPHI,log-error,track,flag,web-vitals,replay-classes,consent}.ts` — PHI sanitizer + adapters (D67)
     - `lib/flags/features.ts` — typed env-var flag module (D43)
@@ -463,7 +463,7 @@ Pace: scope → direction → scaffold → small features → integrate auth →
 ### Observability (Sentry from M1, Amplitude pre-launch — _Amplitude pivot 2026-05-19_)
 
 - Sentry: errors + RUM + error-triggered replay (mask-all default per D40/D68)
-- `web-vitals` → OTel histograms → Sentry (D56 OpenTelemetry-first via `@vercel/otel`)
+- `web-vitals` → OTel histograms → Sentry (D56 _revised_ — OpenTelemetry owned by the Sentry SDK; `@vercel/otel` removed)
 - Server-side logging to CloudWatch + PHI sanitizer + structured JSON (D42d/D67)
 - W3C `traceparent`/`baggage` propagation wired in M1 (D38/D56); end-to-end across Rust at M6
 - **Amplitude** activated post-ConsentState (M3) for analytics; Amplitude Experiment at the flag-trigger point (D42b/D43 _Amplitude pivot 2026-05-19_; web + mobile share the same SDK + data platform)
@@ -665,7 +665,7 @@ Full text in `website_strategy_discussion.md`. This is the one-line summary for 
 | **D53**      | CSRF triple         | Origin/Referer + signed double-submit + `X-Quilty-CSRF` header                                                                                                                                     |
 | **D54**      | Step-up auth        | `prompt=login` + server `elevated_until` (5-min window)                                                                                                                                            |
 | **D55**      | Backup codes        | In-app (Argon2id + DynamoDB), not in Cognito                                                                                                                                                       |
-| **D56**      | OTel-first          | `@vercel/otel` + W3C tracecontext+baggage propagators day-one                                                                                                                                      |
+| **D56**      | OTel-first          | OTel owned by the Sentry SDK (`@sentry/nextjs` v10) + W3C tracecontext+baggage propagators day-one (_revised — `@vercel/otel` removed_)                                                            |
 | **D57**      | Trusted Types       | `require-trusted-types-for 'script'` report-only at M1                                                                                                                                             |
 | **D58**      | Headers ext.        | COOP same-origin-allow-popups + CORP same-origin + X-Content-Type-Options nosniff                                                                                                                  |
 | **D59**      | Two-tier CSP        | Marketing static+hashed / portal nonce+strict-dynamic (per-route branching in `proxy.ts`)                                                                                                          |

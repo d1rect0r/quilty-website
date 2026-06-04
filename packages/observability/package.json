@@ -16,6 +16,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@amplitude/analytics-browser": "2.42.5",
+    "@amplitude/analytics-node": "1.5.58",
     "@quilty/consent": "workspace:*",
     "@quilty/security": "workspace:*",
     "@sentry/nextjs": "10.53.1"

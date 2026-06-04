@@ -7,7 +7,7 @@
  *   - NetworkFirst (3s timeout) for navigations + HTML routes.
  *   - NetworkOnly (excluded from SW entirely) for:
  *       /auth/* | /api/contact | /api/csp-report | /api/dsar/*
- *       /api/webhooks/* | /[locale]/account/* | ?_rsc=* | sentry/posthog tunnels
+ *       /api/webhooks/* | /[locale]/account/* | ?_rsc=*
  *       any non-GET (POST server actions, etc.)
  *   - BCP-47 aware locale exclusion regex (covers pt-BR, zh-Hant, etc.)
  *
@@ -50,8 +50,6 @@ if (typeof workbox !== 'undefined' && workbox) {
     /^\/api\/dsar\//,
     /^\/api\/webhooks\//,
     /\?_rsc=/,
-    /\/sentry-tunnel/,
-    /\/posthog-tunnel/,
   ];
 
   function isExcluded(url, request) {

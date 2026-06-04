@@ -25,7 +25,7 @@ The 2025-2026 enforcement vector that materially raises the stakes: **Cerebral's
 
 A specific high-risk variant: **research data**. Cessation peers (Pivot, Pelago, EX Program) all publish efficacy claims backed by their own retained data ("70% quit-rate at 12 weeks"). If Quilty wants to make any evidence-based positioning claim at M4+, it needs either (a) third-party RCT data, or (b) its own retained research data with explicit research-consent UX. This ADR commits the (b) shape now so that the research-claims path is not blocked by a wrong-default retention schedule.
 
-The "do nothing" outcome: retention defaults end up vendor-driven (DynamoDB indefinite; PostHog 7-year default; Sentry 90-day default; Customer.io indefinite) → each subprocessor's retention is a separate compliance argument → DSAR pipeline is "delete from primary table" without subprocessor propagation → first DSAR FTC inquiry costs $1.5-7M (GoodRx + Cerebral precedent). Marketing copy at M4 ("70% quit at 12 weeks") is then either unsubstantiated (FTC §5 exposure) or substantiated by data the user can't retroactively opt out of (GDPR Art 17 + MODPA exposure).
+The "do nothing" outcome: retention defaults end up vendor-driven (DynamoDB indefinite; Amplitude analytics default; Sentry 90-day default; Customer.io indefinite) → each subprocessor's retention is a separate compliance argument → DSAR pipeline is "delete from primary table" without subprocessor propagation → first DSAR FTC inquiry costs $1.5-7M (GoodRx + Cerebral precedent). Marketing copy at M4 ("70% quit at 12 weeks") is then either unsubstantiated (FTC §5 exposure) or substantiated by data the user can't retroactively opt out of (GDPR Art 17 + MODPA exposure).
 
 ## Decision
 
@@ -107,7 +107,7 @@ type DsarWorkflowOutput = {
 1. **Validate request** (verify user_id matches authenticated session; verify scope is well-formed)
 2. **Audit-log the request** (CloudWatch + DynamoDB DSAR-audit table; 7-year retention per HIPAA Security Rule precedent — operational-tier auth-log analog)
 3. **Tier dispatch** (parallel state) — one task per tier in scope; each task runs the tier's delete or export procedure
-4. **Subprocessor notification fan-out** (parallel state) — webhook to PostHog, Sentry, Customer.io, Cognito; await ack within 7 days; failures enter the reconciliation queue
+4. **Subprocessor notification fan-out** (parallel state) — webhook to Amplitude, Sentry, Customer.io, Cognito; await ack within 7 days; failures enter the reconciliation queue
 5. **Reconciliation queue drain** — daily Lambda inspects pending subprocessor confirmations; retries; alerts at 14 days, escalates at 21 days, completes at 28 days (under 30-day SLA)
 6. **Confirmation email + Cognito notification** to user (uses verified address only; no PHI in subject line or first 200 chars per D67)
 7. **Mark request completed** + emit `quilty.dsar.completed` EventBridge event for downstream audit
@@ -119,12 +119,12 @@ type DsarWorkflowOutput = {
 
 **For every subprocessor that holds CHD,** Quilty maintains:
 
-1. **A delete-by-user-id webhook integration** OR documented SDK call (PostHog `personDelete`, Sentry `delete_user`, Cognito `AdminDeleteUser`, Customer.io `delete_customer`).
+1. **A delete-by-user-id webhook integration** OR documented SDK call (Amplitude User Privacy / deletion API, Sentry `delete_user`, Cognito `AdminDeleteUser`, Customer.io `delete_customer`).
 2. **A confirmation contract** — the subprocessor's API/webhook ack within 7 days; logged to the DSAR audit table.
 3. **A reconciliation queue** for failures + a 30-day SLA escalation procedure.
 4. **An annual reconciliation audit** — sample 1% of completed DSARs; verify subprocessor compliance by re-querying the subprocessor's data export API to confirm no residual records.
 
-**Subprocessor list (locked at M1.6):** PostHog, Sentry, Customer.io (TW-005 activation), Cognito, AWS DynamoDB/S3 (primary stores). Adding a subprocessor requires updating the DSAR pipeline contract + DPA + ADR-0024 + this ADR's subprocessor table.
+**Subprocessor list:** Amplitude (analytics — web + mobile per the 2026-05-19 pivot that dropped PostHog), Sentry, Customer.io (TW-005 activation), Cognito, AWS DynamoDB/S3 (primary stores). Adding a subprocessor requires updating the DSAR pipeline contract + DPA + ADR-0024 + this ADR's subprocessor table.
 
 ### Decision F — Retention disclosure UX (CMIA AB-2089)
 
@@ -185,7 +185,7 @@ Both holds are audit-logged with named human approval (founder + counsel at Phas
 ### Alternative D: Synchronous DSAR pipeline (no workflow engine)
 
 - **What it is:** DSAR runs inline in an API route; user waits for confirmation; failures retry inline.
-- **Why rejected:** Subprocessor latency (Sentry + PostHog webhooks are 1-7 days); reconciliation requires durable state; ADR-0021 WorkflowEngine port is the right primitive. Synchronous DSAR is the GoodRx failure mode.
+- **Why rejected:** Subprocessor latency (Sentry + Amplitude webhooks are 1-7 days); reconciliation requires durable state; ADR-0021 WorkflowEngine port is the right primitive. Synchronous DSAR is the GoodRx failure mode.
 
 ### Alternative E: 7-year retention floor (HIPAA Security Rule audit-log analog)
 

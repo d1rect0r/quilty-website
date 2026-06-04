@@ -82,6 +82,14 @@ export { wrapReplay, type WrappedReplayOptions } from './domain/wrap-replay';
 // ---------------------------------------------------------------------------
 
 export { makeAmplitudeAnalytics, type AmplitudeAnalyticsOptions } from './adapters/amplitude';
+export {
+  makeAmplitudeBrowserAnalytics,
+  type AmplitudeBrowserAnalyticsOptions,
+} from './adapters/amplitude-browser';
+export {
+  makeAmplitudeNodeAnalytics,
+  type AmplitudeNodeAnalyticsOptions,
+} from './adapters/amplitude-node';
 export { makeBrowserLogger } from './adapters/browser-logger';
 export { makeCloudWatchLogger } from './adapters/cloudwatch-logger';
 export { makeEnvFlagEvaluator } from './adapters/env-flags';

@@ -207,11 +207,11 @@ packages/<role>/
 | ---------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `Sanitizer` (@quilty/security)                 | Composed via factory wrappers across all observability adapters; the PHI chokepoint |
 | `RedirectValidator` (@quilty/security)         | Closes over caller-provided allowlist (real state)                                  |
-| `Analytics` (@quilty/observability)            | Vendor swap (Amplitude → PostHog); consent gate composes via `wrapAnalytics`        |
+| `Analytics` (@quilty/observability)            | Vendor-swappable (Amplitude today); consent gate composes via `wrapAnalytics`       |
 | `ErrorReporter` (@quilty/observability)        | Vendor swap (Sentry); sanitizer composes via `wrapErrorReporter`                    |
 | `Logger` (@quilty/observability)               | Runtime swap (CloudWatch / browser); sanitizer composes via `wrapLogger`            |
 | `Replay` (@quilty/observability)               | D68 floor enforcement via `wrapReplay`                                              |
-| `FeatureFlagEvaluator` (@quilty/observability) | Vendor swap (env-vars → PostHog at activation)                                      |
+| `FeatureFlagEvaluator` (@quilty/observability) | Vendor-swappable (typed env-vars today → a flag vendor at trigger)                  |
 | `ConsentReader` (@quilty/consent)              | Multiple production impls (default-deny, server cookie reader, future banner)       |
 | `EmailSender` (@quilty/email)                  | Vendor swap (in-memory → SES); sanitizer composes via `wrapEmailSender`             |
 | `CaptchaVerifier` (@quilty/captcha)            | Vendor swap (in-memory → Turnstile); production-guard on the in-memory adapter      |
@@ -415,22 +415,22 @@ R4 convergent finding: production teams DON'T pre-create these. Wait for the tri
 
 Every decision in this blueprint maps to an ADR or D-number:
 
-| Decision                                                      | ADR / Source                                                               |
-| ------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Modular monolith with workspace packages                      | ADR-0008                                                                   |
-| Hexagonal-by-boundary internal package shape                  | ADR-0009                                                                   |
-| Composition root with globalThis singleton                    | ADR-0010                                                                   |
-| Container discriminated union                                 | ADR-0011                                                                   |
-| Monorepo shape (apps + packages)                              | ADR-0001                                                                   |
-| Session cookie pattern (opaque + DDB)                         | ADR-0002                                                                   |
-| OpenAPI codegen direction (Rust → TS)                         | ADR-0003                                                                   |
-| Observability stack (Sentry + Amplitude/PostHog + CloudWatch) | ADR-0004                                                                   |
-| CSP two-tier (marketing static / portal nonce)                | ADR-0005                                                                   |
-| Content layer (Velite + Zod)                                  | ADR-0006                                                                   |
-| Dev tooling adoption                                          | ADR-0007                                                                   |
-| Vendor matrix locks                                           | D42b (PostHog web + Amplitude mobile), D44 (Stripe), D45 (my-quilty.com)   |
-| Chokepoint disciplines                                        | D31 (zero PHI in runtime), D35 (default-deny consent), D67 (PHI sanitizer) |
-| Auth surface                                                  | D5/D7/D9/D11/D51 (BFF pattern, opaque session, EventBridge fan-out)        |
+| Decision                                              | ADR / Source                                                               |
+| ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| Modular monolith with workspace packages              | ADR-0008                                                                   |
+| Hexagonal-by-boundary internal package shape          | ADR-0009                                                                   |
+| Composition root with globalThis singleton            | ADR-0010                                                                   |
+| Container discriminated union                         | ADR-0011                                                                   |
+| Monorepo shape (apps + packages)                      | ADR-0001                                                                   |
+| Session cookie pattern (opaque + DDB)                 | ADR-0002                                                                   |
+| OpenAPI codegen direction (Rust → TS)                 | ADR-0003                                                                   |
+| Observability stack (Sentry + Amplitude + CloudWatch) | ADR-0004 (revised 2026-06-04)                                              |
+| CSP two-tier (marketing static / portal nonce)        | ADR-0005                                                                   |
+| Content layer (Velite + Zod)                          | ADR-0006                                                                   |
+| Dev tooling adoption                                  | ADR-0007                                                                   |
+| Vendor matrix locks                                   | D42b _revised_ (Amplitude web + mobile), D44 (Stripe), D45 (my-quilty.com) |
+| Chokepoint disciplines                                | D31 (zero PHI in runtime), D35 (default-deny consent), D67 (PHI sanitizer) |
+| Auth surface                                          | D5/D7/D9/D11/D51 (BFF pattern, opaque session, EventBridge fan-out)        |
 
 ---
 

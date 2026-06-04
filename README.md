@@ -19,7 +19,7 @@ Quilty's public-facing website — marketing, account portal, and subscription m
 - **Framework:** Next.js 16 App Router + TypeScript strict
 - **Styling:** Tailwind v4 CSS-first `@theme` in `globals.css` (no `tailwind.config.ts`) + shadcn/ui
 - **Deploy:** SST 4.x (Ion engine + Pulumi + OpenNext) on AWS
-- **Observability:** Sentry Business (errors + RUM + error-triggered replay) + PostHog Cloud Boost (analytics + consent-gated replay + flags + experiments) — both with HIPAA BAA. Mobile keeps Amplitude separately.
+- **Observability:** Sentry Business (errors + RUM + error-triggered replay) + Amplitude for web + mobile analytics — both with HIPAA BAA. Session replay is Sentry-only; OpenTelemetry is owned by the Sentry SDK. Feature flags are a typed env-var module. (Updated 2026-06-04 — supersedes the earlier PostHog-for-web plan; see ADR-0004 revision note.)
 - **Auth:** AWS Cognito Managed Login at `auth.my-quilty.com`, BFF via Next.js Route Handlers, opaque session-ID + DynamoDB store
 - **Backend:** Rust (separate, in `quilty-aws` — communicated via OpenAPI + authenticated HTTPS)
 
