@@ -27,6 +27,7 @@
     "@quilty/consent": "workspace:*",
     "@quilty/content": "workspace:*",
     "@quilty/email": "workspace:*",
+    "@quilty/guest-state": "workspace:*",
     "@quilty/observability": "workspace:*",
     "@quilty/rate-limit": "workspace:*",
     "@quilty/search": "workspace:*",

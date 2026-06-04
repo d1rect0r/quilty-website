@@ -35,6 +35,14 @@ describe('cookie taxonomy', () => {
       expect(csrfCookie).toBeDefined();
     });
 
+    it('declares the opaque guest-session cookie (ADR-0029 F) as httpOnly + session-scoped', () => {
+      const guest = COOKIE_REGISTRY.find((c) => c.name === '__Host-quilty_sid_guest');
+      expect(guest).toBeDefined();
+      expect(guest?.attributes.httpOnly).toBe(true);
+      expect(guest?.lifetime).toBe('session');
+      expect(guest?.category).toBe('essential');
+    });
+
     it('marks every cookie as secure (no plaintext-HTTP fallback)', () => {
       for (const cookie of COOKIE_REGISTRY) {
         expect(cookie.attributes.secure).toBe(true);

@@ -36,6 +36,7 @@ import type { ApiClient } from '@quilty/api-client';
 import type { CaptchaVerifier } from '@quilty/captcha';
 import type { ConsentStore } from '@quilty/consent';
 import type { EmailSender } from '@quilty/email';
+import type { GuestStateStore } from '@quilty/guest-state';
 import type {
   Analytics,
   ErrorReporter,
@@ -106,6 +107,15 @@ export interface ServerContainer extends BaseContainer {
    */
   readonly consentStore: ConsentStore;
   /**
+   * GuestStateStore (ADR-0029 F) — server-side store of NON-health
+   * UI/nav state keyed by the opaque `__Host-quilty_sid_guest` cookie.
+   * Carries an anonymous visitor's progress (quiz step, generic
+   * selections, UTM) before sign-in. NO migrate() — the
+   * anonymous→authenticated promotion bridge is deferred per ADR-0029
+   * Decision F. Health fields are contract-forbidden at write time (D31).
+   */
+  readonly guestStateStore: GuestStateStore;
+  /**
    * ApiClient port (ADR-0017) — outbound HTTP transport composing
    * retry + circuit-breaker + W3C `traceparent` injection + RFC 9457
    * Problem Details parsing. Used by Server Components + Route
@@ -161,6 +171,13 @@ export interface EdgeContainer extends BaseContainer {
    * here while the Node tier uses the AWS SDK adapter.
    */
   readonly consentStore: ConsentStore;
+  /**
+   * GuestStateStore at the Edge tier (ADR-0029 F). In-memory adapter
+   * is Edge-runtime-safe (Map-based); the Edge-compat DynamoDB variant
+   * lands with the table. Same NO-migrate + health-forbidden contract
+   * as the server tier.
+   */
+  readonly guestStateStore: GuestStateStore;
   /**
    * ApiClient at the Edge tier (ADR-0017). Same shape as the server
    * container's; the Edge runtime can call out to the Rust backend

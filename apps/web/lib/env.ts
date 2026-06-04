@@ -46,6 +46,7 @@ export const env = createEnv({
     // real adapter over the in-memory one in the composition root.
     QUILTY_RATE_LIMIT_TABLE: z.string().min(1).optional(),
     QUILTY_CONSENT_TABLE: z.string().min(1).optional(),
+    QUILTY_GUEST_STATE_TABLE: z.string().min(1).optional(),
     // Fail-closed escape hatch (ADR-0030): an EXPLICIT, documented, audited
     // opt-in to run the rate-limiter + consent-store in-memory adapters in a
     // `production` runtime during the AWS-parked interim (before the DynamoDB
@@ -86,6 +87,7 @@ export const env = createEnv({
     RATELIMIT_BYPASS_TOKEN: process.env.RATELIMIT_BYPASS_TOKEN,
     QUILTY_RATE_LIMIT_TABLE: process.env.QUILTY_RATE_LIMIT_TABLE,
     QUILTY_CONSENT_TABLE: process.env.QUILTY_CONSENT_TABLE,
+    QUILTY_GUEST_STATE_TABLE: process.env.QUILTY_GUEST_STATE_TABLE,
     QUILTY_ALLOW_INMEMORY_ADAPTERS: process.env.QUILTY_ALLOW_INMEMORY_ADAPTERS,
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,

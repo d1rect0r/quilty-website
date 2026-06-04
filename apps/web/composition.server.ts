@@ -27,6 +27,7 @@ import { makeInMemoryCaptchaVerifier } from '@quilty/captcha';
 import { CONSENT_COOKIE_NAME } from '@quilty/consent';
 import { makeInMemoryConsentStore, makeServerConsentReader } from '@quilty/consent/server';
 import { makeInMemoryEmailSender, wrapEmailSender } from '@quilty/email';
+import { makeInMemoryGuestStateStore } from '@quilty/guest-state/server';
 import { makeInMemoryRateLimiter } from '@quilty/rate-limit';
 import {
   makeAmplitudeNodeAnalytics,
@@ -80,6 +81,7 @@ export function makeServerContainer(): ServerContainer {
 
   guardInMemoryAdapter('rate-limiter', env.QUILTY_RATE_LIMIT_TABLE);
   guardInMemoryAdapter('consent-store', env.QUILTY_CONSENT_TABLE);
+  guardInMemoryAdapter('guest-state-store', env.QUILTY_GUEST_STATE_TABLE);
 
   return {
     runtime: 'server',
@@ -163,6 +165,11 @@ export function makeServerContainer(): ServerContainer {
     // no-op branch today). DynamoDB activation gates on QUILTY_CONSENT_TABLE
     // + a single canonical store.
     consentStore: makeInMemoryConsentStore(),
+    // In-memory GuestStateStore (ADR-0029 F) — guarded at construction
+    // above. Anonymous non-health UI/nav carrier keyed by the opaque
+    // __Host-quilty_sid_guest cookie. DynamoDB activation gates on
+    // QUILTY_GUEST_STATE_TABLE.
+    guestStateStore: makeInMemoryGuestStateStore(),
     // ApiClient (ADR-0017) — outbound HTTPS to the Rust backend.
     // Native-fetch transport + exponential-backoff retry + W3C
     // traceparent injection + RFC 9457 Problem Details parsing.

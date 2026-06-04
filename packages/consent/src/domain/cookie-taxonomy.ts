@@ -192,4 +192,17 @@ export const COOKIE_REGISTRY: readonly CookieDeclaration[] = [
     lifetime: 180,
     attributes: { httpOnly: false, secure: true, sameSite: 'Lax' },
   },
+  {
+    // Opaque anonymous guest-session identifier (ADR-0029 F). Keys the
+    // server-side @quilty/guest-state store of NON-health UI/nav state;
+    // the cookie itself carries no state and no PII. Minted in proxy.ts
+    // (Web Crypto, edge-safe). httpOnly — never read client-side — and
+    // session-scoped (privacy-lean default for the zero-PHI tier; revisit
+    // when the quiz UX lands).
+    name: '__Host-quilty_sid_guest',
+    category: 'essential',
+    purpose: 'Opaque anonymous guest-session id; keys the server-side guest-state store (no PII).',
+    lifetime: 'session',
+    attributes: { httpOnly: true, secure: true, sameSite: 'Lax' },
+  },
 ];

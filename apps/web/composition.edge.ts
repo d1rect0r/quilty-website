@@ -20,6 +20,7 @@ import { cookies as nextCookies, headers as nextHeaders } from 'next/headers';
 import { makeFetchApiClient, makeNoOpCircuitBreaker } from '@quilty/api-client';
 import { CONSENT_COOKIE_NAME } from '@quilty/consent';
 import { makeInMemoryConsentStore, makeServerConsentReader } from '@quilty/consent/server';
+import { makeInMemoryGuestStateStore } from '@quilty/guest-state/server';
 import {
   makeAmplitudeAnalytics,
   makeCloudWatchLogger,
@@ -48,22 +49,26 @@ export function makeEdgeContainer(): EdgeContainer {
 
   // Fail-closed adapter selection (ADR-0030) — same policy as the server
   // root. The edge tier serves real production traffic, so its in-memory
-  // ConsentStore (consent-state-bearing, D35) must not silently ship. The
-  // edge reads process.env directly (no lib/env.ts import) to stay free of
-  // the build-time-validation module on the edge runtime. The edge DynamoDB
-  // consent adapter is fetch-based and ships when QUILTY_CONSENT_TABLE is
-  // provisioned — its presence then trips the guard's "wire the real
-  // adapter" branch here just as on the server.
+  // ConsentStore (consent-state-bearing, D35) + GuestStateStore (ADR-0029 F)
+  // must not silently ship. The edge reads process.env directly (no
+  // lib/env.ts import) to stay free of the build-time-validation module on
+  // the edge runtime. The Edge-compat DynamoDB adapters are fetch-based and
+  // ship when their tables are provisioned — table-env presence then trips
+  // the guard's "wire the real adapter" branch here just as on the server.
   const { isProductionRuntime, allowInMemory } = resolveInMemoryGuardContext();
-  const consentStoreGuard = assertInMemoryAdapterAllowed({
-    name: 'consent-store',
-    isProductionRuntime,
-    allowInMemory,
-    realActivationEnv: process.env.QUILTY_CONSENT_TABLE,
-  });
-  if (consentStoreGuard.action === 'warn-and-use' && shouldEmitInMemoryAuditLog('consent-store')) {
-    wrappedLogger.warn('inmemory_adapter_in_production', { adapter: 'consent-store' });
-  }
+  const guardInMemoryAdapter = (name: string, realActivationEnv: string | undefined): void => {
+    const { action } = assertInMemoryAdapterAllowed({
+      name,
+      isProductionRuntime,
+      allowInMemory,
+      realActivationEnv,
+    });
+    if (action === 'warn-and-use' && shouldEmitInMemoryAuditLog(name)) {
+      wrappedLogger.warn('inmemory_adapter_in_production', { adapter: name });
+    }
+  };
+  guardInMemoryAdapter('consent-store', process.env.QUILTY_CONSENT_TABLE);
+  guardInMemoryAdapter('guest-state-store', process.env.QUILTY_GUEST_STATE_TABLE);
 
   return {
     runtime: 'edge',
@@ -106,6 +111,10 @@ export function makeEdgeContainer(): EdgeContainer {
     // SDK is Node-only); when it activates, a parallel Edge-compat
     // fetch-based adapter ships here.
     consentStore: makeInMemoryConsentStore(),
+    // In-memory GuestStateStore on the Edge tier — guarded above (ADR-0030
+    // fail-closed). Map-based, Edge-runtime-safe; the Edge-compat DynamoDB
+    // variant ships when QUILTY_GUEST_STATE_TABLE is provisioned.
+    guestStateStore: makeInMemoryGuestStateStore(),
     // ApiClient at the Edge tier (ADR-0017). Native-fetch + retry +
     // problem-details parsing — Edge-runtime-safe (no Node-only deps).
     // Same baseUrl + onRetry hook as the server composition; the

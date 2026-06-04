@@ -3,6 +3,7 @@ import { makeInMemoryCaptchaVerifier } from '@quilty/captcha';
 import { makeDefaultDenyConsentReader } from '@quilty/consent';
 import { makeInMemoryConsentStore } from '@quilty/consent/server';
 import { makeInMemoryEmailSender, wrapEmailSender } from '@quilty/email';
+import { makeInMemoryGuestStateStore } from '@quilty/guest-state/server';
 import {
   makeAmplitudeAnalytics,
   makeBrowserLogger,
@@ -51,6 +52,7 @@ function makeTestServerContainer(): ServerContainer {
     captchaVerifier: makeInMemoryCaptchaVerifier(),
     rateLimiter: makeInMemoryRateLimiter(),
     consentStore: makeInMemoryConsentStore(),
+    guestStateStore: makeInMemoryGuestStateStore(),
     apiClient: makeInMemoryApiClient({
       handler: async <TBody = unknown>() => ({ status: 200, body: undefined as TBody }),
     }),
@@ -96,6 +98,7 @@ function makeTestEdgeContainer(): EdgeContainer {
     featureFlags: makeEnvFlagEvaluator(),
     phiScrubber: makePhiScrubber(),
     consentStore: makeInMemoryConsentStore(),
+    guestStateStore: makeInMemoryGuestStateStore(),
     apiClient: makeInMemoryApiClient({
       handler: async <TBody = unknown>() => ({ status: 200, body: undefined as TBody }),
     }),
