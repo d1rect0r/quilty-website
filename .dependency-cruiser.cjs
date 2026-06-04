@@ -11,8 +11,9 @@
  *      writes; this rule protects the import graph.
  *   2. Direct vendor SDK imports (@sentry/*, @amplitude/*) MUST live
  *      ONLY under packages/<role>/src/adapters/ + the Next.js Sentry
- *      convention files (sentry.{client,server,edge}.config.ts +
- *      instrumentation.ts). ESLint catches per-file static imports;
+ *      convention files (sentry.{server,edge}.config.ts +
+ *      instrumentation.ts + instrumentation-client.ts + next.config.ts).
+ *      ESLint catches per-file static imports;
  *      depcruise catches transitive imports too.
  *   3. Cross-package imports go through the package barrel only
  *      (index.ts or testing/index.ts).
@@ -42,7 +43,7 @@ module.exports = {
     {
       name: 'no-direct-vendor-sdk-outside-adapter-chokepoint',
       comment:
-        'D67 + D78: vendor SDKs must be imported only through the adapter chokepoint. The adapter surface comprises (a) packages/<role>/src/adapters/<vendor>.ts files for workspace-package adapters and (b) the Next.js convention files apps/web/sentry.{client,server,edge}.config.ts + apps/web/instrumentation.ts which are bound to fixed paths and cannot live inside a workspace package. Direct vendor imports anywhere else bypass the PHI sanitizer chokepoint and consent gating.',
+        'D67 + D78: vendor SDKs must be imported only through the adapter chokepoint. The adapter surface comprises (a) packages/<role>/src/adapters/<vendor>.ts files for workspace-package adapters and (b) the Next.js convention files apps/web/sentry.{server,edge}.config.ts + apps/web/instrumentation.ts + apps/web/instrumentation-client.ts + apps/web/next.config.ts (the withSentryConfig build helper) which are bound to fixed paths and cannot live inside a workspace package. Direct vendor imports anywhere else bypass the PHI sanitizer chokepoint and consent gating.',
       severity: 'error',
       from: {
         pathNot: [
@@ -51,8 +52,15 @@ module.exports = {
           // — the only legitimate import site for the `velite` SDK
           // outside an adapter path.
           '^packages/content/src/velite-config\\.ts$',
-          '^apps/web/sentry\\.(client|server|edge)\\.config\\.ts$',
+          '^apps/web/sentry\\.(server|edge)\\.config\\.ts$',
           '^apps/web/instrumentation\\.ts$',
+          // instrumentation-client.ts is the v10 client-init convention
+          // (replaced the legacy sentry.client.config.ts); next.config.ts
+          // imports withSentryConfig — a build-time helper, not a runtime
+          // PHI surface. Both are fixed-path Next.js convention files that
+          // cannot live inside a workspace package. Mirrors eslint.config.mjs.
+          '^apps/web/instrumentation-client\\.ts$',
+          '^apps/web/next\\.config\\.ts$',
         ],
       },
       to: {

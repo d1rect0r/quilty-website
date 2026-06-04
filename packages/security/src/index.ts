@@ -14,7 +14,7 @@
  *   - `@quilty/security/client` — narrower client subset (no sanitizer
  *     / no PHI denylist payload). Reserved for the bundle-weight
  *     reduction commit that moves `composition.client.ts` +
- *     `sentry.client.config.ts` + `WebVitalsReporter.tsx` over from
+ *     `instrumentation-client.ts` + `WebVitalsReporter.tsx` over from
  *     this default barrel. Triggered when client-bundle size budgets
  *     tighten below the current ~4-5 KB sanitizer overhead.
  *   - `@quilty/security/testing` — test fakes + helpers.
@@ -33,7 +33,7 @@
  * Current client-bundle posture: the sanitizer + PHI denylist + value-
  * pattern regex set ships through THIS barrel into the client bundle
  * whenever a client module imports `makeSanitizer` (composition.client.ts)
- * or `sanitize` (sentry.client.config.ts). The runtime cost is small
+ * or `sanitize` (instrumentation-client.ts). The runtime cost is small
  * (~4-5 KB gzipped) and the defensive value is non-negative even in
  * the browser. The `/client` subpath (already wired in package.json)
  * stands ready for the bundle-tightening commit that activates it.

@@ -5,7 +5,7 @@ import type { PHIScrubber, SentryEventLike } from '../ports';
  * PHIScrubber adapter — delegates to the @quilty/security sanitizer.
  *
  * Replaces the inline `beforeSend` hook that was previously duplicated
- * across `sentry.client.config.ts` + `sentry.server.config.ts` +
+ * across `instrumentation-client.ts` + `sentry.server.config.ts` +
  * `sentry.edge.config.ts`. The same scrub now runs at the composition-
  * root chokepoint (D77 + ADR-0010) so a future Sentry SDK upgrade or
  * a swap to Datadog / Honeycomb is a single-adapter change instead of

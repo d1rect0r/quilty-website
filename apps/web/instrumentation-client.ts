@@ -2,6 +2,16 @@ import { makePhiScrubber, makeSentryReplay, wrapReplay } from '@quilty/observabi
 import { sanitize } from '@quilty/security';
 import * as Sentry from '@sentry/nextjs';
 
+/**
+ * Sentry CLIENT initialization (Next.js 16 + @sentry/nextjs 10 convention).
+ *
+ * This is the canonical browser-init file: Next.js auto-loads
+ * `instrumentation-client.ts` on the client, and `withSentryConfig`
+ * (next.config.ts) wires it into the build. It REPLACES the legacy
+ * `sentry.client.config.ts` (deleted) — which was orphaned (nothing
+ * imported it) so `Sentry.init` never ran on the client.
+ */
+
 const phiScrubber = makePhiScrubber();
 
 /**
@@ -16,7 +26,8 @@ const phiScrubber = makePhiScrubber();
  * Returning `false` here skips `Sentry.init()` entirely; the SDK's
  * exported APIs no-op when uninitialised, so no transport, no loop,
  * no console error spam. Operators see no Sentry events until they
- * provision a real canonical DSN.
+ * provision a real canonical DSN — which is why this wiring is safe to
+ * land before the Sentry project + DSN are provisioned at deploy.
  */
 function shouldInitializeSentryClient(): boolean {
   const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
@@ -61,7 +72,9 @@ if (SENTRY_CLIENT_ENABLED) {
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
     environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ?? 'development',
 
-    // Tracing — Sentry auto-consumes the OTel spans emitted from instrumentation.ts.
+    // Tracing — Sentry owns the OpenTelemetry tracer provider (v10) and
+    // auto-consumes spans started via @opentelemetry/api. See
+    // instrumentation.ts for the server-side OTel-ownership rationale.
     tracesSampleRate: 0.1,
 
     // Replay — error-triggered only (HIPAA-aligned, per D68). The
@@ -110,3 +123,11 @@ if (SENTRY_CLIENT_ENABLED) {
 if (SENTRY_CLIENT_ENABLED && typeof window !== 'undefined') {
   void wrapReplay({ adapter: makeSentryReplay() }).initialize();
 }
+
+/**
+ * Instruments App Router client-side navigations (the v10
+ * `instrumentation-client.ts` API). Exported unconditionally — it is a
+ * no-op until `Sentry.init` has run, so it is safe even when the client
+ * SDK is gated off by `shouldInitializeSentryClient`.
+ */
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

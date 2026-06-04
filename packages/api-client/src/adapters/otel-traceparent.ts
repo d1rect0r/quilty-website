@@ -9,9 +9,11 @@
  * `domain/traceparent.ts` (no SDK dependency); only the active-span
  * READ is vendor-bound.
  *
- * `@vercel/otel` 2.1.x configures W3C-canonical propagators by
- * default per D56; this module reads the active span context and
- * delegates formatting to the domain layer.
+ * The OpenTelemetry tracer provider + W3C-canonical propagators are
+ * configured by `@sentry/nextjs` v10, which OWNS OpenTelemetry in the
+ * website runtime (see `apps/web/instrumentation.ts`; revises D56's
+ * `@vercel/otel` mechanism). This module reads the active span context
+ * and delegates formatting to the domain layer.
  *
  * `baggage` injection is OPTIONAL per ADR-0017 Decision F; today's
  * scope ships traceparent only. Baggage adapter lands at the
@@ -25,7 +27,7 @@ import { formatTraceparent } from '../domain/traceparent';
  * Read the active span via the OTel global tracer + format its
  * SpanContext into the traceparent header value. Returns undefined
  * when no span is active (e.g., the call sits outside any tracer
- * scope, or `@vercel/otel` hasn't initialized).
+ * scope, or the OTel provider — Sentry, v10 — hasn't initialized).
  *
  * The fetch adapter uses this directly in its request pipeline:
  *

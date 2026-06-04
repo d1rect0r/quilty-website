@@ -33,7 +33,6 @@
         "react",
         "react-dom",
         "/^@sentry//",
-        "/^@vercel/otel$/",
         "/^@amplitude//",
         "/^sst$/"
       ],

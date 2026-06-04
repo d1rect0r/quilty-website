@@ -123,7 +123,7 @@ export interface ServerContainer extends BaseContainer {
  * accessing them is a build error, not a runtime null check.
  *
  * The Sentry browser Replay integration is initialized in
- * `sentry.client.config.ts`, NOT through this Container. See ADR-0010
+ * `instrumentation-client.ts`, NOT through this Container. See ADR-0010
  * for the dual-path-avoidance rationale.
  */
 export interface ClientContainer extends BaseContainer {

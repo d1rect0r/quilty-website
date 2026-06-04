@@ -11,7 +11,7 @@
     "files": [
       ["apps", "web", "proxy.ts"],
       ["apps", "web", "instrumentation.ts"],
-      ["apps", "web", "sentry.client.config.ts"],
+      ["apps", "web", "instrumentation-client.ts"],
       ["apps", "web", "sentry.server.config.ts"],
       ["apps", "web", "sentry.edge.config.ts"],
       ["apps", "web", "composition.server.ts"],

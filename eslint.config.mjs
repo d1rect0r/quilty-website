@@ -354,10 +354,15 @@ export default tseslint.config(
   },
   // Allow vendor SDK imports inside the adapter chokepoint surface.
   // Two tiers covered by this override:
-  //   1. The Sentry init files at apps/web/sentry.{client,server,edge}.config.ts
-  //      + apps/web/instrumentation.ts. These are Next.js convention files
-  //      bound to their fixed paths and cannot live inside a workspace
-  //      package; they retain direct @sentry/nextjs import access.
+  //   1. The Sentry init + build files: apps/web/sentry.{server,edge}.config.ts,
+  //      apps/web/instrumentation-client.ts (the v10 client-init convention
+  //      that replaced the legacy sentry.client.config.ts),
+  //      apps/web/instrumentation.ts (server/edge register), and
+  //      apps/web/next.config.ts (the withSentryConfig build wrapper). These
+  //      are Next.js convention files bound to fixed paths and cannot live
+  //      inside a workspace package; they retain direct @sentry/nextjs import
+  //      access. withSentryConfig is a BUILD-TIME helper — it never touches
+  //      runtime PHI, so the D67 sanitizer-chokepoint rationale doesn't apply.
   //   2. The workspace package adapter surface
   //      (packages/<role>/src/adapters/*). Each adapter file IS the
   //      chokepoint by design — vendor names appear only in adapter
@@ -368,6 +373,8 @@ export default tseslint.config(
     files: [
       'apps/web/sentry.*.config.ts',
       'apps/web/instrumentation.ts',
+      'apps/web/instrumentation-client.ts',
+      'apps/web/next.config.ts',
       'packages/*/src/adapters/**/*.ts',
       // The HIPAA-safe faker singleton wraps @faker-js/faker at exactly
       // one location in the repo; every other consumer routes through
