@@ -1,7 +1,7 @@
 {
   "name": "@quilty/shared-types",
   "version": "0.1.0",
-  "description": "OpenAPI-emitted TypeScript types from the Rust backend. Empty until the OpenAPI codegen pipeline activates per ADR-0003 (utoipa -> openapi-typescript -> @quilty/api-types -> re-export here).",
+  "description": "OpenAPI-emitted TypeScript types from the Rust backend (utoipa -> openapi-typescript), generated from the committed specs in spec/ per ADR-0003. Regenerate with `pnpm --filter @quilty/shared-types codegen`; CI runs `codegen:check` to gate drift between spec/ and src/generated/.",
   "private": true,
   "type": "module",
   "engines": {
@@ -11,11 +11,14 @@
   "scripts": {
     "build": "echo 'no build until OpenAPI codegen activates' && exit 0",
     "clean": "rm -rf dist .turbo *.tsbuildinfo",
+    "codegen": "openapi-typescript spec/auth_v2_openapi.yaml -o src/generated/auth.ts --immutable --enum && openapi-typescript spec/sync_openapi.yaml -o src/generated/sync.ts --immutable --enum",
+    "codegen:check": "openapi-typescript spec/auth_v2_openapi.yaml -o src/generated/auth.ts --immutable --enum --check && openapi-typescript spec/sync_openapi.yaml -o src/generated/sync.ts --immutable --enum --check",
     "lint": "echo 'no lint until source lands' && exit 0",
     "test": "echo 'no tests until source lands' && exit 0",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "openapi-typescript": "^7.13.0",
     "typescript": "^5.7.2"
   },
   "exports": {

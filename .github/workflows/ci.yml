@@ -4,7 +4,7 @@
 #   1. install — pnpm install with frozen lockfile + cache
 #   2. lint — ESLint flat + Prettier --check
 #   3. hygiene — syncpack + Knip + depcruise + security.txt expires
-#                gate + type-coverage + secretlint
+#                gate + type-coverage + secretlint + openapi codegen drift
 #   4. typecheck — TypeScript strict across workspaces
 #   5. test — Vitest unit (with v8 coverage)
 #   6. test-e2e — Playwright e2e + a11y (axe-core WCAG 2.2 AA + smoke + security + seo)
@@ -86,7 +86,7 @@ jobs:
     # Tier-1 dev-tooling gates (ADR-0007). Run early — fast, catches the
     # version-drift / unused-deps / graph-rule classes of regression
     # before the heavier typecheck + test jobs do.
-    name: Hygiene (syncpack + Knip + depcruise + security-txt + type-coverage + secretlint)
+    name: Hygiene (syncpack + Knip + depcruise + security-txt + type-coverage + secretlint + openapi-drift)
     needs: install
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -110,6 +110,14 @@ jobs:
         run: pnpm type-coverage
       - name: Secret scan (secretlint)
         run: pnpm secretlint
+      - name: OpenAPI codegen drift (spec ↔ generated types, ADR-0003)
+        # Regenerates @quilty/shared-types from the COMMITTED specs in
+        # packages/shared-types/spec/ and fails if src/generated/*.ts is
+        # stale. Catches the case where a spec is updated (via the
+        # cross-repo sync script) without re-running codegen. CI cannot
+        # reach the sibling quilty-aws repo, so it checks against the
+        # in-repo committed specs only.
+        run: pnpm --filter @quilty/shared-types codegen:check
 
   typecheck:
     name: Typecheck
