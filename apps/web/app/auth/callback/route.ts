@@ -5,7 +5,10 @@ import { getServerContainer } from '@/lib/get-container';
 import { makeServerContainer } from '@/composition.server';
 
 /**
- * OIDC callback Route Handler — reserved 501-stub.
+ * OIDC callback Route Handler — reserved 501-stub. Hand-rolled BFF token
+ * handler (ADR-0029), NOT Auth.js/NextAuth — this `/auth/*` surface is
+ * apex-level (relocated from `/api/auth/*`); don't move it back to
+ * `/api/auth/*` (that breaks the portal-CSP + noindex keyed on `/auth/`).
  *
  * Per D5 + ADR-0002: this exchanges the OIDC code for tokens, creates
  * a DynamoDB session row, and sets the `__Host-quilty_sid` cookie

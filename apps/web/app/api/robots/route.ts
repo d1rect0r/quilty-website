@@ -72,8 +72,19 @@ const USER_FETCH_BOTS = ['ChatGPT-User', 'Claude-User', 'Perplexity-User'] as co
 // (8 chars). The wildcard form `/account*` (RFC 9309 §2.2.3) covers
 // both the bare landing path AND every subpath. Same applies to the
 // locale-prefixed + dev variants. `/api/` is unambiguous because
-// every Route Handler lives at `/api/<segment>/`.
-const PRIVATE_PATHS = ['/account*', '/en/account*', '/*/account*', '/api/', '/dev*'] as const;
+// every Route Handler lives at `/api/<segment>/`. `/auth/` (trailing
+// slash, NOT the `/auth*` wildcard) covers the BFF token-handler routes
+// (ADR-0029, relocated out of `/api/auth/*`): bare `/auth` is a 404 (only
+// `/auth/<segment>` route handlers exist), so the precise prefix avoids
+// over-matching a future marketing path like `/authors`.
+const PRIVATE_PATHS = [
+  '/account*',
+  '/en/account*',
+  '/*/account*',
+  '/api/',
+  '/auth/',
+  '/dev*',
+] as const;
 
 const CONTENT_SIGNAL = 'Content-Signal: search=yes, ai-input=yes, ai-train=no';
 

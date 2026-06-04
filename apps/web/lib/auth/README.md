@@ -31,7 +31,7 @@ auth/
 
 ## Route Handlers consuming this directory
 
-Reserved 501-stub Route Handlers at `app/api/auth/{callback,session,refresh,logout,backchannel-logout}/route.ts` import from this directory at activation.
+Reserved 501-stub Route Handlers at `app/auth/{callback,session,refresh,logout,backchannel-logout}/route.ts` (apex `/auth/*` namespace per ADR-0029, relocated from `/api/auth/*`) import from this directory at activation.
 
 ## References
 

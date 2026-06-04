@@ -4,7 +4,7 @@
  *   - Marketing tier: static + hash-pinned CSP (no nonce). Preserves
  *     CloudFront caching. Used for /, /[locale]/(marketing)/*.
  *   - Portal tier: nonce + strict-dynamic. Used for /[locale]/(account)/*,
- *     /api/auth/*.
+ *     /auth/* (the BFF token-handler surface; relocated from /api/auth/*).
  *
  * Both tiers: report-only until the launch gate flips them to enforce
  * after 2-4 clean weeks of report-only data (D32 + D60).
@@ -183,7 +183,11 @@ export function buildPortalCsp(nonce: string, opts: CspOptions = {}): string {
  * cache-key-sharing with marketing pages.
  */
 export function isPortalRoute(pathname: string): boolean {
-  if (pathname === '/api/auth' || pathname.startsWith('/api/auth/')) return true;
+  // `/auth/*` is the BFF token-handler surface (ADR-0029). `/auth/callback`
+  // runs inline script to set the session cookie + redirect, so it MUST be
+  // the nonce + strict-dynamic portal tier — the marketing static-hash tier
+  // would block that inline script. (Relocated from `/api/auth/*`.)
+  if (pathname === '/auth' || pathname.startsWith('/auth/')) return true;
   if (pathname === '/api/webhooks' || pathname.startsWith('/api/webhooks/')) return true;
   if (/\/account(\/|$)/.test(pathname)) return true;
   return false;

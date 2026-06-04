@@ -54,7 +54,7 @@ export const ROUTE_THRESHOLDS: Record<string, RouteThresholds> = {
    */
   form_post: { p50: 300, p95: 1000, p99: 2000, errorRate: 0.005 },
   /**
-   * Auth-token refresh / session-tier endpoints under `/api/auth/*`.
+   * Auth-token refresh / session-tier endpoints under `/auth/*`.
    * p99 raised to 1500ms post Phase-A C2-E4 finding — Auth0's
    * published refresh SLO is 1500ms; Cognito GetTokensFromRefreshToken
    * p99 in us-east-1 runs 800-1400ms under burst with cold-start

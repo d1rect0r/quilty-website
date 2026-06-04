@@ -49,17 +49,22 @@ const CHANGE_PASSWORD_DESTINATION = `/${DEFAULT_LOCALE}/account/security`;
 // metadata still gets a response-level `X-Robots-Tag: noindex,
 // nofollow` on every path that should never appear in a SERP. The
 // patterns cover `/api/*` (Route Handlers — webhook callbacks,
-// auth, csp-report), `/account/*` + `/{locale}/account/*` (the
+// csp-report), `/auth/*` (the BFF token-handler routes, relocated
+// from `/api/auth/*`), `/account/*` + `/{locale}/account/*` (the
 // portal), and `/dev/*` (the dev-only diagnostic surface). The
 // page-metadata layer + the per-account-layout cascade remain in
 // place; this is the response-header tier.
 const NOINDEX_PATH_PATTERNS: readonly RegExp[] = [
   // Whole `/api/*` tree — broader than `isPortalRoute` in
   // `packages/security/src/domain/csp-builder.ts` (which only marks
-  // `/api/auth/*` + `/api/webhooks/*` as portal-CSP). The wider
+  // `/auth/*` + `/api/webhooks/*` as portal-CSP). The wider
   // surface is deliberate: every Route Handler — webhooks, future
   // payment callbacks, csp-report — must be unreachable via SERP.
   /^\/api\//,
+  // `/auth/*` — BFF token-handler routes (ADR-0029), apex-level
+  // (redirect_uri is `https://my-quilty.com/auth/callback`), relocated
+  // out of `/api/auth/*`. Portal CSP comes from isPortalRoute.
+  /^\/auth(\/|$)/,
   // `(\/|$)` alternation handles BOTH the trailing-slash subpage
   // case AND the no-trailing-slash account-index case
   // (`trailingSlash: false` in next.config.ts means `/en/account`
@@ -487,11 +492,12 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 /**
  * Matcher excludes static assets + the .well-known prefix.
  *
- * `/api/*` is INCLUDED in CSP coverage — auth Route Handlers (OAuth
- * callbacks, sign-in flows) can return HTML responses that need the
- * portal-tier CSP, and security-test discipline (csp.spec.ts) asserts
- * the nonce on `/api/auth/*`. The per-request CPU cost of computing 7
- * headers is microseconds — not worth the security boundary erosion.
+ * `/api/*` + `/auth/*` are INCLUDED in CSP coverage — the BFF token
+ * handlers (OAuth callbacks, sign-in flows) at `/auth/*` can return HTML
+ * responses that need the portal-tier CSP, and security-test discipline
+ * (csp.spec.ts) asserts the nonce on `/auth/*`. The per-request CPU cost
+ * of computing 7 headers is microseconds — not worth the security
+ * boundary erosion.
  *
  * `/.well-known/change-password` is the lone .well-known path that
  * MUST flow through the proxy — it returns a 302 redirect, not a

@@ -18,6 +18,7 @@ const handler = loadCfHandler('robots-tag-defense.cff.js');
 // activation-gate runbook for the cross-implementation review protocol.
 const PROXY_NOINDEX_PATTERNS: readonly RegExp[] = [
   /^\/api\//,
+  /^\/auth(\/|$)/,
   /^\/account(\/|$)/,
   /^\/[a-z]{2,}\/account(\/|$)/,
   /^\/dev(\/|$)/,
@@ -37,7 +38,8 @@ function runHandler(uri: string): boolean {
 
 const NOINDEX_PATHS: readonly string[] = [
   '/api/contact',
-  '/api/auth/callback',
+  '/auth/callback',
+  '/auth/session',
   '/api/webhooks/stripe',
   '/account',
   '/account/security',
@@ -62,6 +64,8 @@ const ALLOWED_PATHS: readonly string[] = [
   '/static/hero.jpg',
   // `/accounts` (plural) must NOT trigger — proxy.ts uses `^\/account(\/|$)`
   '/accounts',
+  // `/authors` must NOT trigger — `^\/auth(\/|$)` requires `/` or end after `auth`.
+  '/authors',
   // Path with `account` mid-segment must NOT trigger.
   '/en/my-account-faq',
   // /.well-known/change-password — proxy.ts sets X-Robots-Tag inline on
@@ -147,7 +151,7 @@ describe('robots-tag-defense — regex parity (drift detection)', () => {
     // shape today. If proxy.ts grows a sibling array with a different
     // shape, extend the extractor before changing this assertion.
     expect(proxyRegexes).toEqual(cffRegexes);
-    // Floor-check: at least the documented 6 patterns must be present.
-    expect(cffRegexes.length).toBeGreaterThanOrEqual(6);
+    // Floor-check: at least the documented 7 patterns must be present.
+    expect(cffRegexes.length).toBeGreaterThanOrEqual(7);
   });
 });

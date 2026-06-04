@@ -101,7 +101,10 @@ describe('isPortalRoute', () => {
   it('classifies portal paths', () => {
     expect(isPortalRoute('/en/account')).toBe(true);
     expect(isPortalRoute('/en/account/security')).toBe(true);
-    expect(isPortalRoute('/api/auth/callback')).toBe(true);
+    // `/auth/*` is the BFF token-handler surface (ADR-0029, relocated from
+    // `/api/auth/*`) — portal-tier because its callback runs inline script.
+    expect(isPortalRoute('/auth/callback')).toBe(true);
+    expect(isPortalRoute('/auth')).toBe(true);
     expect(isPortalRoute('/api/webhooks/stripe')).toBe(true);
   });
 
@@ -110,6 +113,10 @@ describe('isPortalRoute', () => {
     expect(isPortalRoute('/en')).toBe(false);
     expect(isPortalRoute('/en/features')).toBe(false);
     expect(isPortalRoute('/en/legal/privacy')).toBe(false);
+    // Precision: the `/auth` prefix must NOT over-match a marketing path.
+    expect(isPortalRoute('/authors')).toBe(false);
+    // The relocated-from path is no longer portal (routes moved to `/auth/*`).
+    expect(isPortalRoute('/api/auth/callback')).toBe(false);
   });
 
   it('does not classify /accountant or /accounts as portal (word-boundary discipline)', () => {

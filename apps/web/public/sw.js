@@ -6,7 +6,7 @@
  *   - Cache-first for /_next/static/*, /static/*, fonts, icons, manifest.
  *   - NetworkFirst (3s timeout) for navigations + HTML routes.
  *   - NetworkOnly (excluded from SW entirely) for:
- *       /api/auth/* | /api/contact | /api/csp-report | /api/dsar/*
+ *       /auth/* | /api/contact | /api/csp-report | /api/dsar/*
  *       /api/webhooks/* | /[locale]/account/* | ?_rsc=* | sentry/posthog tunnels
  *       any non-GET (POST server actions, etc.)
  *   - BCP-47 aware locale exclusion regex (covers pt-BR, zh-Hant, etc.)
@@ -44,7 +44,7 @@ if (typeof workbox !== 'undefined' && workbox) {
   // by spec, so we test against `.toLowerCase()` form below.
   const ACCOUNT_LOCALE_RE = /^\/[a-z]{2,}(-[a-z0-9]+)*\/account\//;
   const EXCLUDED_PATH_PATTERNS = [
-    /^\/api\/auth\//,
+    /^\/auth\//,
     /^\/api\/contact$/,
     /^\/api\/csp-report$/,
     /^\/api\/dsar\//,
