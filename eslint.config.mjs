@@ -356,7 +356,9 @@ export default tseslint.config(
   // Two tiers covered by this override:
   //   1. The Sentry init + build files: apps/web/sentry.{server,edge}.config.ts,
   //      apps/web/instrumentation-client.ts (the v10 client-init convention
-  //      that replaced the legacy sentry.client.config.ts),
+  //      that replaced the legacy sentry.client.config.ts) + its lazily-
+  //      imported apps/web/lib/observability/sentry-client-init.ts (the
+  //      @sentry/nextjs init moved off the first-load critical path),
   //      apps/web/instrumentation.ts (server/edge register), and
   //      apps/web/next.config.ts (the withSentryConfig build wrapper). These
   //      are Next.js convention files bound to fixed paths and cannot live
@@ -374,6 +376,12 @@ export default tseslint.config(
       'apps/web/sentry.*.config.ts',
       'apps/web/instrumentation.ts',
       'apps/web/instrumentation-client.ts',
+      // The lazy Sentry client-init module — `instrumentation-client.ts`
+      // dynamically import()s it on idle so @sentry/nextjs lands in a
+      // separate vendor chunk off the first-load critical path (ADR-0018).
+      // It IS the client init chokepoint by design (mirrors the moved-out
+      // Sentry.init that previously lived in instrumentation-client.ts).
+      'apps/web/lib/observability/sentry-client-init.ts',
       'apps/web/next.config.ts',
       'packages/*/src/adapters/**/*.ts',
       // The HIPAA-safe faker singleton wraps @faker-js/faker at exactly

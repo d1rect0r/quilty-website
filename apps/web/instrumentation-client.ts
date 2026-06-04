@@ -1,18 +1,23 @@
-import { makePhiScrubber, makeSentryReplay, wrapReplay } from '@quilty/observability';
-import { sanitize } from '@quilty/security';
-import * as Sentry from '@sentry/nextjs';
-
 /**
- * Sentry CLIENT initialization (Next.js 16 + @sentry/nextjs 10 convention).
+ * Sentry CLIENT initialization entrypoint (Next.js 16 + @sentry/nextjs 10
+ * convention).
  *
  * This is the canonical browser-init file: Next.js auto-loads
  * `instrumentation-client.ts` on the client, and `withSentryConfig`
  * (next.config.ts) wires it into the build. It REPLACES the legacy
  * `sentry.client.config.ts` (deleted) — which was orphaned (nothing
  * imported it) so `Sentry.init` never ran on the client.
+ *
+ * Critical-path discipline (ADR-0018): this file does NOT statically
+ * import `@sentry/nextjs`. Because Next.js auto-loads it on every page,
+ * a static import would pull the ~48 KB-gzipped Sentry SDK into the
+ * shared first-load runtime (framework/main/webpack chunks) on EVERY
+ * route — blowing the first-load budgets. Instead, the entire init lives
+ * in `lib/observability/sentry-client-init.ts`, dynamically `import()`ed
+ * on browser idle so the SDK lands in a separate lazy vendor chunk. The
+ * DSN gate below is deliberately SDK-free so the chunk is never fetched
+ * without a real, CSP-coherent DSN.
  */
-
-const phiScrubber = makePhiScrubber();
 
 /**
  * Gate Sentry init on a CSP-coherent DSN host. The portal CSP
@@ -23,9 +28,9 @@ const phiScrubber = makePhiScrubber();
  * every transport attempt — a runaway feedback loop where every
  * CSP-violation report itself fires a CSP-violation report.
  *
- * Returning `false` here skips `Sentry.init()` entirely; the SDK's
- * exported APIs no-op when uninitialised, so no transport, no loop,
- * no console error spam. Operators see no Sentry events until they
+ * Returning `false` here skips the dynamic import of the init module
+ * entirely; without a real canonical DSN the Sentry vendor chunk is
+ * never even fetched. Operators see no Sentry events until they
  * provision a real canonical DSN — which is why this wiring is safe to
  * land before the Sentry project + DSN are provisioned at deploy.
  */
@@ -44,90 +49,54 @@ function shouldInitializeSentryClient(): boolean {
 }
 
 /**
- * Sentry client-side config per D42a + D68 + D67.
- *
- * Replay posture (D68):
- *   - replaysSessionSampleRate: 0 — no always-on replay (HIPAA-aligned)
- *   - replaysOnErrorSampleRate: 1.0 — capture replay only when an error
- *     fires (debugging value vs PHI surface area trade-off)
- *   - maskAllText / blockAllMedia / maskAllInputs default-on (enforced
- *     by the wrapReplay floor in @quilty/observability)
- *   - Clinical-state-implying controls additionally carry the
- *     REPLAY_BLOCK_CLASS constant exported from @quilty/observability
- *   - Loaded lazily via `Sentry.lazyLoadIntegration` (inside the
- *     makeSentryReplay adapter) — the integration constructor + DOM
- *     serializer (~36 KB gzipped) only ship to the browser when an
- *     error actually fires, since replaysSessionSampleRate is 0
- *
- * PHI sanitization via beforeSend (D67):
- *   - Belt-and-suspenders with the @quilty/observability wrappers'
- *     upstream sanitize() pass at the port boundary
- *   - Drops any breadcrumb or extra context containing PHI keys
+ * Holds the lazily-loaded `Sentry.captureRouterTransitionStart` once the
+ * init module has resolved. Before then it stays `undefined` and the
+ * exported `onRouterTransitionStart` wrapper is a no-op — early App
+ * Router navigations (fired before idle init completes) are simply not
+ * instrumented, which is acceptable for client transition spans.
  */
+type RouterTransitionHook = (href: string, navigationType: string) => void;
+let routerTransitionHook: RouterTransitionHook | undefined;
 
-const SENTRY_CLIENT_ENABLED = shouldInitializeSentryClient();
+/**
+ * Defer the Sentry SDK load to browser idle so it never competes with
+ * first paint or hydration. `requestIdleCallback` is preferred; the
+ * `setTimeout(…, 0)` fallback covers browsers without it (Safari).
+ */
+function scheduleIdle(callback: () => void): void {
+  if (typeof window === 'undefined') return;
+  const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => void })
+    .requestIdleCallback;
+  if (typeof idle === 'function') {
+    idle(callback);
+  } else {
+    setTimeout(callback, 0);
+  }
+}
 
-if (SENTRY_CLIENT_ENABLED) {
-  Sentry.init({
-    dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-    environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ?? 'development',
-
-    // Tracing — Sentry owns the OpenTelemetry tracer provider (v10) and
-    // auto-consumes spans started via @opentelemetry/api. See
-    // instrumentation.ts for the server-side OTel-ownership rationale.
-    tracesSampleRate: 0.1,
-
-    // Replay — error-triggered only (HIPAA-aligned, per D68). The
-    // integration is added below via lazyLoadIntegration so the worker
-    // chunk only ships when an error actually fires.
-    replaysSessionSampleRate: 0,
-    replaysOnErrorSampleRate: 1.0,
-
-    // beforeSend — last line of defense. The PHIScrubber adapter
-    // (D67 + D148) centralises the chokepoint logic that previously was
-    // duplicated across server / client / edge configs. See
-    // sentry.server.config.ts for the chokepoint rationale.
-    beforeSend(event) {
-      return phiScrubber.scrubSentryEvent(event) as typeof event | null;
-    },
-
-    beforeBreadcrumb(breadcrumb) {
-      // Strip PHI-shaped fields from breadcrumb data + message. The message
-      // is free text the Sentry SDK populates from navigation events, fetch
-      // URLs, and console output — a fetch breadcrumb's message may contain
-      // a query-string fragment if D31's URL-no-PHI invariant is ever
-      // violated; sanitizing here defends in depth.
-      if (breadcrumb.data) {
-        breadcrumb.data = sanitize(breadcrumb.data) as Record<string, unknown>;
-      }
-      if (breadcrumb.message) {
-        breadcrumb.message = sanitize(breadcrumb.message);
-      }
-      return breadcrumb;
-    },
+if (shouldInitializeSentryClient() && typeof window !== 'undefined') {
+  scheduleIdle(() => {
+    // Dynamic import: the @sentry/nextjs SDK + init code resolve into a
+    // separate async chunk, kept off the shared first-load runtime.
+    void import('./lib/observability/sentry-client-init')
+      .then(({ initSentryClient }) => {
+        routerTransitionHook = initSentryClient();
+      })
+      .catch(() => {
+        // Sentry unavailable (offline / chunk fetch failure). The app
+        // continues without client error reporting; losing telemetry is
+        // acceptable, losing the app to an init throw is not.
+      });
   });
 }
 
 /**
- * Replay integration is added through `wrapReplay` so the D68 floor
- * (`sessionSampleRate: 0`, mask + block defaults) is enforced via the
- * port wrapper rather than a raw `Sentry.addIntegration` call. The
- * underlying adapter still uses `Sentry.lazyLoadIntegration` so the DOM
- * serializer chunk (~36 KB gzipped) is fetched only when an error fires.
- *
- * The wrapper is intentionally NOT wired through the Container — this is
- * the single Replay init site by design. A dual path (config file +
- * Container property) would create two init code paths with different
- * enforcement coverage.
- */
-if (SENTRY_CLIENT_ENABLED && typeof window !== 'undefined') {
-  void wrapReplay({ adapter: makeSentryReplay() }).initialize();
-}
-
-/**
  * Instruments App Router client-side navigations (the v10
- * `instrumentation-client.ts` API). Exported unconditionally — it is a
- * no-op until `Sentry.init` has run, so it is safe even when the client
- * SDK is gated off by `shouldInitializeSentryClient`.
+ * `instrumentation-client.ts` API). Exported as a thin wrapper that
+ * delegates to the lazily-loaded `Sentry.captureRouterTransitionStart`
+ * once the init module has resolved; before then it is a no-op. Safe to
+ * export unconditionally — it never references the Sentry SDK directly.
  */
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+export const onRouterTransitionStart: RouterTransitionHook = (href, navigationType) => {
+  routerTransitionHook?.(href, navigationType);
+};

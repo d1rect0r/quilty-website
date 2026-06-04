@@ -55,11 +55,19 @@ module.exports = {
           '^apps/web/sentry\\.(server|edge)\\.config\\.ts$',
           '^apps/web/instrumentation\\.ts$',
           // instrumentation-client.ts is the v10 client-init convention
-          // (replaced the legacy sentry.client.config.ts); next.config.ts
+          // (replaced the legacy sentry.client.config.ts) and dynamically
+          // imports lib/observability/sentry-client-init.ts (allowlisted
+          // below) so the SDK stays off the first-load critical path;
+          // next.config.ts
           // imports withSentryConfig — a build-time helper, not a runtime
           // PHI surface. Both are fixed-path Next.js convention files that
           // cannot live inside a workspace package. Mirrors eslint.config.mjs.
           '^apps/web/instrumentation-client\\.ts$',
+          // The lazy Sentry client-init module dynamically imported by
+          // instrumentation-client.ts so @sentry/nextjs lands in a
+          // separate vendor chunk off the first-load critical path
+          // (ADR-0018). It is the client init chokepoint by design.
+          '^apps/web/lib/observability/sentry-client-init\\.ts$',
           '^apps/web/next\\.config\\.ts$',
         ],
       },
