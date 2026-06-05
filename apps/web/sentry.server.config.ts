@@ -1,7 +1,10 @@
 import { sanitize } from '@quilty/security';
 import { makePhiScrubber } from '@quilty/observability';
 import * as Sentry from '@sentry/nextjs';
-import { isSentryDsnCspCoherent } from './lib/observability/sentry-dsn-gate';
+import {
+  isSentryDsnCspCoherent,
+  resolveSentryEnvironment,
+} from './lib/observability/sentry-dsn-gate';
 
 /**
  * Sentry server-side config per D42a + D67. Replay is client-only; the
@@ -28,7 +31,7 @@ const phiScrubber = makePhiScrubber();
 if (isSentryDsnCspCoherent(process.env.NEXT_PUBLIC_SENTRY_DSN)) {
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-    environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ?? 'development',
+    environment: resolveSentryEnvironment(),
 
     tracesSampleRate: 0.1,
 
