@@ -96,6 +96,16 @@ jobs:
           # and exposed via this var.
           SST_DEPLOY_GATE_PASSED: 'true'
           WAF_WEB_ACL_ARN: ${{ vars.WAF_WEB_ACL_ARN }}
+          # sst.config.ts also hard-gates on QUILTY_PSEUDONYM_PEPPER (the
+          # HIPAA + GDPR Art 4(5) pseudonymisation salt for log-side
+          # hashing). Without it the deploy throws. It is a SECRET (the
+          # SSM-pointer value vended from AWS Secrets Manager by
+          # quilty-aws/website-baseline/), not a `var`. PROVISIONING: store
+          # it as an ENVIRONMENT secret on the `preview` + `production`
+          # GitHub Environments (with required reviewers on `production`),
+          # NOT a repo-wide secret — it must never be readable by non-deploy
+          # workflows. (Applies to SENTRY_AUTH_TOKEN + the AWS role ARNs too.)
+          QUILTY_PSEUDONYM_PEPPER: ${{ secrets.QUILTY_PSEUDONYM_PEPPER }}
 
   cleanup-preview:
     if: ${{ vars.DEPLOY_ENABLED == 'true' && github.event.action == 'closed' }}
@@ -127,6 +137,21 @@ jobs:
       # the user to apply before invoking `/sst-destroy-previews`
       # locally.
       - run: pnpm sst remove --stage preview-pr-${{ github.event.pull_request.number }}
+        env:
+          # `sst remove` still executes sst.config.ts's run() to build the
+          # resource graph before destroying it, so it hits the SAME
+          # config-eval throw-gates as a deploy (SST_DEPLOY_GATE_PASSED +
+          # NEXT_PUBLIC_SENTRY_DSN + WAF_WEB_ACL_ARN + QUILTY_PSEUDONYM_PEPPER).
+          # Without these the teardown fails and preview stacks leak
+          # (orphaned CloudFront + Lambda + S3). The values are not used to
+          # destroy anything — they only satisfy the gate. (A cleaner future
+          # refinement is to make those deploy-only gates skip on `remove`;
+          # deferred to deploy-activation when `sst` can actually be run +
+          # tested — AWS account placement is currently parked.)
+          SST_DEPLOY_GATE_PASSED: 'true'
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+          WAF_WEB_ACL_ARN: ${{ vars.WAF_WEB_ACL_ARN }}
+          QUILTY_PSEUDONYM_PEPPER: ${{ secrets.QUILTY_PSEUDONYM_PEPPER }}
 
   deploy-prod:
     if: ${{ vars.DEPLOY_ENABLED == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
@@ -164,3 +189,7 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SST_DEPLOY_GATE_PASSED: 'true'
           WAF_WEB_ACL_ARN: ${{ vars.WAF_WEB_ACL_ARN }}
+          # HIPAA + GDPR Art 4(5) pseudonymisation salt — sst.config.ts
+          # hard-gates on it (throws if unset). SECRET, vended from AWS
+          # Secrets Manager by quilty-aws/website-baseline/.
+          QUILTY_PSEUDONYM_PEPPER: ${{ secrets.QUILTY_PSEUDONYM_PEPPER }}

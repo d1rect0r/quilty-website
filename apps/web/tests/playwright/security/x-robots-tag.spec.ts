@@ -22,11 +22,11 @@ import { test, expect } from '@playwright/test';
 // via `NOINDEX_PATH_PATTERNS`) — the .well-known prefix is
 // otherwise excluded from the primary matcher.
 const NOINDEX_PATHS: readonly string[] = [
-  '/api/auth/callback',
-  '/api/auth/session',
-  '/api/auth/refresh',
-  '/api/auth/logout',
-  '/api/auth/backchannel-logout',
+  '/auth/callback',
+  '/auth/session',
+  '/auth/refresh',
+  '/auth/logout',
+  '/auth/backchannel-logout',
   '/api/webhooks/stripe',
   '/en/account',
   '/en/account/security',

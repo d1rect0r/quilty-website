@@ -1,0 +1,47 @@
+{
+  "name": "@quilty/guest-state",
+  "version": "0.1.0",
+  "description": "Thin anonymous guest-state carrier — opaque guest-session id keys a server-side store of NON-health UI/nav state (quiz step, generic selections, UTM/referrer). Health fields are contract-forbidden. NO promotion bridge (deferred to the auth-integration milestone per ADR-0029 F).",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25.0.0",
+    "pnpm": ">=10.0.0 <11.0.0"
+  },
+  "scripts": {
+    "lint": "eslint src --max-warnings 0",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@quilty/security": "workspace:*",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@vitest/coverage-v8": "2.1.8",
+    "typescript": "^5.7.2",
+    "vitest": "2.1.8"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./server": {
+      "types": "./src/server/index.ts",
+      "default": "./src/server/index.ts"
+    },
+    "./testing": {
+      "types": "./src/testing/index.ts",
+      "default": "./src/testing/index.ts"
+    }
+  },
+  "sideEffects": [
+    "./src/server/index.ts",
+    "./src/adapters/in-memory.ts",
+    "./src/adapters/dynamodb.ts"
+  ]
+}

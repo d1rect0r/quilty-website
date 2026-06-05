@@ -196,11 +196,16 @@ function defineSiteResources(stage: string) {
           }
         : undefined, // preview-pr-* stages use the raw CloudFront URL
     environment: {
-      // Preview stages get '' here — the resource's own `url` Output cannot
-      // be referenced inside its own constructor args. Runtime falls back
-      // to localhost; wildcard preview custom domain is the proper fix
-      // (see docs/runbook/sst-deploy.md).
-      NEXT_PUBLIC_SITE_URL: stage === 'dev' ? 'https://my-quilty.com' : '',
+      // NEXT_PUBLIC_SITE_URL must be a VALID URL on every stage: lib/env.ts
+      // (ADR-0030) validates it via createEnv when next.config.ts loads at
+      // `next start` boot, so '' (→ undefined under emptyStringAsUndefined)
+      // crashes the server before any localhost fallback can run. A preview
+      // stage can't self-reference its own CloudFront `url` Output inside its
+      // constructor args, so it falls back to the apex — benign, since
+      // preview stages are noindex (canonical pointing at prod is harmless).
+      // The wildcard preview custom domain is the proper long-term fix (see
+      // docs/runbook/sst-deploy.md).
+      NEXT_PUBLIC_SITE_URL: 'https://my-quilty.com',
       NEXT_PUBLIC_SENTRY_DSN: sentryDsn,
       // Server-only — never expose to the client bundle. The Next.js
       // build replaces unprefixed env vars with undefined in browser

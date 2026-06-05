@@ -32,7 +32,7 @@
  *
  * The full barrel at `index.ts` remains the canonical import for
  * server + edge code (composition.server.ts, composition.edge.ts,
- * Route Handlers, Server Components). The `sentry.client.config.ts`
+ * Route Handlers, Server Components). The `instrumentation-client.ts`
  * deliberately imports the FULL barrel because its beforeSend hook
  * needs `sanitize`; that's the documented exception.
  */

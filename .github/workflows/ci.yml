@@ -4,7 +4,7 @@
 #   1. install — pnpm install with frozen lockfile + cache
 #   2. lint — ESLint flat + Prettier --check
 #   3. hygiene — syncpack + Knip + depcruise + security.txt expires
-#                gate + type-coverage + secretlint
+#                gate + type-coverage + secretlint + openapi codegen drift
 #   4. typecheck — TypeScript strict across workspaces
 #   5. test — Vitest unit (with v8 coverage)
 #   6. test-e2e — Playwright e2e + a11y (axe-core WCAG 2.2 AA + smoke + security + seo)
@@ -86,7 +86,7 @@ jobs:
     # Tier-1 dev-tooling gates (ADR-0007). Run early — fast, catches the
     # version-drift / unused-deps / graph-rule classes of regression
     # before the heavier typecheck + test jobs do.
-    name: Hygiene (syncpack + Knip + depcruise + security-txt + type-coverage + secretlint)
+    name: Hygiene (syncpack + Knip + depcruise + security-txt + type-coverage + secretlint + openapi-drift)
     needs: install
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -110,6 +110,14 @@ jobs:
         run: pnpm type-coverage
       - name: Secret scan (secretlint)
         run: pnpm secretlint
+      - name: OpenAPI codegen drift (spec ↔ generated types, ADR-0003)
+        # Regenerates @quilty/shared-types from the COMMITTED specs in
+        # packages/shared-types/spec/ and fails if src/generated/*.ts is
+        # stale. Catches the case where a spec is updated (via the
+        # cross-repo sync script) without re-running codegen. CI cannot
+        # reach the sibling quilty-aws repo, so it checks against the
+        # in-repo committed specs only.
+        run: pnpm --filter @quilty/shared-types codegen:check
 
   typecheck:
     name: Typecheck
@@ -172,6 +180,14 @@ jobs:
       # Set ONLY inside the CI test runner; never in any deployable
       # image. See apps/web/app/dev/boom/page.tsx for the gate logic.
       QUILTY_TEST_BOOM_ENABLED: '1'
+      # The e2e suite runs the PRODUCTION build (`pnpm start`,
+      # NODE_ENV=production), so the ADR-0030 fail-closed guard refuses
+      # the in-memory rate-limiter / consent / guest-state adapters unless
+      # this explicit opt-in is set. The CI runner has no DynamoDB tables —
+      # it deliberately exercises the AWS-parked interim wiring — so the
+      # opt-in is the documented + intended mechanism here. Never set in a
+      # deployable image (production sets the real table envs instead).
+      QUILTY_ALLOW_INMEMORY_ADAPTERS: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -247,7 +263,11 @@ jobs:
         # eliminates the double-build cost once the first 30-day
         # baseline lands — tracked on the C.1 watchlist.
         if: github.event_name == 'pull_request'
-        uses: andresz1/size-limit-action@v2
+        # Major-version tag `v1` (latest stable as of 2026-05-29).
+        # The action has no v2 release — refs/tags/v2 does not exist
+        # on the upstream repo, causing a "Set up job" failure with
+        # "Unable to resolve action ... v2". Pin to v1 (floating major).
+        uses: andresz1/size-limit-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           # skip_step: build — the head-branch build already ran in
@@ -267,9 +287,19 @@ jobs:
           retention-days: 1
 
   lighthouse:
-    # Lighthouse CI against pnpm start (production build) — CWV budgets
-    # in .lighthouserc.json. Fails the merge gate on a11y or SEO score
-    # regressions, warns on perf (calibrated as M1 baseline lands).
+    # Lighthouse CI against `next start` (production build).
+    #
+    # INFORMATIONAL-ONLY (continue-on-error) until M4-M6 / TW-015: per
+    # ADR-0018 + .size-limit.cjs, Lighthouse CI is explicitly deferred to
+    # M4-M6 — it "needs preview URLs + 3+ runs per URL for INP denoise",
+    # and size-limit (the `build` job) is the binding perf gate at M1.6.
+    # `.lighthouserc.json` currently asserts NOTHING (empty `assert`), and
+    # the collect step can't load http://localhost against a prod build that
+    # emits HSTS (Lighthouse's Chrome enforces an HTTPS interstitial that
+    # Playwright's Chromium does not) — the preview-HTTPS-URL setup that
+    # lands at M4-M6 is what makes this run cleanly. Keeping it green-blocking
+    # now would gate merges on a not-yet-functional check. It still runs so
+    # the report is visible; it just doesn't fail the workflow.
     name: Lighthouse CI
     needs: build
     runs-on: ubuntu-latest
@@ -288,6 +318,21 @@ jobs:
           name: web-build
           path: apps/web
       - name: Run Lighthouse CI
+        # Step-level continue-on-error so the job concludes SUCCESS (the
+        # report is still uploaded). Informational-only until M4-M6 / TW-015
+        # per the job comment above: empty asserts + the http-localhost-vs-
+        # prod-HSTS collect limitation that preview HTTPS URLs resolve.
+        continue-on-error: true
         run: pnpm lhci
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+          # lhci runs `next start` against the downloaded prod artifact.
+          # next.config.ts imports lib/env.ts, so `createEnv` re-validates
+          # at server boot (ADR-0030 fail-closed config) — NEXT_PUBLIC_SITE_URL
+          # is required or next.config fails to load + the server never serves
+          # (Chrome interstitial). CSRF_SECRET + the in-memory opt-in mirror
+          # the e2e job so any forms/container-constructing route also serves.
+          # CI-only test values; production wires the real SST secrets + tables.
+          NEXT_PUBLIC_SITE_URL: https://my-quilty.com
+          CSRF_SECRET: ci-test-only-csrf-secret-32chars-min-aaa
+          QUILTY_ALLOW_INMEMORY_ADAPTERS: 'true'

@@ -1,4 +1,5 @@
 import { CONSENT_COOKIE_NAME, COOKIE_REGISTRY, TAXONOMY_VERSION } from '@quilty/consent';
+import { makeEnvFlagEvaluator } from '@quilty/observability';
 import {
   buildMarketingCsp,
   buildPortalCsp,
@@ -13,6 +14,7 @@ import {
   MAINTENANCE_BYPASS_COOKIE_NAME,
   isMaintenanceBypassPath,
 } from '@/lib/edge/maintenance-allowlist';
+import { getTypedFlag } from '@/lib/flags/features';
 
 /**
  * Next.js 16 `proxy.ts` (renamed from `middleware.ts` per S4 + ADR-0005).
@@ -49,17 +51,22 @@ const CHANGE_PASSWORD_DESTINATION = `/${DEFAULT_LOCALE}/account/security`;
 // metadata still gets a response-level `X-Robots-Tag: noindex,
 // nofollow` on every path that should never appear in a SERP. The
 // patterns cover `/api/*` (Route Handlers — webhook callbacks,
-// auth, csp-report), `/account/*` + `/{locale}/account/*` (the
+// csp-report), `/auth/*` (the BFF token-handler routes, relocated
+// from `/api/auth/*`), `/account/*` + `/{locale}/account/*` (the
 // portal), and `/dev/*` (the dev-only diagnostic surface). The
 // page-metadata layer + the per-account-layout cascade remain in
 // place; this is the response-header tier.
 const NOINDEX_PATH_PATTERNS: readonly RegExp[] = [
   // Whole `/api/*` tree — broader than `isPortalRoute` in
   // `packages/security/src/domain/csp-builder.ts` (which only marks
-  // `/api/auth/*` + `/api/webhooks/*` as portal-CSP). The wider
+  // `/auth/*` + `/api/webhooks/*` as portal-CSP). The wider
   // surface is deliberate: every Route Handler — webhooks, future
   // payment callbacks, csp-report — must be unreachable via SERP.
   /^\/api\//,
+  // `/auth/*` — BFF token-handler routes (ADR-0029), apex-level
+  // (redirect_uri is `https://my-quilty.com/auth/callback`), relocated
+  // out of `/api/auth/*`. Portal CSP comes from isPortalRoute.
+  /^\/auth(\/|$)/,
   // `(\/|$)` alternation handles BOTH the trailing-slash subpage
   // case AND the no-trailing-slash account-index case
   // (`trailingSlash: false` in next.config.ts means `/en/account`
@@ -215,6 +222,70 @@ async function ensureCsrfCookieMint(request: NextRequest): Promise<string | null
   // proxy.ts forwards via `NextResponse.next({ request: { headers } })`.
   request.cookies.set(CSRF_COOKIE_NAME, token);
   return token;
+}
+
+/**
+ * Opaque anonymous guest-session cookie (ADR-0029 F). The value is an
+ * opaque id that keys the server-side `@quilty/guest-state` store of
+ * NON-health UI/nav state — the cookie itself carries no state + no PII.
+ * `__Host-` prefix (Secure + Path=/ + no Domain); httpOnly (never read
+ * client-side); session-scoped (privacy-lean default — revisit when the
+ * quiz UX lands).
+ */
+const GUEST_SESSION_COOKIE_NAME = '__Host-quilty_sid_guest';
+
+/**
+ * Guest-state activation gate (ADR-0029 F). Evaluated once at cold start
+ * (env-var flags are static per deploy). Default OFF: the carrier ships
+ * dormant — NO `__Host-quilty_sid_guest` cookie is set for visitors until
+ * a real consumer (the onboarding/quiz UX) + the `/legal/cookies`
+ * disclosure ship and this flag is flipped. Avoids setting an identifier
+ * cookie that nothing reads (privacy-by-design).
+ */
+const GUEST_STATE_ENABLED = getTypedFlag(makeEnvFlagEvaluator(), 'guest_state_enabled');
+
+/**
+ * Mint the guest-session id only on real top-level DOCUMENT navigations
+ * (`Sec-Fetch-Dest: document`, GET) — NOT on RSC payloads, prefetches,
+ * asset fetches, or API calls, so a guest id is not over-minted for every
+ * sub-resource. Portal + auth + API + webhook paths are excluded: the
+ * authenticated session owns its own identifiers there, and the guest
+ * carrier is a pre-sign-in concern.
+ */
+function isGuestNavigation(request: NextRequest, pathname: string): boolean {
+  if (request.method !== 'GET') return false;
+  if (request.headers.get('sec-fetch-dest') !== 'document') return false;
+  // `/api/` excluded with a string predicate (NOT a `/^\/`-anchored regex
+  // literal — the cf-functions noindex drift test extracts those from this
+  // file and these are not noindex patterns). `isPortalRoute` (imported,
+  // so invisible to the drift extractor) excludes the portal + `/auth/*`,
+  // matching the no-trailing-slash index `/{locale}/account` correctly.
+  if (pathname.startsWith('/api/')) return false;
+  if (isPortalRoute(pathname)) return false;
+  return true;
+}
+
+/**
+ * Mint-or-reuse the opaque guest-session id. Returns the fresh value to
+ * set on the response, OR `null` when the cookie already exists. Mirrors
+ * the CSRF mint: mutates `request.cookies` so a downstream Server
+ * Component reading `cookies().get()` sees the new value on THIS request.
+ *
+ * Web Crypto only (`crypto.getRandomValues`) — Edge-runtime safe, no
+ * `node:crypto`. 32 random bytes → base64url ≈ 256 bits of entropy, well
+ * above any guessing/fixation concern for an opaque session identifier.
+ */
+function ensureGuestSessionCookieMint(request: NextRequest, pathname: string): string | null {
+  if (request.cookies.has(GUEST_SESSION_COOKIE_NAME)) return null;
+  if (!isGuestNavigation(request, pathname)) return null;
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  const id = btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+  request.cookies.set(GUEST_SESSION_COOKIE_NAME, id);
+  return id;
 }
 
 /**
@@ -380,6 +451,13 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // canonical pre-render mint site (open risk #7 closure).
   const mintedCsrfToken = isFormsRoute(pathname) ? await ensureCsrfCookieMint(request) : null;
 
+  // Guest-session cookie mint (ADR-0029 F) — opaque anonymous id keying the
+  // server-side guest-state carrier. Dormant unless the activation flag is
+  // on; gated to document navigations only when active.
+  const mintedGuestId = GUEST_STATE_ENABLED
+    ? ensureGuestSessionCookieMint(request, pathname)
+    : null;
+
   // Propagate nonce to Server Components via request header. Server Components
   // read it via `(await headers()).get('x-nonce')` and pass to <JsonLd nonce>
   // (and any other nonce-aware inline-script consumer).
@@ -405,6 +483,21 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
       name: CSRF_COOKIE_NAME,
       value: mintedCsrfToken,
       httpOnly: false,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+    });
+  }
+
+  // Persist the freshly-minted guest-session id. httpOnly (never read
+  // client-side — the server-side store is the only consumer) + session-
+  // scoped (no maxAge): privacy-lean default for the zero-PHI guest tier.
+  // `__Host-` prefix => Secure + Path=/ + no Domain.
+  if (mintedGuestId !== null) {
+    response.cookies.set({
+      name: GUEST_SESSION_COOKIE_NAME,
+      value: mintedGuestId,
+      httpOnly: true,
       secure: true,
       sameSite: 'lax',
       path: '/',
@@ -487,11 +580,12 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 /**
  * Matcher excludes static assets + the .well-known prefix.
  *
- * `/api/*` is INCLUDED in CSP coverage — auth Route Handlers (OAuth
- * callbacks, sign-in flows) can return HTML responses that need the
- * portal-tier CSP, and security-test discipline (csp.spec.ts) asserts
- * the nonce on `/api/auth/*`. The per-request CPU cost of computing 7
- * headers is microseconds — not worth the security boundary erosion.
+ * `/api/*` + `/auth/*` are INCLUDED in CSP coverage — the BFF token
+ * handlers (OAuth callbacks, sign-in flows) at `/auth/*` can return HTML
+ * responses that need the portal-tier CSP, and security-test discipline
+ * (csp.spec.ts) asserts the nonce on `/auth/*`. The per-request CPU cost
+ * of computing 7 headers is microseconds — not worth the security
+ * boundary erosion.
  *
  * `/.well-known/change-password` is the lone .well-known path that
  * MUST flow through the proxy — it returns a 302 redirect, not a

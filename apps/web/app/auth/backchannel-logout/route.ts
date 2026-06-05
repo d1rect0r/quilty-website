@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
  * Logout (the `/.well-known/openid-configuration` does not advertise
  * `backchannel_logout_supported`; ID tokens do not emit the `sid` claim).
  * Cross-device sign-out is implemented via EventBridge fan-out instead
- * (see /api/auth/logout).
+ * (see /auth/logout).
  *
  * This endpoint is RESERVED for the day Cognito ships native OIDC BCL.
  * When that happens, flip this from 501 to: verify the signed `logout_token`
@@ -15,11 +15,16 @@ import { NextResponse } from 'next/server';
  * publish to EventBridge for consistency.
  *
  * Reserving the URL now avoids painful Route-Handler restructuring later.
+ *
+ * NOTE: hand-rolled BFF token handler (ADR-0029), NOT Auth.js/NextAuth.
+ * The `/auth/*` surface is apex-level (relocated from `/api/auth/*`) — do
+ * not "fix" it back to `/api/auth/*`; that breaks the portal-CSP + noindex
+ * classification keyed on `/auth/`.
  */
-export async function POST() {
+export async function POST(): Promise<NextResponse> {
   return NextResponse.json(
     {
-      error: 'Cognito does not support OIDC BCL yet. Use EventBridge fan-out via /api/auth/logout.',
+      error: 'Cognito does not support OIDC BCL yet. Use EventBridge fan-out via /auth/logout.',
     },
     { status: 501 },
   );

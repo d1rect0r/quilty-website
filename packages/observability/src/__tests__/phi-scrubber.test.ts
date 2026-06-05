@@ -134,10 +134,11 @@ describe('makePhiScrubber', () => {
     // owns. Future-Sentry-SDK fields (`fingerprint`, `spans`,
     // `measurements`, `sdkProcessingMetadata`, etc.) must round-trip
     // intact — they're not in SentryEventLike but live on the runtime
-    // event object via the SentryEventLike-to-Event cast at the
-    // beforeSend call site. If a future refactor drops the spread,
-    // this test fails loudly rather than silently dropping the
-    // vendor-extension fields at the chokepoint.
+    // event object. The generic `scrubSentryEvent<E>` signature carries
+    // the concrete event type `E` (here `SentryEventLike & passthrough`)
+    // straight through to the return type, so no cast is needed at the
+    // call site. If a future refactor drops the spread, this test fails
+    // loudly rather than silently dropping the vendor-extension fields.
     const passthroughFields = {
       fingerprint: ['my-group'],
       release: '1.2.3',
@@ -150,9 +151,7 @@ describe('makePhiScrubber', () => {
       message: 'hello user@example.com',
       ...passthroughFields,
     } as SentryEventLike & typeof passthroughFields;
-    const out = scrubber.scrubSentryEvent(evt) as
-      | (SentryEventLike & typeof passthroughFields)
-      | null;
+    const out = scrubber.scrubSentryEvent(evt);
     expect(out?.fingerprint).toEqual(['my-group']);
     expect(out?.release).toBe('1.2.3');
     expect(out?.environment).toBe('production');

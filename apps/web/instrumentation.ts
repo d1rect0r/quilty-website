@@ -1,28 +1,37 @@
+import 'server-only';
 import { isSensitiveKey } from '@quilty/security';
-import { registerOTel } from '@vercel/otel';
-
 /**
- * OpenTelemetry-first instrumentation (D56). Sentry's JS SDK is OTel-native
- * under the hood since 2024-2025 — by writing OTel-first via @vercel/otel,
- * Sentry RUM + APM data flows automatically AND we stay vendor-neutral
- * (Datadog, Honeycomb, SigNoz, etc., remain swap-ready behind the same
- * span calls).
+ * Sentry SERVER + EDGE initialization (Next.js 16 instrumentation API).
  *
- * W3C tracecontext + baggage propagators only (no B3, no Jaeger). The
- * propagators are the canonical 2026 picks; B3 is legacy Zipkin and
- * Jaeger is being absorbed into OTel.
+ * `@sentry/nextjs` v10 is OTel-native and OWNS the OpenTelemetry tracer
+ * provider: `Sentry.init` (run by the dynamic imports below) installs the
+ * context manager, propagator, and span processor, and auto-captures any
+ * span started via `@opentelemetry/api`. We therefore do NOT register a
+ * separate `@vercel/otel` provider — two providers compete for the global
+ * context manager and silently break request isolation + trace linking
+ * (Sentry's documented "existing OTel setup" conflict). Vendor-neutrality
+ * is preserved: spans still flow through the standard `@opentelemetry/api`
+ * (which `@quilty/api-client` uses for W3C traceparent), and a future
+ * backend swap (Datadog/Honeycomb) re-introduces an OTLP exporter behind
+ * the same span calls.
  *
- * Per ADR-0004 + the LaunchDarkly outage lesson: instrumentation must
- * never hard-block the request. registerOTel returns silently on
- * misconfiguration; we tolerate that and let the rest of the request
- * succeed even if tracing isn't set up.
+ * This REVISES D56's "OTel-first via @vercel/otel" mechanism: the original
+ * premise that "Sentry auto-registers as the OTLP exporter and @vercel/otel
+ * picks it up" is inverted for @sentry/nextjs v10, where Sentry is itself
+ * the OTel layer. See ADR-0004 + the strategy-doc update log.
+ *
+ * Ordering: Sentry.init must own OTel before anything else sets up a
+ * provider; importing the runtime config first in `register()` guarantees
+ * that. Per ADR-0004 + the LaunchDarkly outage lesson, init must never
+ * hard-block the request — the SDK no-ops on a missing/empty DSN.
  */
-export function register() {
-  registerOTel({
-    serviceName: 'quilty-web',
-    // Sentry's Next.js SDK auto-registers as the OTLP exporter; @vercel/otel
-    // picks it up. No explicit exporter config needed here.
-  });
+export async function register() {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    await import('./sentry.server.config');
+  }
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    await import('./sentry.edge.config');
+  }
 }
 
 /**

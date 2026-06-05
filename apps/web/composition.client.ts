@@ -25,7 +25,7 @@
 
 import { makeDefaultDenyConsentReader } from '@quilty/consent';
 import {
-  makeAmplitudeAnalytics,
+  makeAmplitudeBrowserAnalytics,
   makeBrowserLogger,
   makeEnvFlagEvaluator,
   makePhiScrubber,
@@ -36,6 +36,7 @@ import {
 } from '@quilty/observability';
 import { makeInMemorySearchIndex } from '@quilty/search/testing';
 import { makeSanitizer } from '@quilty/security';
+import { getTypedFlag } from './lib/flags/features';
 import type { ClientContainer } from './lib/get-container';
 
 export function makeClientContainer(): ClientContainer {
@@ -50,6 +51,13 @@ export function makeClientContainer(): ClientContainer {
     sanitizer,
   });
 
+  // Feature flags constructed first: the Amplitude browser adapter's
+  // activation is gated on `analytics_client_enabled`. With the flag off
+  // (default) or no public API key the adapter stays dormant (log-only,
+  // zero beacon); consent + GPC remain enforced upstream by wrapAnalytics.
+  const featureFlags = makeEnvFlagEvaluator();
+  const analyticsClientEnabled = getTypedFlag(featureFlags, 'analytics_client_enabled');
+
   return {
     runtime: 'client',
     sanitizer,
@@ -57,7 +65,14 @@ export function makeClientContainer(): ClientContainer {
     analytics: wrapAnalytics({
       // See composition.server.ts for the destination fan-out rationale.
       destinations: new Map([
-        ['product-analytics', makeAmplitudeAnalytics({ logger: wrappedLogger })],
+        [
+          'product-analytics',
+          makeAmplitudeBrowserAnalytics({
+            logger: wrappedLogger,
+            apiKey: process.env.NEXT_PUBLIC_AMPLITUDE_API_KEY,
+            enabled: analyticsClientEnabled,
+          }),
+        ],
       ]),
       consentReader: makeDefaultDenyConsentReader(),
       sanitizer,
@@ -70,7 +85,7 @@ export function makeClientContainer(): ClientContainer {
       adapter: makeSentryErrorReporter(),
       sanitizer,
     }),
-    featureFlags: makeEnvFlagEvaluator(),
+    featureFlags,
     phiScrubber: makePhiScrubber(),
     // SearchIndex (ADR-0019). In-memory fake is the default wiring
     // because Pagefind would have nothing to index (zero MDX

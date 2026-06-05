@@ -26,10 +26,10 @@ test('@security portal route ships nonce + strict-dynamic CSP', async ({ request
   expect(csp).toContain("'strict-dynamic'");
 });
 
-test('@security API auth route ships portal-tier CSP', async ({ request }) => {
-  const response = await request.get('/api/auth/session');
+test('@security auth route ships portal-tier CSP', async ({ request }) => {
+  const response = await request.get('/auth/session');
   const csp = response.headers()['content-security-policy-report-only'];
   // Even though the response is 501, the proxy layer still applies CSP.
-  expect(csp, 'CSP report-only header must be set on /api/auth/* routes').toBeDefined();
+  expect(csp, 'CSP report-only header must be set on /auth/* routes').toBeDefined();
   expect(csp).toMatch(/'nonce-[A-Za-z0-9_-]+'/);
 });

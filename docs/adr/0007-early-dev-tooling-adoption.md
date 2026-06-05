@@ -11,8 +11,8 @@
 The 12-commit M1 scaffold landed a strong correctness baseline: TS
 strict, ESLint flat with jsx-a11y strict-tier, Prettier, Husky +
 lint-staged, Vitest, Playwright + axe-core fail-on-violation, Sentry
-with PHI sanitizer chokepoint, OpenTelemetry via @vercel/otel,
-Velite + Zod content layer, Renovate.
+with PHI sanitizer chokepoint, OpenTelemetry owned by the Sentry SDK
+(D56 revised — `@vercel/otel` removed), Velite + Zod content layer, Renovate.
 
 What the M1 baseline did **not** cover:
 
@@ -32,8 +32,8 @@ What the M1 baseline did **not** cover:
 4. **External bundle observability.** Next.js 16 deleted per-route
    build statistics (Vercel acknowledged the numbers were
    unreliable). Without external bundle budgeting, a regression from
-   accidental client-side imports of Sentry server SDK or PostHog
-   without consent-gate would ship invisibly.
+   accidental client-side imports of the Sentry server SDK or the
+   Amplitude analytics SDK without consent-gate would ship invisibly.
 5. **Continuous CWV measurement.** axe-core fails on a11y violations
    on every PR, but no equivalent for LCP / CLS / TBT. A marketing
    site whose pitch is "HIPAA-aligned + performant" cannot afford to
@@ -149,7 +149,7 @@ baseline run.
 ## Future work
 
 - M2: Flip Knip `--include exports,types` on once Velite content
-  consumes block schemas + Sentry/PostHog adapters are exercised.
+  consumes block schemas + Sentry/Amplitude adapters are exercised.
 - M3: Ratchet type-coverage from 97% to 99% when SST + Velite SDK
   typings improve.
 - M3+: Add Ladle for component playground + Argos CI for visual

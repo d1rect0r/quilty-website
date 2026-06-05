@@ -62,6 +62,17 @@ export interface FeatureFlags {
    * controls only the install-prompt surface visibility.
    */
   install_prompt_enabled: boolean;
+  /**
+   * Anonymous guest-state carrier activation (ADR-0029 F). Gates the
+   * `__Host-quilty_sid_guest` cookie mint in `proxy.ts`. Default OFF: the
+   * carrier package + store + composition wiring ship now, but NO cookie
+   * is set for visitors until a real consumer exists (the onboarding/quiz
+   * UX) and the `/legal/cookies` disclosure lists it — flipping this flag
+   * then activates minting. Shipping dormant avoids setting an identifier
+   * cookie that nothing reads (privacy-by-design; the cookie's `essential`
+   * classification holds only once it actually carries guest progress).
+   */
+  guest_state_enabled: boolean;
 }
 
 export const FEATURE_FLAG_DEFAULTS: FeatureFlags = {
@@ -71,6 +82,7 @@ export const FEATURE_FLAG_DEFAULTS: FeatureFlags = {
   sentry_replay_boost: false,
   search_enabled: false,
   install_prompt_enabled: false,
+  guest_state_enabled: false,
 };
 
 /**

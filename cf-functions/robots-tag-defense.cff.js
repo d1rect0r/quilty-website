@@ -5,7 +5,8 @@
  * `X-Robots-Tag: noindex, nofollow` on response paths that must never
  * appear in a SERP:
  *
- *   - `/api/*` — Route Handlers (webhooks, OAuth callbacks, csp-report).
+ *   - `/api/*` — Route Handlers (webhooks, csp-report).
+ *   - `/auth/*` — BFF token-handler routes (ADR-0029, relocated from /api/auth/*).
  *   - `/account/*` + `/{locale}/account/*` — the portal.
  *   - `/dev/*` — dev-only diagnostic surface.
  *   - `/(410|451|503)` + `/{locale}/(410|451|503)` — status pages.
@@ -28,6 +29,7 @@
 // 3-letter ISO 639-2 prefixes (e.g., `zho`, `hin`, `ara`).
 const NOINDEX_PATTERNS = [
   /^\/api\//,
+  /^\/auth(\/|$)/,
   /^\/account(\/|$)/,
   /^\/[a-z]{2,}\/account(\/|$)/,
   /^\/dev(\/|$)/,

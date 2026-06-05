@@ -1,17 +1,19 @@
 /**
- * Amplitude Analytics adapter (D42b revised — Amplitude all-in for web +
- * mobile under one vendor).
+ * Amplitude Analytics — no-network log adapter (D42b: Amplitude all-in for
+ * web + mobile under one vendor).
  *
- * Pre-BAA posture: the adapter logs to CloudWatch via the Logger port
- * instead of emitting to Amplitude's network. This lets the team observe
- * what WOULD be tracked without sending to a vendor before the Amplitude
- * BAA upgrade activates. The function signature stays — when the SDK
- * init flips on, only the body changes, not the consumer call sites.
+ * This is the tier-neutral, no-network variant: it logs the event name via
+ * the Logger port instead of emitting to Amplitude. It is wired on the EDGE
+ * composition root (the `@amplitude/analytics-node` SDK is not Edge-runtime
+ * safe) and used as the default test fixture. The real network adapters live
+ * alongside this file:
+ *   - `amplitude-browser.ts` — Browser SDK 2 (client composition root).
+ *   - `amplitude-node.ts`    — Node SDK (server composition root).
  *
  * Amplitude Session Replay is REJECTED outright per D68 (HTML-attribute
  * leak structurally unsafe on a clinical surface even with Enterprise
- * BAA). Sentry Replay is the only replay vendor; this adapter never
- * touches the Amplitude Replay API.
+ * BAA). Sentry Replay is the only replay vendor; no adapter here touches
+ * the Amplitude Replay API.
  */
 
 import type { Analytics, AnalyticsCallContext, AnalyticsEvent, Logger } from '../ports';

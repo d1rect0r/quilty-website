@@ -8,7 +8,8 @@
  *   - `./sync` — `paths` + `components` types for the offline-first
  *     mobile-sync API surface (`quilty-aws/docs/api/openapi.yaml`).
  *
- * Regenerate locally via `node apps/web/scripts/codegen-api-types.mjs`.
+ * Regenerate locally via `pnpm --filter @quilty/shared-types codegen`
+ * (the package script the CI drift-check runs).
  * The full CI publish pipeline activates at the codegen-CI trigger per ADR-0003; until
  * then the generated files are committed to source so the workspace
  * stays self-contained at every checkout.

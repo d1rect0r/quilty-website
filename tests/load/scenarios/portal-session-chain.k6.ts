@@ -33,18 +33,18 @@ export const options = {
 
 export default function portalSessionChain(): void {
   // Auth-refresh roundtrip. PRE-AUTH-INTEGRATION (TW-014): the
-  // `/api/auth/session` route returns 404 because the Cognito
-  // wiring + session-store endpoint haven't landed. The check
-  // below accepts 404 explicitly during this window so the
-  // scenario can still exercise the proxy + cookie-decode +
-  // edge-routing latency path. When real auth ships, swap the
-  // 404 acceptance for 200|401 ONLY (a 404 then signals a route
-  // regression that should fail CI).
-  const res = http.get(`${SITE_URL}/api/auth/session`, {
+  // `/auth/session` route (relocated from `/api/auth/session` per
+  // ADR-0029) is a reserved 501-stub until the Cognito wiring +
+  // session-store endpoint land. The check below accepts 501
+  // explicitly during this window so the scenario can still exercise
+  // the proxy + cookie-decode + edge-routing latency path. When real
+  // auth ships, swap the 501 acceptance for 200|401 ONLY (a 404/501
+  // then signals a route regression that should fail CI).
+  const res = http.get(`${SITE_URL}/auth/session`, {
     tags: { scenario: SCENARIO_NAME },
   });
   check(res, {
-    'status is 200, 401, or 404 (pre-auth-integration)': (r) =>
-      r.status === 200 || r.status === 401 || r.status === 404,
+    'status is 200, 401, or 501 (pre-auth-integration stub)': (r) =>
+      r.status === 200 || r.status === 401 || r.status === 501,
   });
 }

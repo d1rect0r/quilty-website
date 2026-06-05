@@ -34,13 +34,13 @@ Hand-rolling Workbox (vs a npm plugin):
 
 ### Decision B — Cache strategies per route type
 
-| Route family                                                                       | Strategy                               |
-| ---------------------------------------------------------------------------------- | -------------------------------------- |
-| `/_next/static/*`, `/static/*`, fonts, icons, manifest                             | CacheFirst (30-day expiry)             |
-| Navigations + HTML routes                                                          | NetworkFirst, 3s timeout (then cache)  |
-| `/api/auth/*`, `/api/contact`, `/api/csp-report`, `/api/dsar/*`, `/api/webhooks/*` | NetworkOnly (excluded from SW caching) |
-| `/[locale]/account/*` (portal)                                                     | NetworkOnly                            |
-| `?_rsc=*` (RSC payloads), Sentry/PostHog tunnels                                   | NetworkOnly                            |
+| Route family                                                                   | Strategy                               |
+| ------------------------------------------------------------------------------ | -------------------------------------- |
+| `/_next/static/*`, `/static/*`, fonts, icons, manifest                         | CacheFirst (30-day expiry)             |
+| Navigations + HTML routes                                                      | NetworkFirst, 3s timeout (then cache)  |
+| `/auth/*`, `/api/contact`, `/api/csp-report`, `/api/dsar/*`, `/api/webhooks/*` | NetworkOnly (excluded from SW caching) |
+| `/[locale]/account/*` (portal)                                                 | NetworkOnly                            |
+| `?_rsc=*` (RSC payloads)                                                       | NetworkOnly                            |
 
 The exclusion list is the dominant PHI defense — every route that could plausibly carry a name, email, account-state, or session fragment gets bypassed entirely. NetworkFirst with a 3s timeout for HTML balances marketing-freshness against offline-first.
 

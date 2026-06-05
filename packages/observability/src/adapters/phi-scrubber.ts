@@ -5,7 +5,7 @@ import type { PHIScrubber, SentryEventLike } from '../ports';
  * PHIScrubber adapter — delegates to the @quilty/security sanitizer.
  *
  * Replaces the inline `beforeSend` hook that was previously duplicated
- * across `sentry.client.config.ts` + `sentry.server.config.ts` +
+ * across `instrumentation-client.ts` + `sentry.server.config.ts` +
  * `sentry.edge.config.ts`. The same scrub now runs at the composition-
  * root chokepoint (D77 + ADR-0010) so a future Sentry SDK upgrade or
  * a swap to Datadog / Honeycomb is a single-adapter change instead of
@@ -48,8 +48,12 @@ import type { PHIScrubber, SentryEventLike } from '../ports';
  */
 export function makePhiScrubber(): PHIScrubber {
   return {
-    scrubSentryEvent(event: SentryEventLike): SentryEventLike | null {
-      const scrubbed: SentryEventLike = { ...event };
+    scrubSentryEvent<E extends SentryEventLike>(event: E): E | null {
+      // The spread preserves every field of `E` (including the un-touched
+      // vendor-specific ones the port doesn't model); we only mutate fields
+      // that exist on the `SentryEventLike` subset. A single `as E` on the
+      // provably field-preserving spread keeps the public return type exact.
+      const scrubbed = { ...event } as E;
 
       // Request path scrub — strip query + sanitize headers, null body.
       if (scrubbed.request !== undefined) {

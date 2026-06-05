@@ -1,4 +1,13 @@
+import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
+
+// Side-effect import: runs `createEnv` at config-load time so a missing or
+// malformed environment variable FAILS THE BUILD with a clear Zod error,
+// rather than surfacing as an undefined at runtime. `next.config.ts` is the
+// one module guaranteed to load on every `next build`/`next dev` — Next.js
+// #79536 documents `instrumentation.ts` as unreliable for build-time env
+// validation. See `lib/env.ts` for the scope rationale.
+import './lib/env';
 
 type RewritesReturn = Awaited<ReturnType<NonNullable<NextConfig['rewrites']>>>;
 type RedirectsReturn = Awaited<ReturnType<NonNullable<NextConfig['redirects']>>>;
@@ -145,6 +154,7 @@ const config: NextConfig = {
     '@quilty/consent',
     '@quilty/content',
     '@quilty/email',
+    '@quilty/guest-state',
     '@quilty/observability',
     '@quilty/rate-limit',
     '@quilty/security',
@@ -163,6 +173,7 @@ const config: NextConfig = {
       '@quilty/consent',
       '@quilty/content',
       '@quilty/email',
+      '@quilty/guest-state',
       '@quilty/observability',
       '@quilty/rate-limit',
       '@quilty/security',
@@ -186,4 +197,53 @@ const config: NextConfig = {
   rewrites: siteRewrites,
 };
 
-export default config;
+/**
+ * `withSentryConfig` wires the Sentry build plugin: it loads the
+ * `instrumentation-client.ts` client init, injects release + source-map
+ * upload, and tree-shakes debug code. It must be the OUTERMOST wrapper
+ * (last transform before `export default`). All options are tuned for a
+ * self-hosted-on-AWS (non-Vercel), low-traffic, zero-PHI launch.
+ *
+ * Safe to land before the Sentry project/DSN exist: with SENTRY_AUTH_TOKEN
+ * unset, the plugin SKIPS source-map upload (informational log, not an
+ * error) and the build still succeeds. The token is provisioned at the
+ * deploy gate (deploy.yml), never in CI builds.
+ */
+// `authToken` is OMITTED (not set to `undefined`) when the env var is
+// unset — `exactOptionalPropertyTypes` forbids passing `undefined` to the
+// `string`-typed option, and an omitted token IS the no-op path (build
+// succeeds, source-map upload skipped). Provisioned at the deploy gate
+// (deploy.yml), never in CI builds.
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
+
+export default withSentryConfig(config, {
+  // Org + project slugs — only consumed when source maps actually upload
+  // (i.e. when SENTRY_AUTH_TOKEN is present at deploy). Env-overridable so
+  // the deploy can point at the real provisioned project; the defaults
+  // match the intended slugs.
+  org: process.env.SENTRY_ORG ?? 'quilty',
+  project: process.env.SENTRY_PROJECT ?? 'quilty-web',
+  ...(sentryAuthToken ? { authToken: sentryAuthToken } : {}),
+  // Quiet local builds; verbose in CI.
+  silent: !process.env.CI,
+  // HIPAA-aligned org — do not phone home build telemetry to Sentry.
+  telemetry: false,
+  // Never serve readable source maps from CloudFront (zero-PHI, D31).
+  // Default is already true; set explicitly because it is load-bearing.
+  sourcemaps: { deleteSourcemapsAfterUpload: true },
+  // Tree-shake the SDK's internal debug logging → smaller client bundle
+  // (ADR-0018 size-limit budgets). The top-level `disableLogger` is
+  // deprecated in @sentry/nextjs 10.53; the replacement is this nested
+  // webpack option.
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
+  // Upload dependency + Next-internal maps too → readable stack traces.
+  widenClientFileUpload: true,
+  // NO `tunnelRoute`: a tunnel proxies browser telemetry through our origin
+  // and defeats the CSP `connect-src` ingest-host pin (pinnedSentryHostOrNull).
+  // Ingest goes straight to the pinned *.ingest.us.sentry.io host.
+  // NO `automaticVercelMonitors`: this deploys to AWS, not Vercel.
+});

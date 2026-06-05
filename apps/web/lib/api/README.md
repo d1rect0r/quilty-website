@@ -9,7 +9,7 @@ api/
 ├── README.md            (this file)
 ├── client.ts            base fetch wrapper — auth header injection, timeout, retry policy, error mapping
 ├── errors.ts            typed errors at the BFF↔Rust boundary (BackendUnavailableError, BackendAuthError, ...)
-├── auth.ts              auth-endpoint client functions (consumed by app/api/auth/* Route Handlers)
+├── auth.ts              auth-endpoint client functions (consumed by app/auth/* Route Handlers)
 ├── account.ts           account-endpoint client functions
 ├── subscription.ts      subscription-endpoint client functions (consumed by app/api/webhooks/stripe at M7)
 └── ... (one file per Rust endpoint group)

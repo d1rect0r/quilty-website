@@ -38,9 +38,9 @@ The strategy doc is authoritative for D1-D49 + Round-5 revisions + D50-D69 + U1-
   - `packages/shared-types/package.json` → `"name": "@quilty/shared-types"`
   - _(`packages/ui/` not scaffolded at M1 per D69; reserved name `"@quilty/ui"` for when it gets created at extraction trigger)_
 - **Node + pnpm:** Node 24 LTS + pnpm 10 _(revised Round 5 — S3)_; pinned via `packageManager` + `.nvmrc` + `engines`
-- **Observability:** Sentry Business tier (errors + RUM + error-triggered replay) from day-one (D42a); **PostHog Cloud Boost ($250/mo) for web analytics + replay + flags + experiments** from D42b _(Round-5 revised — was Amplitude)_; mobile keeps Amplitude (separate contract); OpenTelemetry-first via `@vercel/otel` (D56)
+- **Observability:** Sentry Business tier (errors + RUM + error-triggered replay) from day-one (D42a); **Amplitude all-in for web + mobile analytics** (D42b _revised 2026-05-19 — supersedes the Round-5 PostHog-for-web lock; see the ADR-0004 revision note_); session replay is **Sentry-only** (Amplitude Session Replay rejected, D68); OpenTelemetry is owned by the `@sentry/nextjs` v10 SDK (D56 _revised — `@vercel/otel` removed_)
 - **Logs:** CloudWatch — server-side only, zero PHI (D42d); PHI sanitizer + `assertNoPHI` + ESLint `no-console` + ban-direct-vendor-SDK-imports outside `lib/observability/` (D67)
-- **Feature flags:** Typed `features.ts` env-var module day-one; **PostHog flags at trigger point** (D43 _Round-5 revised — was GrowthBook_)
+- **Feature flags:** Typed `features.ts` env-var module day-one; **stays the typed env-var module** until a real flag-vendor trigger (D43 _revised — the PostHog/GrowthBook flag pivots are both dropped_)
 - **Performance:** `next/font` variable font + `next/image` priority/sizes discipline (D21)
 - **A11y:** axe-core in CI fail-on-violation + `eslint-plugin-jsx-a11y` in pre-commit; WCAG 2.2 AA target (D22, D23)
 - **i18n:** next-intl with `/[locale]/` route segment reserved, English-only at launch (D14, D25)
@@ -164,8 +164,8 @@ Read MEMORY.md first when picking up any task — it indexes locked decisions (D
 - **Tailwind v4 CSS-first** in `apps/web/app/globals.css` `@theme` block — **NO `tailwind.config.ts`** (D17 clarified)
 - **`proxy.ts` not `middleware.ts`** — Next.js 16 renamed the file convention (S4 revised)
 - **Two-tier CSP per-route** — marketing static-hashed / portal nonce + strict-dynamic (D59)
-- **OpenTelemetry-first** via `@vercel/otel`; Sentry consumes OTel spans (D56)
-- **PostHog Cloud Boost** for web analytics + replay + flags (D42b/D43 revised); Amplitude only for mobile
+- **OpenTelemetry owned by the Sentry SDK** (`@sentry/nextjs` v10 instruments OTel itself; `@vercel/otel` removed) — business logic still uses vendor-neutral `@opentelemetry/api` (D56 _revised_)
+- **Amplitude** for web + mobile analytics (D42b _revised_); session replay is Sentry-only (D68); PostHog dropped entirely
 - **Opaque session-ID + DynamoDB store** for auth sessions; NOT iron-session (D51)
 - **Cognito doesn't support OIDC Back-Channel Logout or emit `sid`** (D9/D11 revised) — use EventBridge fan-out
 - **Velite + Zod** for MDX content (D64), typed discriminated-union block library (D65)
