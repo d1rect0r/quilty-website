@@ -180,6 +180,14 @@ jobs:
       # Set ONLY inside the CI test runner; never in any deployable
       # image. See apps/web/app/dev/boom/page.tsx for the gate logic.
       QUILTY_TEST_BOOM_ENABLED: '1'
+      # The e2e suite runs the PRODUCTION build (`pnpm start`,
+      # NODE_ENV=production), so the ADR-0030 fail-closed guard refuses
+      # the in-memory rate-limiter / consent / guest-state adapters unless
+      # this explicit opt-in is set. The CI runner has no DynamoDB tables —
+      # it deliberately exercises the AWS-parked interim wiring — so the
+      # opt-in is the documented + intended mechanism here. Never set in a
+      # deployable image (production sets the real table envs instead).
+      QUILTY_ALLOW_INMEMORY_ADAPTERS: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
