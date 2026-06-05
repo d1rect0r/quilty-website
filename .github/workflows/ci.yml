@@ -311,3 +311,13 @@ jobs:
         run: pnpm lhci
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+          # lhci runs `next start` against the downloaded prod artifact.
+          # next.config.ts imports lib/env.ts, so `createEnv` re-validates
+          # at server boot (ADR-0030 fail-closed config) — NEXT_PUBLIC_SITE_URL
+          # is required or next.config fails to load + the server never serves
+          # (Chrome interstitial). CSRF_SECRET + the in-memory opt-in mirror
+          # the e2e job so any forms/container-constructing route also serves.
+          # CI-only test values; production wires the real SST secrets + tables.
+          NEXT_PUBLIC_SITE_URL: https://my-quilty.com
+          CSRF_SECRET: ci-test-only-csrf-secret-32chars-min-aaa
+          QUILTY_ALLOW_INMEMORY_ADAPTERS: 'true'
