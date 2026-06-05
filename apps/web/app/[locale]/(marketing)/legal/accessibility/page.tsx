@@ -1,5 +1,6 @@
 import { buildBreadcrumbsJsonLd, buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
 import Link from 'next/link';
+import { env } from '@/lib/env';
 import { formatReviewDate, toIsoDateTime } from '@/lib/format-date';
 import type { Metadata } from 'next';
 
@@ -24,7 +25,7 @@ import type { Metadata } from 'next';
  * shorter alias travels well on business cards + email signatures.
  */
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+const siteUrl = env.NEXT_PUBLIC_SITE_URL;
 const pageUrl = `${siteUrl}/en/legal/accessibility`;
 
 const PAGE_TITLE = 'Accessibility Statement';

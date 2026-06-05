@@ -6,6 +6,7 @@ import {
   buildWebSiteJsonLd,
   JsonLd,
 } from '@quilty/seo';
+import { env } from '@/lib/env';
 import { Providers } from '@/components/app/Providers';
 import { ServiceWorkerRegistrar } from '@/components/site/ServiceWorkerRegistrar';
 import { Spotlight } from '@/components/dev/Spotlight';
@@ -25,7 +26,7 @@ import './globals.css';
  * per-route metadata is resolved (Googlebot then indexes an empty title).
  */
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+const siteUrl = env.NEXT_PUBLIC_SITE_URL;
 const SITE_DESCRIPTION =
   'Quilty — an evidence-based vaping cessation program. A coach in your pocket to help you quit vaping for good.';
 const SITE_TITLE = 'Quilty';

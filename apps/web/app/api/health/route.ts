@@ -59,6 +59,12 @@ interface HealthResponse {
 }
 
 export async function GET(): Promise<NextResponse<HealthResponse>> {
+  // Raw `process.env` (not `@/lib/env`) by design: read per-GET at request
+  // time (route handlers are the request-time tier the rendering-tier lint
+  // rule exempts), and the unit test mutates it with `vi.stubEnv` per case —
+  // `@t3-oss/env-nextjs` snapshots at import, so a validated-env read could
+  // not observe that. NEXT_PUBLIC_BUILD_SHA is intentionally undeclared in
+  // env.ts (optional, informational build stamp).
   // `||` (not `??`) so empty-string also falls through to `'unknown'`.
   // Vercel + SST + CI environments occasionally set the env var to
   // empty rather than unsetting it; treating both as "unknown" keeps

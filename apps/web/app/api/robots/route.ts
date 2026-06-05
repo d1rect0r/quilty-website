@@ -89,6 +89,14 @@ const PRIVATE_PATHS = [
 const CONTENT_SIGNAL = 'Content-Signal: search=yes, ai-input=yes, ai-train=no';
 
 function originFromRequest(request: NextRequest): string {
+  // Deliberately raw `process.env` (not the validated `@/lib/env`): this
+  // crawler-facing endpoint prefers the request-derived origin as a
+  // fallback so robots.txt stays correct when served from a preview deploy
+  // or an alternate domain (the .app/.com split), even though
+  // NEXT_PUBLIC_SITE_URL is required at build. That optional-with-runtime-
+  // fallback shape isn't expressible in the required `env` schema, so this
+  // is the conscious route-handler exception the rendering-tier lint rule
+  // carves out.
   const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (explicit !== undefined && explicit !== '') {
     // Round-trip through `new URL` so a malformed env var (no scheme,

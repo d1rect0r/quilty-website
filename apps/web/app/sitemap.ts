@@ -1,3 +1,4 @@
+import { env } from '@/lib/env';
 import type { MetadataRoute } from 'next';
 
 /**
@@ -148,7 +149,7 @@ const MARKETING_ROUTES: readonly MarketingRoute[] = [
 ] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+  const base = env.NEXT_PUBLIC_SITE_URL;
 
   return SUPPORTED_LOCALES.flatMap((locale) =>
     MARKETING_ROUTES.map((route) => ({

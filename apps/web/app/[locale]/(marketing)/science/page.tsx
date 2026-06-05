@@ -1,4 +1,5 @@
 import { buildMedicalWebPageJsonLd, JsonLd } from '@quilty/seo';
+import { env } from '@/lib/env';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
   },
 };
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+const SITE_URL = env.NEXT_PUBLIC_SITE_URL;
 
 export default function SciencePage() {
   return (

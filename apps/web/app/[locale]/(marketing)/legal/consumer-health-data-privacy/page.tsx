@@ -1,5 +1,6 @@
 import { buildBreadcrumbsJsonLd, buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
 import Link from 'next/link';
+import { env } from '@/lib/env';
 import { formatReviewDate, toIsoDateTime } from '@/lib/format-date';
 import type { Metadata } from 'next';
 
@@ -32,7 +33,7 @@ import type { Metadata } from 'next';
  * D153, geofencing-ban acknowledgment) is locked here.
  */
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+const siteUrl = env.NEXT_PUBLIC_SITE_URL;
 const pageUrl = `${siteUrl}/en/legal/consumer-health-data-privacy`;
 
 const PAGE_TITLE = 'Consumer Health Data Privacy Policy (Washington)';

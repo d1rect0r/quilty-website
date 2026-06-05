@@ -132,6 +132,72 @@ const PHI_IN_ERROR_SELECTORS = [
   },
 ];
 
+// `no-restricted-syntax` replaces (does not merge) its selector array per
+// matching config block. These shared selector groups are composed into the
+// global, rendering-tier, and legal-page blocks so a scoped block can ADD a
+// selector (e.g. the env-access ban) without silently dropping the
+// compliance selectors (HIPAA / DPO / PHI). [flat-config array-replace]
+const EXPORT_ALL_SELECTOR = {
+  selector: 'ExportAllDeclaration',
+  message:
+    'Use named re-exports (`export { foo } from`) instead of `export *` — star re-exports defeat tree-shaking. See Hagemeister + Vercel #27401.',
+};
+
+const HIPAA_CLAIM_MESSAGE =
+  'Never claim "HIPAA-compliant" or "HIPAA compliance" — use "HIPAA-aligned." Compliance without third-party attestation is FTC §5 deceptive-acts (Cerebral $7M settlement precedent). [D104]';
+const HIPAA_CLAIM_SELECTORS = [
+  { selector: 'Literal[value=/HIPAA[-\\s]compli(?:ant|ance)/i]', message: HIPAA_CLAIM_MESSAGE },
+  {
+    selector: 'TemplateElement[value.raw=/HIPAA[-\\s]compli(?:ant|ance)/i]',
+    message: HIPAA_CLAIM_MESSAGE,
+  },
+  { selector: 'JSXText[value=/HIPAA[-\\s]compli(?:ant|ance)/i]', message: HIPAA_CLAIM_MESSAGE },
+];
+
+const DPO_TITLE_SELECTORS = [
+  {
+    selector: 'Literal[value=/\\bDPO\\b/i]',
+    message:
+      'Use "Privacy Lead" — never "DPO" as a self-applied title. Claiming a Data Protection Officer without GDPR Art 37 appointment is fineable (Austrian €5K + CJEU C-453/21 + Belgian €50K precedents). [D136] (Legal pages may name "Data Protection Officer" in the Art 37 non-appointment disclosure — that exception is scoped via files: override.)',
+  },
+  {
+    selector: 'TemplateElement[value.raw=/\\bDPO\\b/i]',
+    message:
+      'Use "Privacy Lead" — never "DPO" as a self-applied title. Claiming a Data Protection Officer without GDPR Art 37 appointment is fineable (Austrian €5K + CJEU C-453/21 + Belgian €50K precedents). [D136]',
+  },
+  {
+    selector: 'JSXText[value=/\\bDPO\\b/i]',
+    message:
+      'Use "Privacy Lead" — never "DPO" as a self-applied title. Claiming a Data Protection Officer without GDPR Art 37 appointment is fineable (Austrian €5K + CJEU C-453/21 + Belgian €50K precedents). [D136]',
+  },
+];
+
+// Bans raw `process.env.<KEY>` in the rendering tier (see the rendering-tier
+// block below for scope + rationale). `process.env.NODE_ENV` is exempted by
+// both dot (`property.name`) and computed (`property.value`) access so the
+// bundler's dead-code-elimination guard keeps working.
+const ENV_ACCESS_SELECTOR = {
+  selector:
+    "MemberExpression[object.object.name='process'][object.property.name='env'][property.name!='NODE_ENV'][property.value!='NODE_ENV']",
+  message:
+    'Read configuration through the validated `@/lib/env` module, not raw `process.env`, so a missing/malformed value fails the build at boot (ADR-0030). Exceptions: `process.env.NODE_ENV` (bundler dead-code elimination) and route handlers (app/api/**), which read request-time / server / optional-fallback env that t3-env cannot model (non-obvious raw reads carry an inline rationale at the read site).',
+};
+
+// Global default — every source file. (DPO allowed-by-omission exception is
+// applied via the legal-page block, which swaps in LEGAL_RESTRICTED_SYNTAX.)
+const BASE_RESTRICTED_SYNTAX = [
+  EXPORT_ALL_SELECTOR,
+  ...HIPAA_CLAIM_SELECTORS,
+  ...DPO_TITLE_SELECTORS,
+  ...PHI_IN_ERROR_SELECTORS,
+];
+// Legal pages — same as base minus the DPO ban (GDPR Art 37 disclosure).
+const LEGAL_RESTRICTED_SYNTAX = [
+  EXPORT_ALL_SELECTOR,
+  ...HIPAA_CLAIM_SELECTORS,
+  ...PHI_IN_ERROR_SELECTORS,
+];
+
 export default tseslint.config(
   {
     ignores: [
@@ -171,6 +237,13 @@ export default tseslint.config(
         Buffer: 'readonly',
         global: 'readonly',
       },
+    },
+    rules: {
+      // `require()` IS the module system for CommonJS config files
+      // (`.size-limit.cjs`, `scripts/size-limit-first-load.cjs`); the
+      // tseslint-strict ban on require-imports targets ESM source, not
+      // these build-config peers.
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
   // Custom rules block — only applies to TS/TSX/JS/JSX source files.
@@ -227,45 +300,7 @@ export default tseslint.config(
       // must live under the legal-page override or be referenced via
       // an indirection. JSXText selectors catch React-rendered claims
       // that bypass string-literal AST nodes.
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: 'ExportAllDeclaration',
-          message:
-            'Use named re-exports (`export { foo } from`) instead of `export *` — star re-exports defeat tree-shaking. See Hagemeister + Vercel #27401.',
-        },
-        {
-          selector: 'Literal[value=/HIPAA[-\\s]compli(?:ant|ance)/i]',
-          message:
-            'Never claim "HIPAA-compliant" or "HIPAA compliance" — use "HIPAA-aligned." Compliance without third-party attestation is FTC §5 deceptive-acts (Cerebral $7M settlement precedent). [D104]',
-        },
-        {
-          selector: 'TemplateElement[value.raw=/HIPAA[-\\s]compli(?:ant|ance)/i]',
-          message:
-            'Never claim "HIPAA-compliant" or "HIPAA compliance" — use "HIPAA-aligned." Compliance without third-party attestation is FTC §5 deceptive-acts (Cerebral $7M settlement precedent). [D104]',
-        },
-        {
-          selector: 'JSXText[value=/HIPAA[-\\s]compli(?:ant|ance)/i]',
-          message:
-            'Never claim "HIPAA-compliant" or "HIPAA compliance" — use "HIPAA-aligned." Compliance without third-party attestation is FTC §5 deceptive-acts (Cerebral $7M settlement precedent). [D104]',
-        },
-        {
-          selector: 'Literal[value=/\\bDPO\\b/i]',
-          message:
-            'Use "Privacy Lead" — never "DPO" as a self-applied title. Claiming a Data Protection Officer without GDPR Art 37 appointment is fineable (Austrian €5K + CJEU C-453/21 + Belgian €50K precedents). [D136] (Legal pages may name "Data Protection Officer" in the Art 37 non-appointment disclosure — that exception is scoped via files: override.)',
-        },
-        {
-          selector: 'TemplateElement[value.raw=/\\bDPO\\b/i]',
-          message:
-            'Use "Privacy Lead" — never "DPO" as a self-applied title. Claiming a Data Protection Officer without GDPR Art 37 appointment is fineable (Austrian €5K + CJEU C-453/21 + Belgian €50K precedents). [D136]',
-        },
-        {
-          selector: 'JSXText[value=/\\bDPO\\b/i]',
-          message:
-            'Use "Privacy Lead" — never "DPO" as a self-applied title. Claiming a Data Protection Officer without GDPR Art 37 appointment is fineable (Austrian €5K + CJEU C-453/21 + Belgian €50K precedents). [D136]',
-        },
-        ...PHI_IN_ERROR_SELECTORS,
-      ],
+      'no-restricted-syntax': ['error', ...BASE_RESTRICTED_SYNTAX],
 
       // jsx-a11y strict-tier additions (D22 + Round-5 reviewer):
       // eslint-config-next ships jsx-a11y at "recommended" only; these
@@ -396,6 +431,31 @@ export default tseslint.config(
       'no-restricted-imports': 'off',
     },
   },
+  // Rendering tier (pages, layouts, components) must read configuration
+  // through the validated `@/lib/env` module (apps/web/lib/env.ts), never
+  // raw `process.env` — a missing/malformed value then fails the build at
+  // boot (ADR-0030 fail-closed config) instead of rendering with `undefined`.
+  // Adds ENV_ACCESS_SELECTOR to the base compliance selectors (the array is
+  // composed, not replaced, so HIPAA/DPO/PHI enforcement is preserved here).
+  // `process.env.NODE_ENV` is exempted by the selector itself, so the
+  // dev-only DCE guard (ReactQuery devtools, Spotlight) needs no file
+  // exemption. Scope excludes:
+  //   - `app/api/**` route handlers — the runtime/BFF tier legitimately
+  //     reads request-time env and stubs it per-test. `@t3-oss/env-nextjs`
+  //     snapshots `process.env` at import, so a request-time read must stay
+  //     raw to observe runtime/test mutation. (A build-time public var read
+  //     in a handler — e.g. robots' NEXT_PUBLIC_SITE_URL — is a conscious
+  //     choice and carries an inline rationale at the read site; an eventual
+  //     `requestEnv()` typed accessor would let this carve-out shrink.)
+  //   - `app/dev/boom/page.tsx` — a dev-only diagnostic that reads a raw
+  //     `QUILTY_TEST_BOOM_ENABLED` toggle (never shipped behaviour).
+  {
+    files: ['apps/web/app/**/*.{ts,tsx}', 'apps/web/components/**/*.{ts,tsx}'],
+    ignores: ['apps/web/app/api/**', 'apps/web/app/dev/boom/page.tsx'],
+    rules: {
+      'no-restricted-syntax': ['error', ...BASE_RESTRICTED_SYNTAX, ENV_ACCESS_SELECTOR],
+    },
+  },
   // Legal-page directories (D104 + D136 exception). The Privacy
   // Policy must include the GDPR Art 37 transparency disclosure
   // naming "Data Protection Officer" in the "we do not employ a
@@ -418,40 +478,14 @@ export default tseslint.config(
       'apps/web/tests/playwright/a11y/privacy-policy.spec.ts',
     ],
     rules: {
-      // D104 HIPAA-compliant ban retained (universal — even legal
-      // copy must use "HIPAA-aligned") + JSXText selector added so
-      // the rule catches React-rendered policy claims.
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: 'ExportAllDeclaration',
-          message:
-            'Use named re-exports (`export { foo } from`) instead of `export *` — star re-exports defeat tree-shaking. See Hagemeister + Vercel #27401.',
-        },
-        {
-          selector: 'Literal[value=/HIPAA[-\\s]compli(?:ant|ance)/i]',
-          message:
-            'Never claim "HIPAA-compliant" or "HIPAA compliance" — use "HIPAA-aligned." Compliance without third-party attestation is FTC §5 deceptive-acts (Cerebral $7M settlement precedent). [D104]',
-        },
-        {
-          selector: 'TemplateElement[value.raw=/HIPAA[-\\s]compli(?:ant|ance)/i]',
-          message:
-            'Never claim "HIPAA-compliant" or "HIPAA compliance" — use "HIPAA-aligned." Compliance without third-party attestation is FTC §5 deceptive-acts (Cerebral $7M settlement precedent). [D104]',
-        },
-        {
-          selector: 'JSXText[value=/HIPAA[-\\s]compli(?:ant|ance)/i]',
-          message:
-            'Never claim "HIPAA-compliant" or "HIPAA compliance" — use "HIPAA-aligned." Compliance without third-party attestation is FTC §5 deceptive-acts (Cerebral $7M settlement precedent). [D104]',
-        },
-        // DPO ban LIFTED for legal copy — the Art 37 non-appointment
-        // disclosure requires the verbatim term. Drift to "DPO" as a
-        // self-applied title is caught by Pass A reviewer discipline +
-        // the privacy-policy.spec.ts negative-disclosure test.
-        //
-        // PHI-in-error-message ban (D148) RETAINED — legal pages must
-        // never throw PHI through Error / captureException either.
-        ...PHI_IN_ERROR_SELECTORS,
-      ],
+      // LEGAL_RESTRICTED_SYNTAX = base minus the DPO ban: the Art 37
+      // non-appointment disclosure requires the verbatim "Data Protection
+      // Officer" term (drift to a self-applied title is caught by reviewer
+      // discipline + the privacy-policy.spec.ts negative-disclosure test).
+      // The HIPAA-compliant ban + the PHI-in-error ban (D148) are retained.
+      // ENV_ACCESS_SELECTOR is kept so legal pages stay on the validated
+      // env module (they consume NEXT_PUBLIC_SITE_URL via `@/lib/env`).
+      'no-restricted-syntax': ['error', ...LEGAL_RESTRICTED_SYNTAX, ENV_ACCESS_SELECTOR],
     },
   },
   // Tests can use the bare expectations Vitest/Playwright matchers expect.
@@ -483,6 +517,11 @@ export default tseslint.config(
           ],
         },
       ],
+      // OFF in tests: compliance-rule unit tests embed the banned strings as
+      // fixtures, and tests read/stub `process.env` (vi.stubEnv) to drive the
+      // env-validation + adapter-selection paths. Both the compliance bans and
+      // the rendering-tier env-access ban (ENV_ACCESS_SELECTOR) live in this
+      // single rule, so one `off` covers them.
       'no-restricted-syntax': 'off',
     },
   },
