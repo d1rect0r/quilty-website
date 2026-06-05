@@ -268,6 +268,15 @@ jobs:
         # on the upstream repo, causing a "Set up job" failure with
         # "Unable to resolve action ... v2". Pin to v1 (floating major).
         uses: andresz1/size-limit-action@v1
+        # The action rebuilds the BASE branch under the hood to compute
+        # the diff, and that build runs in the action's own process — it
+        # does NOT inherit the previous `pnpm build` step's env. Since
+        # `lib/env.ts` validates NEXT_PUBLIC_SITE_URL at build boot
+        # (ADR-0030 fail-closed config), the base build throws without
+        # it. Mirror the head build's env here so both sides build.
+        env:
+          NEXT_PUBLIC_SITE_URL: https://my-quilty.com
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           # skip_step: build — the head-branch build already ran in
