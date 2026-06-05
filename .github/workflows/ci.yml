@@ -287,11 +287,22 @@ jobs:
           retention-days: 1
 
   lighthouse:
-    # Lighthouse CI against pnpm start (production build) — CWV budgets
-    # in .lighthouserc.json. Fails the merge gate on a11y or SEO score
-    # regressions, warns on perf (calibrated as M1 baseline lands).
+    # Lighthouse CI against `next start` (production build).
+    #
+    # INFORMATIONAL-ONLY (continue-on-error) until M4-M6 / TW-015: per
+    # ADR-0018 + .size-limit.cjs, Lighthouse CI is explicitly deferred to
+    # M4-M6 — it "needs preview URLs + 3+ runs per URL for INP denoise",
+    # and size-limit (the `build` job) is the binding perf gate at M1.6.
+    # `.lighthouserc.json` currently asserts NOTHING (empty `assert`), and
+    # the collect step can't load http://localhost against a prod build that
+    # emits HSTS (Lighthouse's Chrome enforces an HTTPS interstitial that
+    # Playwright's Chromium does not) — the preview-HTTPS-URL setup that
+    # lands at M4-M6 is what makes this run cleanly. Keeping it green-blocking
+    # now would gate merges on a not-yet-functional check. It still runs so
+    # the report is visible; it just doesn't fail the workflow.
     name: Lighthouse CI
     needs: build
+    continue-on-error: true
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
