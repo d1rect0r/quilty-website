@@ -1,4 +1,5 @@
 import { buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
+import { env } from '@/lib/env';
 import type { Metadata } from 'next';
 
 /**
@@ -17,7 +18,7 @@ import type { Metadata } from 'next';
  * real exposure path for a consumer-health product.
  */
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+const siteUrl = env.NEXT_PUBLIC_SITE_URL;
 const pageUrl = `${siteUrl}/en/security`;
 
 // "Responsible Disclosure · Quilty" (32 chars under the template

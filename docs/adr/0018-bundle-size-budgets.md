@@ -45,6 +45,8 @@ The Next.js 16 `--experimental-analyze` flag (bundle-analyzer ergonomics for ad-
 
 Total: **28 routes × 2 entries = 56 per-route entries** + 4 aggregate entries = 60 size-limit entries.
 
+> The **first-load** column above is the original snapshot. [Amendment 1](#amendment-1--first-load-shared-baseline-sourced-from-build-manifest) supersedes it (marketing 195 / legal 165 / portal 285 / error 155 KB) after correcting the shared-baseline measurement — do not quote these pre-amendment figures.
+
 The error/utility tier surfaces at outage time (4xx/5xx); bloat there directly impacts user trust at the worst moment + Googlebot scrapes these on crawl errors. Tight 20 KB ceiling catches Sentry-init / error-overlay bloat leaking into the `(errors)` route group.
 
 ### Decision B — Per-route + first-load dual-measurement
@@ -53,6 +55,8 @@ Each route gets two entries:
 
 - **Per-route** measures ONLY the chunk Next.js emits at `chunks/app/[locale]/<group>/<route>/page-<hash>.js`. Catches regressions that bloat a single page's `'use client'` graph without touching shared deps.
 - **First-load** combines the route chunk + `chunks/framework-*.js` + `chunks/main-*.js` + `chunks/webpack-*.js`. Approximates what the browser actually downloads on cold visit. Catches dependency drift in shared chunks that erodes first-load weight on every route simultaneously.
+
+> **Amended — see [Amendment 1](#amendment-1--first-load-shared-baseline-sourced-from-build-manifest) below.** The hardcoded `framework-*`/`main-*`/`webpack-*` shared-chunk globs in this decision matched only ~5 KB gz of the real ~127 KB gz shared baseline, so first-load entries silently measured the leaf chunk alone. The shared baseline is now read from Next's `build-manifest.json`.
 
 The two-measurement design comes from the 2026 enterprise-bundle-budget canon (Vercel + Shopify + Stripe public engineering posts).
 
@@ -74,6 +78,29 @@ PR-blocking is enforced via the size-limit-action's non-zero exit code on budget
 Lighthouse CI measures CWV scores (LCP, INP, CLS) but requires preview URLs + 3+ runs per URL to denoise INP. M1.6 doesn't yet have a preview-deploy pipeline (deploy.yml is `if: false`-gated per the M1 scaffold). Lighthouse CI integration lands at the preview-deploy + INP-denoise feasibility trigger documented as TW-015 on the watchlist.
 
 size-limit alone covers the byte-budget gate at M1.6; Lighthouse CI is additive at M4-M6.
+
+## Amendment 1 — first-load shared baseline sourced from build-manifest
+
+Decision B specified the first-load shared baseline as the glob set `chunks/framework-*.js` + `chunks/main-*.js` + `chunks/webpack-*.js`. On the `next build --webpack` output this is wrong:
+
+- Next 16's webpack build names the React/framework chunk by content hash (`9e2e33d7-<hash>.js`), **not** `framework-<hash>.js`, and splits a second shared vendor chunk (the Sentry/OpenTelemetry instrumentation graph, `4642-<hash>.js`). Neither matches the hardcoded globs.
+- The globs therefore matched only `webpack-*` (~3.8 KB gz) + `main-app-*` (~1.3 KB gz) — **~5 KB gz of an actual ~127 KB gz shared baseline.** Every per-route first-load entry undercounted by ~122 KB gz, so the budgets effectively measured the leaf page chunk in isolation. The legal (150 KB) and error (130 KB) first-load ceilings actually sat **below** the true shared baseline; they passed only because the measurement was broken.
+
+**Correction:**
+
+1. The shared baseline is read from Next's own `build-manifest.json` (`rootMainFiles`) via `scripts/size-limit-first-load.cjs` — authoritative and resilient to chunk-name changes. The helper fails closed (throws) if the manifest is missing or `rootMainFiles` is empty, so a broken build cannot silently revert to undercounting.
+2. **Polyfills** (`polyfillFiles`, legacy-only `nomodule`, ~38 KB gz) are excluded from the modern-browser first-load number and gated on their own budget line, so a browserslist-driven polyfill regression is still caught without inflating first-load.
+3. First-load ceilings recalibrated to **shared-baseline ceiling (135 KB) + the tier's per-route leaf ceiling**: marketing 195 KB, legal 165 KB, portal 285 KB, error 155 KB. The "Shared runtime + framework" aggregate moves from 110 KB (measuring ~5 KB) to 135 KB (measuring the real ~127 KB).
+
+**Known limitation:** Next 16's webpack build does not emit a parseable per-route manifest (`app-build-manifest.json` is absent), so a chunk loaded by only one route group — distinct from both the leaf and the global shared baseline — is not attributed per-route. The "Total static JS" aggregate is the backstop that catches such bloat globally. Recovering exact per-route attribution is a revisit trigger tied to the same Turbopack-parity / Codecov-migration triggers below.
+
+The original `andresz1/size-limit-action` version is pinned at **`@v1`** in `ci.yml` (the action has no `v2` release); the `@v2` reference in Decisions B/D above predates that pin and is corrected here.
+
+**Notes carried by this correction (no action this pass):**
+
+- **Per-route first-load entries are now derived, not independent signal.** Because the shared baseline is read from one authoritative source and dominates, `first-load = leaf + shared` is an arithmetic consequence of two budgets already enforced separately (the per-route leaf entry + the "Shared runtime + framework" aggregate). The per-route first-load entries are retained for PR-report visibility (the human-readable per-route number) but cannot fail independently of those two. A future maintainer should not treat a green per-route first-load as a separate guarantee.
+- **The 135 KB shared ceiling has only ~5 KB of headroom over today's measured 129.85 KB gz** (size-limit gzips the concatenated shared set; summing the individual chunk gzips gives ~127 KB), and that baseline includes the Sentry/OpenTelemetry vendor split (`4642-*.js`), which is currently gated OFF. When a real DSN lands and replay/tracing integrations activate, this chunk grows and the headroom evaporates. **Sentry go-live is a re-baseline trigger for this specific budget** — add it to the revisit list when wiring the DSN.
+- **Polyfills are ~38.5 KB gz** — large for a 2026 browserslist and excluded from the modern-first-load number, but still dead weight downloaded by legacy `nomodule` clients. Auditing `browserslist` (an ES2020+ target likely drops most of it) is a worthwhile follow-up, out of scope for this measurement-correctness change.
 
 ## Consequences
 

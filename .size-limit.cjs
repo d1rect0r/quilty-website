@@ -9,25 +9,40 @@
  *
  *   Tier            Routes                                       Per-route gz   First-load gz
  *   ─────────────   ──────────────────────────────────────────   ────────────   ─────────────
- *   Lean marketing  11 non-legal marketing pages                 60 KB           180 KB
- *   Content legal   7 legal pages (privacy / terms / etc.)       30 KB           150 KB
- *   Portal          7 account pages                              150 KB          280 KB
- *   Error/utility   3 status pages (/410 /451 /503)              20 KB           130 KB
+ *   Lean marketing  11 non-legal marketing pages                 60 KB           195 KB
+ *   Content legal   7 legal pages (privacy / terms / etc.)       30 KB           165 KB
+ *   Portal          7 account pages                              150 KB          285 KB
+ *   Error/utility   3 status pages (/410 /451 /503)              20 KB           155 KB
  *
  * Per-route budgets measure ONLY the route-specific chunk Next.js emits
  * under `chunks/app/[locale]/(marketing)/<route>/page-<hash>.js`. First-
- * load budgets combine the route chunk + framework + main + webpack
- * runtime chunks (what the browser actually downloads on cold visit).
+ * load budgets combine that route chunk with the SHARED baseline every
+ * cold visit downloads.
  *
- * The Next.js 16 + React 19 baseline is ~70-90 KB gzipped BEFORE app
- * code (framework + main + runtime). First-load budgets accommodate
- * this floor + leave room for app code + heaviest deps.
+ * The shared baseline is read from Next's own `build-manifest.json`
+ * (`rootMainFiles`) via `scripts/size-limit-first-load.cjs` — NOT from
+ * hardcoded `framework-*` / `main-*` globs. Next 16's webpack build names
+ * the React/framework chunk by content hash (`9e2e33d7-*.js`, not
+ * `framework-*.js`) and splits a second shared vendor chunk (the
+ * Sentry/OpenTelemetry graph); the old globs matched ~5 KB gz of an actual
+ * ~127 KB gz baseline, so first-load budgets silently measured the leaf
+ * chunk alone. The manifest source is authoritative and survives chunk
+ * renames. First-load budget = shared-baseline ceiling (135 KB) + the
+ * tier's per-route leaf ceiling.
  *
- * Aggregate budgets (lines below the factory output) catch global JS
- * bloat that per-route entries miss (shared chunk regressions).
+ * Polyfills (`polyfillFiles`, legacy-only `nomodule`) are EXCLUDED from
+ * the modern-browser first-load number and budgeted on their own line
+ * below, so a polyfill regression is still caught.
+ *
+ * Route-group layout chunks: Next 16's webpack build does not emit a
+ * parseable per-route manifest (`app-build-manifest.json` is absent), so
+ * a chunk loaded only by one route group — distinct from both the leaf
+ * and the global shared baseline — is not attributed per-route here. The
+ * "Total static JS" aggregate below is the backstop that catches such
+ * bloat globally.
  *
  * Run: `pnpm size`
- * CI:  fail-on-exceeded via `andresz1/size-limit-action@v2` in ci.yml
+ * CI:  fail-on-exceeded via `andresz1/size-limit-action@v1` in ci.yml
  *      with PR-blocking diff comments.
  *
  * Lighthouse CI is deferred to M4-M6 (TW-015) — needs preview URLs +
@@ -35,13 +50,14 @@
  * exclusively at M1.6.
  */
 
-// Shared chunks loaded on every route. Used as part of the first-load
-// glob for every per-route entry.
-const SHARED_RUNTIME_GLOBS = [
-  'apps/web/.next/static/chunks/framework-*.js',
-  'apps/web/.next/static/chunks/main-*.js',
-  'apps/web/.next/static/chunks/webpack-*.js',
-];
+const { readSharedFirstLoad } = require('./scripts/size-limit-first-load.cjs');
+
+// Shared chunks loaded on every route, read from Next's build-manifest
+// (authoritative; see the helper for why hardcoded globs undercounted).
+// `sharedMain` is the modern-browser first-load baseline (framework +
+// runtime + shared vendor + main-app); `polyfills` is the legacy-only
+// bundle, budgeted separately.
+const { sharedMain: SHARED_FIRST_LOAD_FILES, polyfills: POLYFILL_FILES } = readSharedFirstLoad();
 
 // Lean marketing tier — non-legal marketing pages. Apex SEO surface +
 // landing pages. 60 KB per-route ceiling tightens at Turnstile +
@@ -105,8 +121,8 @@ const PORTAL_ROUTES = [
 // surface at outage time + Googlebot scrapes them on 4xx/5xx
 // crawls; bloat here directly impacts user trust at the worst
 // moment. Tight 20 KB per-route catches Sentry-init / error-overlay
-// bloat leaking into the (errors) route group. 130 KB first-load
-// accommodates the same shared-runtime floor every page carries.
+// bloat leaking into the (errors) route group. 155 KB first-load
+// accommodates the same shared baseline every page carries.
 const ERROR_ROUTES = [
   { name: 'error-410', glob: `${ERRORS_BASE}/410/page-*.js` },
   { name: 'error-451', glob: `${ERRORS_BASE}/451/page-*.js` },
@@ -115,9 +131,9 @@ const ERROR_ROUTES = [
 
 /**
  * Produce a pair of size-limit entries (per-route + first-load) for a
- * single route. Per-route measures the chunk in isolation; first-load
- * measures the same chunk PLUS the framework/main/webpack-runtime
- * chunks the browser loads alongside it on a cold visit.
+ * single route. Per-route measures the leaf chunk in isolation; first-
+ * load measures that leaf chunk PLUS the manifest-authoritative shared
+ * baseline the browser downloads alongside it on a cold visit.
  */
 function routeEntries({ name, glob, tier, perRouteLimit, firstLoadLimit }) {
   return [
@@ -129,25 +145,31 @@ function routeEntries({ name, glob, tier, perRouteLimit, firstLoadLimit }) {
     },
     {
       name: `${tier} :: ${name} (first-load gz)`,
-      path: [glob, ...SHARED_RUNTIME_GLOBS],
+      path: [glob, ...SHARED_FIRST_LOAD_FILES],
       limit: firstLoadLimit,
       gzip: true,
     },
   ];
 }
 
+// First-load ceilings = shared-baseline ceiling (135 KB, the
+// "Shared runtime + framework" budget below) + the tier's leaf ceiling.
+// Recalibrated when the shared baseline source was corrected from the
+// hardcoded ~5 KB-matching globs to the ~127 KB gz manifest reality; the
+// old 150/130 KB legal/error first-load ceilings sat BELOW the true
+// shared baseline and only passed because the measurement undercounted.
 const perRouteEntries = [
   ...LEAN_MARKETING_ROUTES.flatMap((r) =>
-    routeEntries({ ...r, tier: 'marketing', perRouteLimit: '60 KB', firstLoadLimit: '180 KB' }),
+    routeEntries({ ...r, tier: 'marketing', perRouteLimit: '60 KB', firstLoadLimit: '195 KB' }),
   ),
   ...CONTENT_LEGAL_ROUTES.flatMap((r) =>
-    routeEntries({ ...r, tier: 'legal', perRouteLimit: '30 KB', firstLoadLimit: '150 KB' }),
+    routeEntries({ ...r, tier: 'legal', perRouteLimit: '30 KB', firstLoadLimit: '165 KB' }),
   ),
   ...PORTAL_ROUTES.flatMap((r) =>
-    routeEntries({ ...r, tier: 'portal', perRouteLimit: '150 KB', firstLoadLimit: '280 KB' }),
+    routeEntries({ ...r, tier: 'portal', perRouteLimit: '150 KB', firstLoadLimit: '285 KB' }),
   ),
   ...ERROR_ROUTES.flatMap((r) =>
-    routeEntries({ ...r, tier: 'error', perRouteLimit: '20 KB', firstLoadLimit: '130 KB' }),
+    routeEntries({ ...r, tier: 'error', perRouteLimit: '20 KB', firstLoadLimit: '155 KB' }),
   ),
 ];
 
@@ -182,13 +204,25 @@ module.exports = [
     limit: '20 KB',
     gzip: true,
   },
-  // Shared runtime + framework chunks (loaded on every route). 110 KB
-  // ceiling catches a framework upgrade regression before it lands on
-  // every page's first-load measurement.
+  // Shared runtime + framework chunks (loaded on every route), read from
+  // build-manifest `rootMainFiles`. ~127 KB gz today (framework + webpack
+  // runtime + shared Sentry/OTel vendor split + main-app). 135 KB ceiling
+  // catches a framework/vendor regression before it lands on every page's
+  // first-load. This is the dominant term in every first-load budget.
   {
     name: 'Shared runtime + framework (gzip)',
-    path: SHARED_RUNTIME_GLOBS,
-    limit: '110 KB',
+    path: SHARED_FIRST_LOAD_FILES,
+    limit: '135 KB',
+    gzip: true,
+  },
+  // Legacy-only polyfills (`nomodule`) — modern browsers skip these, so
+  // they're excluded from the first-load budgets above and gated here on
+  // their own line. ~38 KB gz today; 42 KB ceiling catches a browserslist
+  // widening that would re-introduce heavier polyfills.
+  {
+    name: 'Polyfills (gzip)',
+    path: POLYFILL_FILES,
+    limit: '42 KB',
     gzip: true,
   },
   // 28 routes × 2 entries (per-route + first-load) = 56 per-route entries.

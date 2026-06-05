@@ -1,5 +1,6 @@
 import { buildBreadcrumbsJsonLd, buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
 import Link from 'next/link';
+import { env } from '@/lib/env';
 import { formatReviewDate, toIsoDateTime } from '@/lib/format-date';
 import type { Metadata } from 'next';
 
@@ -24,7 +25,7 @@ import type { Metadata } from 'next';
  * email-link single-use token (24-hour TTL).
  */
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+const siteUrl = env.NEXT_PUBLIC_SITE_URL;
 const pageUrl = `${siteUrl}/en/legal/privacy-choices`;
 
 // Title carries the brand keyword "Privacy Rights" + names the four

@@ -1,5 +1,6 @@
 import { buildBreadcrumbsJsonLd, buildOpenGraphMetadata, JsonLd } from '@quilty/seo';
 import Link from 'next/link';
+import { env } from '@/lib/env';
 import { formatReviewDate, toIsoDateTime } from '@/lib/format-date';
 import type { Metadata } from 'next';
 
@@ -28,7 +29,7 @@ import type { Metadata } from 'next';
  *     quilty-aws/website-baseline/ Terraform layer.
  */
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+const siteUrl = env.NEXT_PUBLIC_SITE_URL;
 const pageUrl = `${siteUrl}/en/trust`;
 
 // Title carries the brand + the two highest-value procurement
