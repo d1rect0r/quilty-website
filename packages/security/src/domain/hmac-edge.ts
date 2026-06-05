@@ -37,9 +37,13 @@ async function hmacSign(payload: string, secret: string): Promise<string> {
 }
 
 /**
- * Constant-time string comparison. Always compares the full length of the
- * longer string so a mismatch in length or content takes the same time —
- * no early-exit timing oracle for the attacker's forgery problem.
+ * Best-effort constant-time string comparison: no early `return` on the
+ * first differing byte, and the length difference is folded into the
+ * accumulator before the loop. This is a userland primitive (JS gives no
+ * hard constant-time guarantee), which is the right trade-off for a
+ * maintenance-mode gate — not session/payment/PHI auth. The `expected`
+ * signature is also fixed-length (base64url SHA-256), so an attacker-
+ * controlled `sig` length reveals nothing about the secret.
  */
 function timingSafeStringEqual(a: string, b: string): boolean {
   let diff = a.length ^ b.length;

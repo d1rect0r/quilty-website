@@ -48,6 +48,12 @@ describe('resolveSentryEnvironment', () => {
     expect(resolveSentryEnvironment()).toBe('development');
   });
 
+  it('treats NODE_ENV=test as non-production (no special test branch)', () => {
+    vi.stubEnv('NEXT_PUBLIC_SENTRY_ENVIRONMENT', '');
+    vi.stubEnv('NODE_ENV', 'test');
+    expect(resolveSentryEnvironment()).toBe('development');
+  });
+
   it('treats a blank explicit var as unset (falls through to NODE_ENV)', () => {
     vi.stubEnv('NEXT_PUBLIC_SENTRY_ENVIRONMENT', '   ');
     vi.stubEnv('NODE_ENV', 'production');

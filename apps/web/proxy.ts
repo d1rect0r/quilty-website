@@ -350,22 +350,26 @@ function applySecurityHeaders(
  *     before HTML parses)
  */
 /**
- * Module-init guard: in production the ops bypass MUST verify against
- * an HMAC secret. The bypass cookie name is public (in source); without
- * an HMAC step, any attacker with `Cookie: qty_ops_bypass=x` punches
- * through the maintenance wall. The forms-canonical commit ships the
- * shared HMAC verifier; until then, production deployments with
- * MAINTENANCE_MODE=true are gated here at module load.
+ * Module-init guard: in production the ops bypass MUST verify against an
+ * HMAC secret (maintenanceRewrite checks the cookie with verifyHmacEdge).
+ * The bypass cookie name is public (in source); without the HMAC step any
+ * attacker with `Cookie: qty_ops_bypass=x` punches through the maintenance
+ * wall. The secret must be ≥ 32 chars (≥ 256 bits) — same floor as
+ * CSRF_SECRET — so it isn't brute-forceable offline against the public
+ * token format. Production with MAINTENANCE_MODE=true refuses to start
+ * without a sufficiently-strong secret.
  */
-const HAS_BYPASS_SECRET = process.env.QUILTY_MAINTENANCE_BYPASS_SECRET !== undefined;
+const BYPASS_SECRET_AT_INIT = process.env.QUILTY_MAINTENANCE_BYPASS_SECRET;
+const HAS_STRONG_BYPASS_SECRET =
+  BYPASS_SECRET_AT_INIT !== undefined && BYPASS_SECRET_AT_INIT.length >= 32;
 if (
   process.env.NODE_ENV === 'production' &&
   process.env.MAINTENANCE_MODE === 'true' &&
-  !HAS_BYPASS_SECRET
+  !HAS_STRONG_BYPASS_SECRET
 ) {
   throw new Error(
-    'proxy.ts: MAINTENANCE_MODE=true in production requires QUILTY_MAINTENANCE_BYPASS_SECRET to be set ' +
-      '(HMAC-verified ops bypass). Set the secret or unset MAINTENANCE_MODE.',
+    'proxy.ts: MAINTENANCE_MODE=true in production requires QUILTY_MAINTENANCE_BYPASS_SECRET ' +
+      '≥ 32 chars (HMAC-verified ops bypass). Set a strong secret or unset MAINTENANCE_MODE.',
   );
 }
 

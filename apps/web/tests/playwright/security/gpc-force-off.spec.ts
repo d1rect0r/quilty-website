@@ -71,6 +71,8 @@ test('@security @privacy GPC cookie payload decodes to a FORCE-OFF state', async
   expect(payload['marketing']).toBe(false);
   expect(payload['personalization']).toBe(false);
   expect(payload['gpc_honored']).toBe(true);
+  // Provenance marker — the GPC header was present at write time (D63).
+  expect(payload['gpc_detected']).toBe(true);
   expect(payload['version']).toBe('v1');
   // updated_at strictly ISO 8601 UTC; the cookie-reader's regex
   // enforces the same shape on the read side.
