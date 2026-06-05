@@ -7,6 +7,7 @@ import {
   generateCsrfTokenEdge,
   generateNonce,
   isPortalRoute,
+  verifyHmacEdge,
 } from '@quilty/security';
 import { NextResponse, type NextRequest } from 'next/server';
 import {
@@ -368,18 +369,24 @@ if (
   );
 }
 
-function maintenanceRewrite(request: NextRequest): NextResponse | null {
+async function maintenanceRewrite(request: NextRequest): Promise<NextResponse | null> {
   if (process.env.MAINTENANCE_MODE !== 'true') return null;
   if (isMaintenanceBypassPath(request.nextUrl.pathname)) return null;
-  // Ops bypass: cookie-presence-only check is acceptable when the
-  // bypass secret is absent (dev/test only — module-init guard above
-  // refuses to start production without it). When the secret is set,
-  // the stub still passes the cookie through; full HMAC verification
-  // lands with the forms-canonical commit's shared HMAC verifier. The
-  // production gate is enforced at module init, not here, so a hot-
-  // path branch isn't required.
+  // Ops bypass: the cookie value is an HMAC `<payload>.<sig>` token signed
+  // with QUILTY_MAINTENANCE_BYPASS_SECRET — forging one requires the secret,
+  // so the publicly-known cookie NAME alone no longer grants bypass. The
+  // module-init guard above refuses to start production without the secret;
+  // with no secret (dev/test) no token can verify, so the gate stays closed.
   const bypassCookie = request.cookies.get(MAINTENANCE_BYPASS_COOKIE_NAME);
-  if (bypassCookie !== undefined && bypassCookie.value.length > 0) return null;
+  const bypassSecret = process.env.QUILTY_MAINTENANCE_BYPASS_SECRET;
+  if (
+    bypassCookie !== undefined &&
+    bypassCookie.value.length > 0 &&
+    bypassSecret !== undefined &&
+    (await verifyHmacEdge(bypassCookie.value, bypassSecret))
+  ) {
+    return null;
+  }
 
   const target = request.nextUrl.clone();
   target.pathname = '/503';
@@ -406,7 +413,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // window must shadow apex-redirect + change-password + GPC cookie
   // writes so the operationally-failing tier doesn't keep doing
   // tier-specific work.
-  const maintenance = maintenanceRewrite(request);
+  const maintenance = await maintenanceRewrite(request);
   if (maintenance !== null) return maintenance;
 
   // Apex → default locale redirect lives HERE (not in next.config.ts

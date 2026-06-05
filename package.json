@@ -22,6 +22,7 @@
     "knip:full": "knip --no-progress",
     "lhci": "lhci autorun --config=.lighthouserc.json",
     "lint": "turbo run lint",
+    "mint:maintenance-bypass": "node scripts/mint-maintenance-bypass.mjs",
     "prepare": "husky",
     "secretlint": "secretlint --secretlintrc .secretlintrc.json --secretlintignore .secretlintignore '**/*' --maskSecrets",
     "security-txt:check": "node scripts/check-security-txt-expires.mjs",
