@@ -7,6 +7,7 @@ import {
   generateCsrfTokenEdge,
   generateNonce,
   isPortalRoute,
+  verifyHmacEdge,
 } from '@quilty/security';
 import { NextResponse, type NextRequest } from 'next/server';
 import {
@@ -150,7 +151,16 @@ function applyGpcForceOffCookie(request: NextRequest, response: NextResponse): v
   // field documents what was true at write time.
   const payload = JSON.stringify({
     essential: true,
-    functional: true,
+    // `functional: false` matches the default-deny baseline (DEFAULT_DENY_STATE,
+    // D35). A GPC visitor has expressed a privacy preference and never saw a
+    // banner, so non-essential categories — including `functional` — stay
+    // denied until an affirmative grant. CCPA §7025(c)(2) only compels the
+    // analytics/marketing/personalization opt-out, but the multi-state posture
+    // (WA MHMDA + MD MODPA + GDPR, anchored in ADR-0024) wants affirmative
+    // consent for functional cookies too; default-deny is the conservative
+    // alignment. An explicit later grant via the banner flips it (the cookie
+    // reader preserves an explicit `functional: true`).
+    functional: false,
     analytics: false,
     marketing: false,
     personalization: false,
@@ -340,37 +350,47 @@ function applySecurityHeaders(
  *     before HTML parses)
  */
 /**
- * Module-init guard: in production the ops bypass MUST verify against
- * an HMAC secret. The bypass cookie name is public (in source); without
- * an HMAC step, any attacker with `Cookie: qty_ops_bypass=x` punches
- * through the maintenance wall. The forms-canonical commit ships the
- * shared HMAC verifier; until then, production deployments with
- * MAINTENANCE_MODE=true are gated here at module load.
+ * Module-init guard: in production the ops bypass MUST verify against an
+ * HMAC secret (maintenanceRewrite checks the cookie with verifyHmacEdge).
+ * The bypass cookie name is public (in source); without the HMAC step any
+ * attacker with `Cookie: qty_ops_bypass=x` punches through the maintenance
+ * wall. The secret must be ≥ 32 chars (≥ 256 bits) — same floor as
+ * CSRF_SECRET — so it isn't brute-forceable offline against the public
+ * token format. Production with MAINTENANCE_MODE=true refuses to start
+ * without a sufficiently-strong secret.
  */
-const HAS_BYPASS_SECRET = process.env.QUILTY_MAINTENANCE_BYPASS_SECRET !== undefined;
+const BYPASS_SECRET_AT_INIT = process.env.QUILTY_MAINTENANCE_BYPASS_SECRET;
+const HAS_STRONG_BYPASS_SECRET =
+  BYPASS_SECRET_AT_INIT !== undefined && BYPASS_SECRET_AT_INIT.length >= 32;
 if (
   process.env.NODE_ENV === 'production' &&
   process.env.MAINTENANCE_MODE === 'true' &&
-  !HAS_BYPASS_SECRET
+  !HAS_STRONG_BYPASS_SECRET
 ) {
   throw new Error(
-    'proxy.ts: MAINTENANCE_MODE=true in production requires QUILTY_MAINTENANCE_BYPASS_SECRET to be set ' +
-      '(HMAC-verified ops bypass). Set the secret or unset MAINTENANCE_MODE.',
+    'proxy.ts: MAINTENANCE_MODE=true in production requires QUILTY_MAINTENANCE_BYPASS_SECRET ' +
+      '≥ 32 chars (HMAC-verified ops bypass). Set a strong secret or unset MAINTENANCE_MODE.',
   );
 }
 
-function maintenanceRewrite(request: NextRequest): NextResponse | null {
+async function maintenanceRewrite(request: NextRequest): Promise<NextResponse | null> {
   if (process.env.MAINTENANCE_MODE !== 'true') return null;
   if (isMaintenanceBypassPath(request.nextUrl.pathname)) return null;
-  // Ops bypass: cookie-presence-only check is acceptable when the
-  // bypass secret is absent (dev/test only — module-init guard above
-  // refuses to start production without it). When the secret is set,
-  // the stub still passes the cookie through; full HMAC verification
-  // lands with the forms-canonical commit's shared HMAC verifier. The
-  // production gate is enforced at module init, not here, so a hot-
-  // path branch isn't required.
+  // Ops bypass: the cookie value is an HMAC `<payload>.<sig>` token signed
+  // with QUILTY_MAINTENANCE_BYPASS_SECRET — forging one requires the secret,
+  // so the publicly-known cookie NAME alone no longer grants bypass. The
+  // module-init guard above refuses to start production without the secret;
+  // with no secret (dev/test) no token can verify, so the gate stays closed.
   const bypassCookie = request.cookies.get(MAINTENANCE_BYPASS_COOKIE_NAME);
-  if (bypassCookie !== undefined && bypassCookie.value.length > 0) return null;
+  const bypassSecret = process.env.QUILTY_MAINTENANCE_BYPASS_SECRET;
+  if (
+    bypassCookie !== undefined &&
+    bypassCookie.value.length > 0 &&
+    bypassSecret !== undefined &&
+    (await verifyHmacEdge(bypassCookie.value, bypassSecret))
+  ) {
+    return null;
+  }
 
   const target = request.nextUrl.clone();
   target.pathname = '/503';
@@ -397,7 +417,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // window must shadow apex-redirect + change-password + GPC cookie
   // writes so the operationally-failing tier doesn't keep doing
   // tier-specific work.
-  const maintenance = maintenanceRewrite(request);
+  const maintenance = await maintenanceRewrite(request);
   if (maintenance !== null) return maintenance;
 
   // Apex → default locale redirect lives HERE (not in next.config.ts

@@ -39,7 +39,7 @@ export const env = createEnv({
     // here so the secret-less CI build does not fail.
     CSRF_SECRET: z.string().min(32).optional(),
     QUILTY_PSEUDONYM_PEPPER: z.string().min(1).optional(),
-    QUILTY_MAINTENANCE_BYPASS_SECRET: z.string().min(1).optional(),
+    QUILTY_MAINTENANCE_BYPASS_SECRET: z.string().min(32).optional(),
     QUILTY_SITE_ORIGIN: z.string().url().optional(),
     RATELIMIT_BYPASS_TOKEN: z.string().min(1).optional(),
     // Real-adapter activation envs (DynamoDB tables). Presence selects the

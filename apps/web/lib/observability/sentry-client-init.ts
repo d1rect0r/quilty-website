@@ -18,6 +18,7 @@
 import { makePhiScrubber, makeSentryReplay, wrapReplay } from '@quilty/observability';
 import { sanitize } from '@quilty/security';
 import * as Sentry from '@sentry/nextjs';
+import { resolveSentryEnvironment } from './sentry-dsn-gate';
 
 /**
  * Runs `Sentry.init` + the error-triggered Replay init, then returns the
@@ -49,7 +50,7 @@ export function initSentryClient(): typeof Sentry.captureRouterTransitionStart {
 
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-    environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ?? 'development',
+    environment: resolveSentryEnvironment(),
 
     // Tracing — Sentry owns the OpenTelemetry tracer provider (v10) and
     // auto-consumes spans started via @opentelemetry/api. See

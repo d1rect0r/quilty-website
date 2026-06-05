@@ -29,10 +29,12 @@
  *   5. The 503 page itself — `/503` must serve 200 so users see the
  *      branded maintenance page, not a 503-on-503 fallback.
  *
- * Bypass cookie: `qty_ops_bypass` (signed via the same HMAC secret
- * as CSRF tokens; format `<base64payload>.<hmac>`). Ops set this
- * cookie locally to test the site while it's in maintenance mode
- * without flipping the env var off.
+ * Bypass cookie: `qty_ops_bypass` — an HMAC `<payload>.<sig>` token
+ * signed with `QUILTY_MAINTENANCE_BYPASS_SECRET` (verified by
+ * verifyHmacEdge in proxy.ts). Forging one requires the secret, so the
+ * public cookie name alone grants nothing. Mint via
+ * `pnpm mint:maintenance-bypass`; ops set it locally to view the site
+ * during a maintenance window without flipping the env var off.
  */
 
 export const MAINTENANCE_BYPASS_PATH_PREFIXES: readonly string[] = [

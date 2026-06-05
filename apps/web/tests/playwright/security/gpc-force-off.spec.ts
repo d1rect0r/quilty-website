@@ -64,11 +64,15 @@ test('@security @privacy GPC cookie payload decodes to a FORCE-OFF state', async
   const payload = decoded as Record<string, unknown>;
 
   expect(payload['essential']).toBe(true);
-  expect(payload['functional']).toBe(true);
+  // functional is default-deny for a GPC visitor (privacy-protective; the
+  // banner can later flip it on an affirmative grant). See proxy.ts.
+  expect(payload['functional']).toBe(false);
   expect(payload['analytics']).toBe(false);
   expect(payload['marketing']).toBe(false);
   expect(payload['personalization']).toBe(false);
   expect(payload['gpc_honored']).toBe(true);
+  // Provenance marker — the GPC header was present at write time (D63).
+  expect(payload['gpc_detected']).toBe(true);
   expect(payload['version']).toBe('v1');
   // updated_at strictly ISO 8601 UTC; the cookie-reader's regex
   // enforces the same shape on the read side.

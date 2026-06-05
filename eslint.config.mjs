@@ -341,6 +341,9 @@ export default tseslint.config(
       // build-time CLI that copies Workbox runtime files into
       // public/workbox/ during the prebuild hook.
       'apps/web/scripts/vendor-workbox.mjs',
+      // scripts/mint-maintenance-bypass.mjs — ops CLI that prints the
+      // signed bypass token to stdout (the whole point of the tool).
+      'scripts/mint-maintenance-bypass.mjs',
       // apps/web/public/sw.js is the hand-rolled Service Worker.
       // It executes in the SW thread (no DOM, no logger import); the
       // fallback console.warn surfaces a Workbox-load failure in the

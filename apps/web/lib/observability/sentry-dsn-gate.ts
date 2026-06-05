@@ -27,3 +27,20 @@ export function isSentryDsnCspCoherent(dsn: string | undefined): boolean {
   // Same shape the CSP pin enforces server-side.
   return /^o[0-9]+\.ingest\.us\.sentry\.io$/.test(parsed.hostname);
 }
+
+/**
+ * Resolve the Sentry `environment` tag (shared by client + server + edge
+ * init). An explicit `NEXT_PUBLIC_SENTRY_ENVIRONMENT` always wins; otherwise
+ * derive it from `NODE_ENV` so a production deploy that forgets to set the
+ * var still tags events `production` rather than the misleading
+ * `development` (which would silence production alerting rules keyed on the
+ * environment name). SDK-free so the client gate stays off the first-load
+ * critical path.
+ */
+export function resolveSentryEnvironment(): string {
+  const explicit = process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT;
+  if (typeof explicit === 'string' && explicit.trim().length > 0) {
+    return explicit;
+  }
+  return process.env.NODE_ENV === 'production' ? 'production' : 'development';
+}

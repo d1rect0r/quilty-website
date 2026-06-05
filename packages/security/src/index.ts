@@ -91,6 +91,7 @@ export { isSafeRedirect } from './domain/redirect-validator';
 export { makeHoneypotField, verifyHoneypot, type HoneypotField } from './domain/honeypot';
 export { makeRenderTimestamp, verifyTimeTrap, type TimeTrapVerifyInput } from './domain/time-trap';
 export { generateCsrfTokenEdge } from './domain/csrf-edge';
+export { signHmacEdge, verifyHmacEdge } from './domain/hmac-edge';
 
 // ---------------------------------------------------------------------------
 // Port factories — only ports with real state earn a factory shape
