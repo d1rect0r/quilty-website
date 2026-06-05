@@ -302,7 +302,6 @@ jobs:
     # the report is visible; it just doesn't fail the workflow.
     name: Lighthouse CI
     needs: build
-    continue-on-error: true
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -319,6 +318,11 @@ jobs:
           name: web-build
           path: apps/web
       - name: Run Lighthouse CI
+        # Step-level continue-on-error so the job concludes SUCCESS (the
+        # report is still uploaded). Informational-only until M4-M6 / TW-015
+        # per the job comment above: empty asserts + the http-localhost-vs-
+        # prod-HSTS collect limitation that preview HTTPS URLs resolve.
+        continue-on-error: true
         run: pnpm lhci
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
