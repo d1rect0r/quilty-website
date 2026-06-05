@@ -249,11 +249,23 @@ Specifically:
 - **Sentry BAA accepted** at the Business tier via Sentry's Legal &
   Compliance UI before any traffic could plausibly enter a PHI-adjacent
   surface. Currently `2026-01-15` BAA v1.0.1 is the active text.
-- **PostHog Boost BAA accepted** before first marketing-page traffic that
-  allows form submission (likely M3, when ConsentState ships).
+- **Amplitude HIPAA BAA is Enterprise-tier only** — until that Enterprise
+  contract is in place the web analytics adapter ships **DORMANT**: no API
+  key is provisioned and the `analytics_client_enabled` flag is off, so the
+  adapter logs the event NAME only and never makes a network call. No PHI
+  can flow pre-BAA: the adapter never fires pre-consent (it sits behind the
+  `wrapAnalytics` consent + GPC chokepoint), and the server-side API key is
+  absent in every current deploy.
 - ESLint custom rules enforced in CI: `no-console`, `no-restricted-imports`
-  for `@sentry/*` + `posthog-*` + `amplitude-*` outside
-  `apps/web/lib/observability/**`. CI fails on violation.
+  for `@sentry/*` + `posthog-*` + `amplitude-*`. The vendor-SDK chokepoint
+  boundary is `packages/*/src/adapters/*.ts` (the role-shaped adapter files)
+  PLUS the enumerated Next.js Sentry init files —
+  `apps/web/sentry.{server,edge}.config.ts`, `apps/web/instrumentation.ts`,
+  `apps/web/instrumentation-client.ts`,
+  `apps/web/lib/observability/sentry-client-init.ts`, and
+  `apps/web/next.config.ts`. (The `posthog-*` ban is intentional
+  forward-looking defense even though PostHog is no longer in the stack.)
+  CI fails on violation.
 - Vitest unit tests on `sanitize.ts` cover every known-PHI key + JWT shape
   - UUID hashing.
 - `assertNoPHI()` runtime check throws in dev tests; Playwright e2e at M2+

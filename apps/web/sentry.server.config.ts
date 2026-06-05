@@ -1,6 +1,7 @@
 import { sanitize } from '@quilty/security';
 import { makePhiScrubber } from '@quilty/observability';
 import * as Sentry from '@sentry/nextjs';
+import { isSentryDsnCspCoherent } from './lib/observability/sentry-dsn-gate';
 
 /**
  * Sentry server-side config per D42a + D67. Replay is client-only; the
@@ -15,33 +16,38 @@ import * as Sentry from '@sentry/nextjs';
  * The adapter is stateless — direct construction here (rather than
  * via the container singleton) avoids a circular dependency between
  * Sentry init (which runs at module load) and the composition root.
+ *
+ * DSN host gate (data-residency hardening): like the client gate, init
+ * is skipped unless the DSN is a CSP-coherent US-pinned Sentry host, so
+ * a misconfigured non-US/non-pinned DSN no-ops instead of routing error
+ * payloads to the wrong region.
  */
 
 const phiScrubber = makePhiScrubber();
 
-Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ?? 'development',
+if (isSentryDsnCspCoherent(process.env.NEXT_PUBLIC_SENTRY_DSN)) {
+  Sentry.init({
+    dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ?? 'development',
 
-  tracesSampleRate: 0.1,
+    tracesSampleRate: 0.1,
 
-  beforeSend(event) {
-    // The PHIScrubber returns a SentryEventLike subset of the SDK's
-    // event shape. Cast back to the SDK's `Event` type — the
-    // structural subset is preserved by `scrubSentryEvent`, which
-    // only mutates fields that exist on the SDK shape.
-    return phiScrubber.scrubSentryEvent(event) as typeof event | null;
-  },
+    beforeSend(event) {
+      // Generic `scrubSentryEvent<E>` infers the SDK's `Event` type back —
+      // the `{...event}` spread preserves every field, so no cast is needed.
+      return phiScrubber.scrubSentryEvent(event);
+    },
 
-  // Strip PHI-shaped fields from breadcrumb data — parity with the
-  // client config (Sentry's server SDK collects breadcrumbs too).
-  beforeBreadcrumb(breadcrumb) {
-    if (breadcrumb.data) {
-      breadcrumb.data = sanitize(breadcrumb.data) as Record<string, unknown>;
-    }
-    if (breadcrumb.message) {
-      breadcrumb.message = sanitize(breadcrumb.message);
-    }
-    return breadcrumb;
-  },
-});
+    // Strip PHI-shaped fields from breadcrumb data — parity with the
+    // client config (Sentry's server SDK collects breadcrumbs too).
+    beforeBreadcrumb(breadcrumb) {
+      if (breadcrumb.data) {
+        breadcrumb.data = sanitize(breadcrumb.data);
+      }
+      if (breadcrumb.message) {
+        breadcrumb.message = sanitize(breadcrumb.message);
+      }
+      return breadcrumb;
+    },
+  });
+}

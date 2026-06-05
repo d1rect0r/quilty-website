@@ -226,11 +226,10 @@ type SentryPrimitive = string | number | boolean | bigint | symbol | null | unde
  * chokepoint actually touches so the adapter stays testable without
  * dragging the Sentry SDK into the port's type surface. Vendor-typed
  * Sentry events satisfy this shape structurally, and the scrubber's
- * `{...event}` spread preserves the un-touched fields at runtime —
- * the cast at the `beforeSend` return site
- * (`scrubSentryEvent(event) as typeof event | null`) is therefore
- * runtime-safe even when Sentry adds new event fields in a future
- * SDK minor.
+ * `{...event}` spread preserves the un-touched fields at runtime. Because
+ * `scrubSentryEvent` is generic in the concrete event type `E`, the
+ * `beforeSend` return site infers `E | null` directly — no cast is needed
+ * even when Sentry adds new event fields in a future SDK minor.
  */
 export interface SentryEventLike {
   request?:
@@ -288,5 +287,5 @@ export interface SentryEventLike {
  * preserves vendor parity for future use.
  */
 export interface PHIScrubber {
-  readonly scrubSentryEvent: (event: SentryEventLike) => SentryEventLike | null;
+  readonly scrubSentryEvent: <E extends SentryEventLike>(event: E) => E | null;
 }

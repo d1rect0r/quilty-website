@@ -37,15 +37,15 @@ Outside production runtime (dev, test, and the `next build` static-generation pa
 
 ### Decision C — Guard scope + the layered flag inventory
 
-The construction-time guard covers the adapters that have **no internal guard**: the **rate-limiter** and the **ConsentStore** (on both the server and edge roots — the edge ConsentStore is consent-state-bearing per D35 and serves real traffic). The **email** and **captcha** in-memory adapters already **self-guard at call time** with their own flags and are intentionally NOT routed through the construction-time guard, to avoid divergent double-guarding.
+The construction-time guard covers the adapters that have **no internal guard**: the **rate-limiter**, the **ConsentStore**, and the **guest-state-store** (each on both the server and edge roots — the edge ConsentStore is consent-state-bearing per D35 and serves real traffic; the guest-state-store, added after this ADR was first written, holds the anonymous NON-health UI/nav carrier keyed by `__Host-quilty_sid_guest` and is governed by `QUILTY_ALLOW_INMEMORY_ADAPTERS` with activation env `QUILTY_GUEST_STATE_TABLE`). The **email** and **captcha** in-memory adapters already **self-guard at call time** with their own flags and are intentionally NOT routed through the construction-time guard, to avoid divergent double-guarding.
 
 An interim production deploy that intends to run on in-memory adapters must therefore set **all** of:
 
-| Flag                                    | Governs                                     | Enforced at                              | Value  |
-| --------------------------------------- | ------------------------------------------- | ---------------------------------------- | ------ |
-| `QUILTY_ALLOW_INMEMORY_ADAPTERS`        | rate-limiter + ConsentStore (server + edge) | container construction (ADR-0030)        | `true` |
-| `QUILTY_ALLOW_INMEMORY_EMAIL_IN_PROD`   | in-memory EmailSender                       | `send()` call time (`@quilty/email`)     | `1`    |
-| `QUILTY_ALLOW_INMEMORY_CAPTCHA_IN_PROD` | in-memory CaptchaVerifier                   | `verify()` call time (`@quilty/captcha`) | `1`    |
+| Flag                                    | Governs                                                         | Enforced at                              | Value  |
+| --------------------------------------- | --------------------------------------------------------------- | ---------------------------------------- | ------ |
+| `QUILTY_ALLOW_INMEMORY_ADAPTERS`        | rate-limiter + ConsentStore + guest-state-store (server + edge) | container construction (ADR-0030)        | `true` |
+| `QUILTY_ALLOW_INMEMORY_EMAIL_IN_PROD`   | in-memory EmailSender                                           | `send()` call time (`@quilty/email`)     | `1`    |
+| `QUILTY_ALLOW_INMEMORY_CAPTCHA_IN_PROD` | in-memory CaptchaVerifier                                       | `verify()` call time (`@quilty/captcha`) | `1`    |
 
 These flags belong in the SST `environment` block at the point a deploy is attempted before the real adapters land.
 

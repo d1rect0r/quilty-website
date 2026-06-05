@@ -21,7 +21,7 @@ import { NextResponse } from 'next/server';
  * not "fix" it back to `/api/auth/*`; that breaks the portal-CSP + noindex
  * classification keyed on `/auth/`.
  */
-export async function POST() {
+export async function POST(): Promise<NextResponse> {
   return NextResponse.json(
     {
       error: 'Cognito does not support OIDC BCL yet. Use EventBridge fan-out via /auth/logout.',

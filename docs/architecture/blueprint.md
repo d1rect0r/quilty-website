@@ -74,8 +74,8 @@ apps/web/
 │   ├── [locale]/
 │   │   ├── (marketing)/              # marketing group layout
 │   │   └── (account)/                # portal group layout
+│   ├── auth/{callback,session,refresh,logout,backchannel-logout}/route.ts      # 501 stubs until M6 (apex /auth/* per ADR-0029)
 │   ├── api/
-│   │   ├── auth/{callback,session,refresh,logout,backchannel-logout}/route.ts  # 501 stubs until M6
 │   │   └── webhooks/stripe/route.ts                                            # 501 stub until M7
 │   ├── error.tsx + global-error.tsx + not-found.tsx
 │   ├── layout.tsx + page.tsx
@@ -124,9 +124,11 @@ Files that EMERGE later (don't pre-create):
 
 ### Projected `apps/web/app/api/` natural shape (R4 evidence)
 
+(`auth/` lives at apex `app/auth/` — 3-6 OIDC routes, current 5 stubs — NOT
+under `app/api/`, per the ADR-0029 `/api/auth/* → /auth/*` relocation.)
+
 ```
 app/api/
-├── auth/                # 3-6 OIDC routes (current 5 stubs)
 ├── cron/                # scheduled handlers (when SST cron lands)
 ├── webhooks/            # inbound from third parties (Stripe, Cognito EventBridge, etc.)
 │   └── stripe/route.ts  # canonical pattern: verify → Zod-parse → idempotency → dispatch

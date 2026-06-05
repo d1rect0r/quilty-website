@@ -84,16 +84,32 @@ describe('makeAmplitudeNodeAnalytics', () => {
       expect(flushMock).toHaveBeenCalledTimes(2);
     });
 
-    it('never throws and warns when the SDK throws', async () => {
+    it('never throws and warns analytics:flush_failed when track/flush throws', async () => {
       const logger = fakeLogger();
       trackMock.mockImplementation(() => {
         throw new Error('vendor down');
       });
       const analytics = makeAmplitudeNodeAnalytics({ logger, apiKey: 'k', enabled: true });
       await expect(analytics.track(SUB_STARTED, { user_id_hash: 'u' })).resolves.toBeUndefined();
-      expect(logger.warn).toHaveBeenCalledWith('analytics:emit_failed', {
+      expect(logger.warn).toHaveBeenCalledWith('analytics:flush_failed', {
         event_name: 'subscription_started',
       });
+    });
+
+    it('warns analytics:init_failed (and resets) when SDK init throws', async () => {
+      const logger = fakeLogger();
+      initMock.mockImplementationOnce(() => ({ promise: Promise.reject(new Error('init down')) }));
+      const analytics = makeAmplitudeNodeAnalytics({ logger, apiKey: 'k', enabled: true });
+      await expect(analytics.track(SUB_STARTED, { user_id_hash: 'u' })).resolves.toBeUndefined();
+      expect(logger.warn).toHaveBeenCalledWith('analytics:init_failed', {
+        event_name: 'subscription_started',
+      });
+      expect(trackMock).not.toHaveBeenCalled();
+
+      // Self-heal: the next event re-attempts init.
+      await analytics.track(SUB_STARTED, { user_id_hash: 'u' });
+      expect(initMock).toHaveBeenCalledTimes(2);
+      expect(trackMock).toHaveBeenCalledTimes(1);
     });
   });
 });

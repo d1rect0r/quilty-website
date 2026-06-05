@@ -82,20 +82,38 @@ export function makeAmplitudeBrowserAnalytics(
         logger.debug('analytics:event', { event_name: event.name });
         return;
       }
+      if (typeof apiKey !== 'string') {
+        // Unreachable when `active` is true (active already requires a
+        // string key); the guard removes the cast at the loadSdk call site
+        // and keeps the type narrowed.
+        return;
+      }
+
+      // INIT: SDK load + init. A failure here resets the cached promise so
+      // the next event re-initialises from scratch rather than awaiting a
+      // permanently-rejected promise.
+      let mod: Awaited<ReturnType<typeof loadSdk>>;
       try {
-        sdkPromise ??= loadSdk(apiKey as string);
-        const mod = await sdkPromise;
+        sdkPromise ??= loadSdk(apiKey);
+        mod = await sdkPromise;
+      } catch {
+        // Analytics must never break UX: swallow the init failure and reset
+        // the cached promise so a transient load/init failure self-heals on
+        // the next event rather than poisoning the adapter for the process.
+        sdkPromise = null;
+        logger.warn('analytics:init_failed', { event_name: event.name });
+        return;
+      }
+
+      // EMIT: a track failure is per-event and must NOT reset the cached
+      // init — the SDK is already up; only this one event is lost.
+      try {
         // The wrapper already sanitised the event; forward name + props.
         // user_id_hash (already a non-reversible hash, never raw PII) maps
         // to Amplitude's user_id when the call carries one.
         const eventOptions = ctx?.user_id_hash ? { user_id: ctx.user_id_hash } : undefined;
         mod.track(event.name, event.props, eventOptions);
       } catch {
-        // Analytics must never break UX: swallow vendor/network failures
-        // and surface a non-PHI signal for the broken-emitter case. Reset
-        // the cached promise so a transient init/load failure self-heals on
-        // the next event rather than poisoning the adapter for the process.
-        sdkPromise = null;
         logger.warn('analytics:emit_failed', { event_name: event.name });
       }
     },

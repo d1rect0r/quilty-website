@@ -93,7 +93,7 @@ describe('makeAmplitudeBrowserAnalytics', () => {
       expect(trackMock).toHaveBeenCalledWith('page_view', PAGE_VIEW.props, undefined);
     });
 
-    it('never throws and logs a non-PHI warning when the SDK throws', async () => {
+    it('never throws and logs analytics:emit_failed when the SDK track throws', async () => {
       const logger = fakeLogger();
       trackMock.mockImplementation(() => {
         throw new Error('vendor down');
@@ -105,16 +105,32 @@ describe('makeAmplitudeBrowserAnalytics', () => {
       });
     });
 
-    it('self-heals: re-initialises on the next event after a transient failure', async () => {
+    it('a post-init track failure does NOT reset init (re-uses the SDK)', async () => {
       const logger = fakeLogger();
       trackMock.mockImplementationOnce(() => {
         throw new Error('transient');
       });
       const analytics = makeAmplitudeBrowserAnalytics({ logger, apiKey: 'k', enabled: true });
-      await analytics.track(PAGE_VIEW); // fails → warn + reset cached promise
+      await analytics.track(PAGE_VIEW); // init succeeds, track throws → emit_failed (no reset)
+      await analytics.track(PAGE_VIEW); // re-uses cached init
+      expect(initMock).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith('analytics:emit_failed', {
+        event_name: 'page_view',
+      });
+    });
+
+    it('self-heals: re-initialises after a transient INIT failure', async () => {
+      const logger = fakeLogger();
+      initMock.mockImplementationOnce(() => {
+        throw new Error('init transient');
+      });
+      const analytics = makeAmplitudeBrowserAnalytics({ logger, apiKey: 'k', enabled: true });
+      await analytics.track(PAGE_VIEW); // init throws → init_failed + reset cached promise
       await analytics.track(PAGE_VIEW); // re-inits + succeeds
       expect(initMock).toHaveBeenCalledTimes(2);
-      expect(logger.warn).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith('analytics:init_failed', {
+        event_name: 'page_view',
+      });
     });
   });
 });

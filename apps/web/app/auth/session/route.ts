@@ -9,7 +9,7 @@ import { NextResponse } from 'next/server';
  * elevated_until step-up flag, locale, consent state) for client consumption.
  * Validates the `__Host-quilty_sid` cookie against the DynamoDB session row.
  */
-export async function GET() {
+export async function GET(): Promise<NextResponse> {
   return NextResponse.json(
     { error: 'Not implemented — reserved for the auth-integration activation.' },
     { status: 501 },

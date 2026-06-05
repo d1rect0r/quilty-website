@@ -1,3 +1,5 @@
+import 'server-only';
+
 /**
  * Server-only barrel — consumed by the server + edge composition roots via
  * `import { … } from '@quilty/guest-state/server'`. The store adapters carry

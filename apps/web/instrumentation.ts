@@ -1,3 +1,4 @@
+import 'server-only';
 import { isSensitiveKey } from '@quilty/security';
 /**
  * Sentry SERVER + EDGE initialization (Next.js 16 instrumentation API).

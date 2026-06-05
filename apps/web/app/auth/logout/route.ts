@@ -10,7 +10,7 @@ import { NextResponse } from 'next/server';
  * publishes `quilty.auth.sessions_revoked` to EventBridge (cross-device
  * fan-out — Cognito does NOT support OIDC Back-Channel Logout natively).
  */
-export async function POST() {
+export async function POST(): Promise<NextResponse> {
   return NextResponse.json(
     { error: 'Not implemented — reserved for the auth-integration activation.' },
     { status: 501 },

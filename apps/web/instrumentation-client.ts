@@ -55,7 +55,7 @@ function shouldInitializeSentryClient(): boolean {
  * Router navigations (fired before idle init completes) are simply not
  * instrumented, which is acceptable for client transition spans.
  */
-type RouterTransitionHook = (href: string, navigationType: string) => void;
+type RouterTransitionHook = (href: string, navigationType: 'push' | 'replace' | 'traverse') => void;
 let routerTransitionHook: RouterTransitionHook | undefined;
 
 /**

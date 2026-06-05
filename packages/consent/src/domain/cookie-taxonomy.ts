@@ -205,4 +205,18 @@ export const COOKIE_REGISTRY: readonly CookieDeclaration[] = [
     lifetime: 'session',
     attributes: { httpOnly: true, secure: true, sameSite: 'Lax' },
   },
+  {
+    // Amplitude Browser SDK 2 device-id cookie family (`AMP_*`). Written
+    // client-side ONLY post-consent, when the analytics adapter activates
+    // (the adapter ships dormant today — no key, flag off — so this cookie
+    // is not set yet; it is disclosed here so the registry already covers
+    // it at the consent-banner activation milestone). Not httpOnly (the
+    // Browser SDK reads it); 365-day default lifetime per SDK 2.
+    name: 'AMP_*',
+    category: 'analytics',
+    purpose:
+      'Amplitude Browser SDK device-id cookie; set post-consent when the analytics adapter activates (dormant today).',
+    lifetime: 365,
+    attributes: { httpOnly: false, secure: true, sameSite: 'Lax' },
+  },
 ];

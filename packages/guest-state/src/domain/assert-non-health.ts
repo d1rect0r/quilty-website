@@ -40,7 +40,7 @@ function collectSensitiveKeys(value: unknown, path: string, seen: Set<unknown>):
     return findings;
   }
 
-  for (const [k, v] of Object.entries(value as object)) {
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
     const here = path ? `${path}.${k}` : k;
     if (isSensitiveKey(k)) {
       findings.push(here);

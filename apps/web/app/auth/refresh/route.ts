@@ -10,7 +10,7 @@ import { NextResponse } from 'next/server';
  * refresh-token TTL 8h. Old refresh-token revoked on rotation — detects
  * refresh-token theft (Cognito returns error if a revoked token is replayed).
  */
-export async function POST() {
+export async function POST(): Promise<NextResponse> {
   return NextResponse.json(
     { error: 'Not implemented — reserved for the auth-integration activation.' },
     { status: 501 },

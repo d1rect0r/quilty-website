@@ -8,9 +8,11 @@
  *
  * Serverless delivery: the Node SDK batches and auto-flushes on an interval,
  * which loses events when a Lambda freezes after returning. The adapter
- * therefore `await`s `flush()` after every `track()` so events are delivered
- * before the handler returns (the documented serverless pattern). `init()`
- * runs once per process (cold start) and is cached.
+ * therefore `await`s `flush()` after every `track()` to deliver the event
+ * before the handler returns (the documented serverless pattern) — this is
+ * best-effort: a transient flush failure still drops that single event, it
+ * just no longer poisons the cached SDK init. `init()` runs once per process
+ * (cold start) and is cached.
  *
  * Dormant by default: unless `enabled` is true AND an `apiKey` is present,
  * the adapter logs the event NAME only (never props/ctx, per D67) and makes
@@ -59,17 +61,36 @@ export function makeAmplitudeNodeAnalytics(options: AmplitudeNodeAnalyticsOption
         logger.debug('analytics:event_skipped_no_user', { event_name: event.name });
         return;
       }
+      if (typeof apiKey !== 'string') {
+        // Unreachable when `active` is true (active already requires a
+        // string key), but the guard removes the cast at the loadSdk call
+        // site and keeps the type narrowed.
+        return;
+      }
+
+      // OUTER: SDK load + init. A failure here resets the cached promise so
+      // the next event retries init from scratch rather than awaiting a
+      // permanently-rejected promise.
+      let mod: Awaited<ReturnType<typeof loadSdk>>;
       try {
-        sdkPromise ??= loadSdk(apiKey as string);
-        const mod = await sdkPromise;
+        sdkPromise ??= loadSdk(apiKey);
+        mod = await sdkPromise;
+      } catch {
+        sdkPromise = null;
+        logger.warn('analytics:init_failed', { event_name: event.name });
+        return;
+      }
+
+      // INNER: emit + flush. A failure here is per-event (a transient
+      // network/flush hiccup) — it must NOT reset the cached init, so the
+      // next event reuses the already-initialised SDK. Best-effort: the
+      // event that failed to flush is dropped.
+      try {
         mod.track(event.name, event.props, { user_id: ctx.user_id_hash });
-        // Guarantee delivery before the Lambda freezes.
+        // Best-effort delivery before the Lambda freezes.
         await mod.flush().promise;
       } catch {
-        // Reset the cached promise so a transient init/load failure
-        // self-heals on the next event rather than poisoning the process.
-        sdkPromise = null;
-        logger.warn('analytics:emit_failed', { event_name: event.name });
+        logger.warn('analytics:flush_failed', { event_name: event.name });
       }
     },
   };

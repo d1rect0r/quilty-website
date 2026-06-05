@@ -67,7 +67,8 @@ export function initSentryClient(): typeof Sentry.captureRouterTransitionStart {
     // duplicated across server / client / edge configs. See
     // sentry.server.config.ts for the chokepoint rationale.
     beforeSend(event) {
-      return phiScrubber.scrubSentryEvent(event) as typeof event | null;
+      // Generic `scrubSentryEvent<E>` infers `typeof event | null` — no cast.
+      return phiScrubber.scrubSentryEvent(event);
     },
 
     beforeBreadcrumb(breadcrumb) {
@@ -77,7 +78,7 @@ export function initSentryClient(): typeof Sentry.captureRouterTransitionStart {
       // a query-string fragment if D31's URL-no-PHI invariant is ever
       // violated; sanitizing here defends in depth.
       if (breadcrumb.data) {
-        breadcrumb.data = sanitize(breadcrumb.data) as Record<string, unknown>;
+        breadcrumb.data = sanitize(breadcrumb.data);
       }
       if (breadcrumb.message) {
         breadcrumb.message = sanitize(breadcrumb.message);
