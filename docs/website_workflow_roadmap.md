@@ -32,7 +32,9 @@ Pace: scope → direction → scaffold → small features → integrate auth →
 
 ---
 
-## Current state snapshot (2026-05-14)
+## Current state snapshot (2026-06-18)
+
+> **Snapshot note (2026-06-18):** This snapshot was last fully refreshed at the 2026-05-14 strategy lock; the `quilty-aws` inventory below remains accurate. Since then the M1.5 and M1.6 sprints have closed and the foundation phase is complete — 859 unit + 121 e2e tests across 18 workspaces, ADRs now run through 0030, and AWS deploy is PARKED pending the account-structure decision (in-repo hardening was prioritised ahead of the first deploy). The M1-build detail below describes the originally-planned cutover; treat the parked-deploy posture as current.
 
 ### Already in place — `quilty-aws` (production account `975630231383`, us-east-1)
 
