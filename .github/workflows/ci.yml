@@ -6,6 +6,7 @@
 #   3. hygiene — syncpack + Knip + depcruise + security.txt expires
 #                gate + type-coverage + secretlint + openapi codegen drift
 #   4. typecheck — TypeScript strict across workspaces
+#   4b. sst-config — typecheck sst.config.ts against generated SST platform types
 #   5. test — Vitest unit (with v8 coverage)
 #   6. test-e2e — Playwright e2e + a11y (axe-core WCAG 2.2 AA + smoke + security + seo)
 #   7. build — Next.js production build + size-limit budgets + PR-diff comment
@@ -135,6 +136,32 @@ jobs:
       - run: pnpm --filter web exec velite build --config ../../velite.config.ts
       - run: pnpm typecheck
 
+  sst-config:
+    name: Typecheck sst.config.ts
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # sst.config.ts is NOT in any workspace tsconfig (excluded from
+      # `turbo run typecheck` + type-coverage); its types come from the
+      # generated `.sst/platform/`. `sst install` materialises those — it only
+      # downloads the platform + providers, no AWS creds needed. Cached on the
+      # lockfile so the provider download is paid once per dependency change.
+      - name: Cache SST platform
+        uses: actions/cache@v4
+        with:
+          path: .sst
+          key: sst-platform-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm exec sst install
+      - run: pnpm typecheck:sst
+
   test:
     name: Unit tests (Vitest)
     needs: install
@@ -218,7 +245,7 @@ jobs:
     # `test-e2e` was missing from `needs:`, letting axe failures slip
     # past the merge gate when branch protection only required `build`.
     name: Next.js build
-    needs: [lint, hygiene, typecheck, test, test-e2e]
+    needs: [lint, hygiene, typecheck, sst-config, test, test-e2e]
     runs-on: ubuntu-latest
     # 25-minute ceiling accommodates the webpack production build
     # (per ADR-0018, opted-out of Turbopack for per-route chunk

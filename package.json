@@ -39,6 +39,7 @@
     "test:e2e": "turbo run test:e2e",
     "type-coverage": "type-coverage",
     "typecheck": "turbo run typecheck",
+    "typecheck:sst": "bash scripts/typecheck-sst.sh",
     "verify": "pnpm syncpack:lint && pnpm knip && pnpm depcruise && pnpm security-txt:check && pnpm compliance-language:check && pnpm workflow-context:check && pnpm typecheck && pnpm lint && pnpm test && pnpm type-coverage && pnpm format:check && pnpm secretlint",
     "workflow-context:check": "node scripts/check-no-workflow-context.mjs"
   },

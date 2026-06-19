@@ -285,18 +285,19 @@ function defineSiteResources(stage: string) {
             // unaffected) and cuts TTFB on lossy mobile links; HTTP/3
             // requires TLS 1.3, which the policy below permits.
             distArgs.httpVersion = 'http2and3';
-            // Raise the viewer TLS floor above the component default
-            // (TLSv1.2_2021). The field is typed Input<string>, so
-            // 'TLSv1.2_2025' is NOT compile-checked. Verify acceptance at the
-            // first `sst deploy`: the more likely failure surface is the
-            // bundled @pulumi/aws provider's own enum validation (it may
-            // predate the 2025 policies) rejecting the value before the
-            // request reaches CloudFront; CloudFront would also reject an
-            // unknown policy. Only set it on the ACM branch — the default
-            // cert (preview stages) ignores a minimum-protocol policy.
+            // Pin the viewer TLS floor explicitly so it can't silently
+            // change under a component-default shift, and so there is one
+            // clear line to bump. This equals SST's current default
+            // (TLSv1.2_2021) and is a Security-Hub-passing policy. The newer
+            // TLSv1.2_2025 policy (drops CBC, adds hybrid post-quantum) is
+            // verified NOT accepted by the bundled @pulumi/aws@7.20.0 (its
+            // CloudFront enum tops out at TLSv1.2_2021), so setting it would
+            // fail the deploy — that upgrade is gated on a provider bump
+            // (deployment plan T3-28). Only set on the ACM branch — the
+            // default cert (preview stages) ignores a minimum-protocol policy.
             distArgs.viewerCertificate = $output(distArgs.viewerCertificate).apply((cert) =>
               cert && !cert.cloudfrontDefaultCertificate
-                ? { ...cert, minimumProtocolVersion: 'TLSv1.2_2025' }
+                ? { ...cert, minimumProtocolVersion: 'TLSv1.2_2021' }
                 : cert,
             );
           },
