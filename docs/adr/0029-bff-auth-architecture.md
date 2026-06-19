@@ -64,7 +64,7 @@ The enterprise optimization is **not** Plan A; it is **Plan B with a rendering s
 
 The opaque session cookie is **host-only `__Host-`** (Secure, HttpOnly, `Path=/`, **no `Domain` attribute**) on the BFF origin — the literal IETF browser-apps BCP recommendation. The `Domain=my-quilty.com` shared-cookie option is structurally impossible (`__Host-` forbids `Domain`) and reintroduces the cookie-tossing surface the prefix exists to close. The cross-subdomain "cookie problem" is a **non-issue**: after the OIDC redirect completes the app **never reads Cognito's `auth.my-quilty.com` cookie** — it reads only its own BFF session cookie; and the `my-quilty.com`↔`api.my-quilty.app` TLD split is irrelevant because BFF→API is server-to-server bearer, not cookies (it is, in fact, an extra isolation boundary). Per-subdomain separate cookies (Option C) are deferred unless a second real browser surface (e.g. `app.my-quilty.com`) ever ships.
 
-**Open reconcile (tracked):** CLAUDE.md / D8 lock `SameSite=Lax`; the IETF browser-apps BCP recommends `SameSite=Strict` for the BFF session cookie. Lax is defensible for top-level login-redirect UX, but Strict is the spec default and the stronger posture for a health-adjacent surface. To be settled before the M5/M6 BFF cookie code lands (`D-AUTH-SAMESITE-LAX-VS-STRICT`).
+**Reconcile — RESOLVED 2026-06-19:** `SameSite=Lax` is **retained** (D8 stands). The IETF browser-apps BCP recommends `Strict`, but `Strict` drops the session cookie on inbound top-level navigations (e.g. an email link to `/account` renders logged-out on first paint, then recovers on the next same-site nav) — a real UX regression for an authenticated portal. Lax is the pragmatic BFF norm and is compensated by the D53/D113 CSRF triple-layer (Origin/Referer check + signed double-submit + custom `X-Quilty-CSRF` header that forces a CORS preflight on state-changing requests). Locked per the 2026-06-19 enterprise-validation pass.
 
 ### Validation outcome
 
@@ -124,7 +124,7 @@ Verification lands with the M5/M6 BFF implementation; the design contracts are l
 - **Pre-auth quiz/intake flow is actually scoped** — build the promotion bridge (Decision F) under the locked constraints.
 - **FTC / state-AG enforcement against a peer** for a refresh/step-up/guest-carry failure pattern — audit against the new facts.
 - **AWS account placement decided** — wire the DynamoDB adapters for `elevated_until` / `requires_step_up` / `guest_state` and retire the in-memory fail-closed guards.
-- **`SameSite` Lax vs Strict** (`D-AUTH-SAMESITE-LAX-VS-STRICT`) — settle the session-cookie `SameSite` value before the M5/M6 BFF cookie code lands (Addendum Decision H; reconcile D8's Lax against the IETF browser-apps BCP's Strict).
+- ~~**`SameSite` Lax vs Strict** (`D-AUTH-SAMESITE-LAX-VS-STRICT`)~~ — **RESOLVED 2026-06-19: Lax retained** (Addendum Decision H); CSRF triple-layer compensates. No longer an open trigger.
 - **PrivateLink for BFF→API** — Phase-1 hardening: move the BFF→`api.my-quilty.app` hop onto a PrivateLink `execute-api` interface endpoint (off the public internet); public HTTPS + WAF + bearer is the launch posture.
 
 ## References
