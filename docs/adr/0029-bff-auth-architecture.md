@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-06-03
-- **Last reviewed:** 2026-06-03
+- **Last reviewed:** 2026-06-18 (see Addendum 2026-06-18 — enterprise validation)
 - **Deciders:** Volodymyr Petrychenko
 - **Originating discussion:** `docs/website_strategy_discussion.md` § D5 (BFF via Next.js Route Handlers — README "planned-but-not-yet-written" item #1) + the `quilty-aws` federation handoff (`docs/runbook/federation-handoff-from-quilty-aws-2026-06-03.md` § 8 — six open questions) + the 2026-06-03 structured decision pass (3 web-research agents + AskUserQuestion ratification).
 - **Related decisions:** D5 (BFF via Route Handlers — this ADR's canonical decision), D6 (Cognito Managed Login), D7 (`__Host-` per-subdomain cookies), D9 (Cognito-native logout + opaque session-ID), D11 (`quilty_sub`/`quilty_sid`), D44 (Sign in with Apple via Cognito federation), D51 (opaque session-ID + DynamoDB store), D52 (token TTLs — access 5 min / refresh 8h, confirmed 2026-06-03), **D54 (step-up via `prompt=login` + `elevated_until` — REVISED here: window 5 min → 10 min, action set + route gating specified)**, D31/ADR-0027 (zero-PHI), D35/ADR-0028 (ConsentState)
@@ -43,6 +43,32 @@ The BFF route-gates step-up on **`/account/security`, `/account/data` (export), 
 ### Decision F — Anonymous → authenticated guest carrier; promotion bridge deferred (Q5)
 
 We build the **thin guest-state carrier now**: an opaque `guest_sid` in a `__Host-`-prefixed cookie backed by a `guest_state` store (mirroring the opaque-session architecture), holding **only non-health UI/navigation state** (quiz step index, generic selections, UTM/referrer). The **promotion bridge** — stitching guest state onto the authenticated account — is **deferred to M5/M6**, because it crosses the OWASP-mandatory anonymous→authenticated privilege boundary and is meaningless until real auth + a real portal exist. Three constraints are locked now so the bridge is built correctly when it lands: (1) **at promotion, mint a new authenticated session ID and destroy the guest session record** server-side (OWASP session-fixation defense; distinct cookie names for guest vs authenticated); (2) **reconcile, do not inherit, consent** — the anonymous cookie-tier consent is not the authenticated record (D35/ADR-0028); re-derive consent from explicit acts, carry the _fact + timestamp_ of any pre-auth opt-in as provenance, honor GPC continuity; (3) **any pre-auth quiz answer that collects or infers health status is consumer-health-data** under WA MHMDA — it is gated behind explicit opt-in **before collection**, kept inside the zero-PHI server tier, out of any consent-gated SDK, and is **not** part of the generic carrier. Promotion is server-side and idempotent, keyed on the cookie-bound `guest_sid` (never a client-supplied id), and never touches `elevated_until` actions.
+
+## Addendum (2026-06-18) — Enterprise validation: BFF account placement + cookie strategy
+
+A 6-agent enterprise online-research pass (2026-06-18) validated the website↔AWS architecture end-to-end against 2025-2026 sources, triggered by the `quilty-aws` `aws_org_evolution_plan.md` discussion artifact, which raised an alternative ("Plan A") to this ADR's topology. Full findings + sources: `docs/research/enterprise_validation_2026-06-18.md`. Our response to the AWS-side open calls: `quilty-aws/docs/infrastructure/aws_org_evolution_plan_website_response_2026-06-18.md`. This addendum locks two points the original ADR left implicit.
+
+### Decision G — BFF account placement: the Next.js BFF stays in the website (marketing-prod) account ("Plan B")
+
+The BFF (this ADR's whole token-handler surface) runs **in the website account (marketing-prod), as part of the SST-deployed SSR Next.js app**, and calls the Rust backend at `api.my-quilty.app` (workloads-prod) over **HTTPS with bearer tokens — no cross-account IAM**, exactly as the mobile app does. The rejected alternative ("Plan A": marketing-prod static-only, BFF Lambdas relocated into the PHI account workloads-prod) is a **regression** for Quilty:
+
+- The IETF browser-apps BCP (§6.1.2.5) explicitly allows the BFF+frontend as one service calling a resource server over the network — Plan B is the reference shape, not a Quilty-original. Curity/Duende/Auth0 constrain only the BFF↔**browser** (same-site cookie) relationship, never BFF↔API co-location.
+- The same-site cookie requirement is satisfied **identically** under both plans (the browser cookie lives in the website account either way; it never touches workloads-prod). So Plan A buys **zero** cookie benefit while forfeiting SSR and dragging an internet-facing, refresh-token-holding, public-DNS component **into the PHI account** — against AWS SRA HIPAA account-isolation and the "refresh tokens must not sit next to the resource API" principle (D31/ADR-0027 blast-radius posture, the Cerebral lesson).
+- Plan A's only real argument — token custody in the hardened account — is already mitigated by locked controls: 5-min access TTL (D52), refresh rotation + reuse detection (RFC 9700), Valkey JTI revocation, CMK-at-rest. Worst-case blast radius under Plan B is short-lived/rotating/revocable session tokens for one user, not the SCP-walled PHI store.
+
+### Decision G.1 — Rendering split inside the website account (the real-world hybrid)
+
+The enterprise optimization is **not** Plan A; it is **Plan B with a rendering split inside marketing-prod**: static-prerender/export the pure marketing routes to S3 + CloudFront (cheap, cacheable, WAF-fronted, CDN-served so they never invoke the SSR Lambda) while the authenticated portal + `/auth/*` + `/api/*` remain SSR Lambdas acting as the BFF — all under the same parent domain in the same account. This is the Curity/Duende "CDN serves static assets, same-parent-domain BFF serves the secured surface" pattern, and it maps onto our two-tier CSP (ADR-0005). Verify at build time that marketing routes are genuinely CDN-served (SEO/LCP), not SSR-per-request. (`output: export` for the whole app — losing portal SSR — remains rejected; the split is per-route, one deployment.)
+
+### Decision H — Cookie strategy: host-only `__Host-` on the BFF origin
+
+The opaque session cookie is **host-only `__Host-`** (Secure, HttpOnly, `Path=/`, **no `Domain` attribute**) on the BFF origin — the literal IETF browser-apps BCP recommendation. The `Domain=my-quilty.com` shared-cookie option is structurally impossible (`__Host-` forbids `Domain`) and reintroduces the cookie-tossing surface the prefix exists to close. The cross-subdomain "cookie problem" is a **non-issue**: after the OIDC redirect completes the app **never reads Cognito's `auth.my-quilty.com` cookie** — it reads only its own BFF session cookie; and the `my-quilty.com`↔`api.my-quilty.app` TLD split is irrelevant because BFF→API is server-to-server bearer, not cookies (it is, in fact, an extra isolation boundary). Per-subdomain separate cookies (Option C) are deferred unless a second real browser surface (e.g. `app.my-quilty.com`) ever ships.
+
+**Open reconcile (tracked):** CLAUDE.md / D8 lock `SameSite=Lax`; the IETF browser-apps BCP recommends `SameSite=Strict` for the BFF session cookie. Lax is defensible for top-level login-redirect UX, but Strict is the spec default and the stronger posture for a health-adjacent surface. To be settled before the M5/M6 BFF cookie code lands (`D-AUTH-SAMESITE-LAX-VS-STRICT`).
+
+### Validation outcome
+
+Both core decisions of this ADR (BFF token-handler pattern; transparent server-side refresh) were independently re-validated as MATCHES-ENTERPRISE. No decision in this ADR is reversed by the 2026-06-18 pass; Decisions G/G.1/H make explicit what was previously implicit and answer the AWS-side fork.
 
 ## Consequences
 
@@ -98,6 +124,8 @@ Verification lands with the M5/M6 BFF implementation; the design contracts are l
 - **Pre-auth quiz/intake flow is actually scoped** — build the promotion bridge (Decision F) under the locked constraints.
 - **FTC / state-AG enforcement against a peer** for a refresh/step-up/guest-carry failure pattern — audit against the new facts.
 - **AWS account placement decided** — wire the DynamoDB adapters for `elevated_until` / `requires_step_up` / `guest_state` and retire the in-memory fail-closed guards.
+- **`SameSite` Lax vs Strict** (`D-AUTH-SAMESITE-LAX-VS-STRICT`) — settle the session-cookie `SameSite` value before the M5/M6 BFF cookie code lands (Addendum Decision H; reconcile D8's Lax against the IETF browser-apps BCP's Strict).
+- **PrivateLink for BFF→API** — Phase-1 hardening: move the BFF→`api.my-quilty.app` hop onto a PrivateLink `execute-api` interface endpoint (off the public internet); public HTTPS + WAF + bearer is the launch posture.
 
 ## References
 
@@ -115,3 +143,5 @@ Verification lands with the M5/M6 BFF implementation; the design contracts are l
 - FTC Health Breach Notification Rule (2024 amendments): <https://www.ftc.gov/news-events/news/press-releases/2024/04/ftc-finalizes-changes-health-breach-notification-rule>
 - Federation handoff (server reverse-contract): `docs/runbook/federation-handoff-from-quilty-aws-2026-06-03.md`
 - Strategy doc D5 + D6 + D9 + D44 + D51 + D52 + D54: `docs/website_strategy_discussion.md`
+- Enterprise validation pass (2026-06-18, full findings + sources): `docs/research/enterprise_validation_2026-06-18.md`
+- Website-team response to the AWS org-evolution open calls: `quilty-aws/docs/infrastructure/aws_org_evolution_plan_website_response_2026-06-18.md`
