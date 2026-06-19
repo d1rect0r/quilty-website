@@ -9,6 +9,13 @@
 #   5. test — Vitest unit (with v8 coverage)
 #   6. test-e2e — Playwright e2e + a11y (axe-core WCAG 2.2 AA + smoke + security + seo)
 #   7. build — Next.js production build + size-limit budgets + PR-diff comment
+#   8. supply-chain — CycloneDX SBOM artifact + advisory dependency audit
+#
+# Supply-chain posture (ADR-0007 + 2026-06-18 enterprise validation): cooldown
+# (Renovate minimumReleaseAge), lifecycle-scripts-off (.npmrc
+# enable-pre-post-scripts=false), and frozen-lockfile installs are enforced
+# elsewhere; this job adds the missing SBOM artifact for fast "are we affected?"
+# triage during npm-ecosystem incidents, plus a non-blocking advisory audit.
 #
 # Concurrency cancellation per PR: a new push cancels in-flight runs on
 # the same head ref. Saves CI minutes + keeps queue depth bounded.
@@ -118,6 +125,35 @@ jobs:
         # reach the sibling quilty-aws repo, so it checks against the
         # in-repo committed specs only.
         run: pnpm --filter @quilty/shared-types codegen:check
+
+  supply-chain:
+    # Supply-chain hardening (ADR-0007 + 2026-06-18 enterprise validation).
+    # SBOM gives a minutes-to-answer inventory during npm-ecosystem incidents
+    # (Shai-Hulud worm, chalk/debug hijack, TanStack). Audit is a per-run
+    # visibility signal; Renovate vulnerabilityAlerts is the gating path.
+    name: Supply chain (SBOM + audit)
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate CycloneDX SBOM (Syft, from pnpm-lock.yaml)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: quilty-website.cdx.json
+          artifact-name: quilty-website-sbom.cdx.json
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Advisory dependency audit (non-blocking signal)
+        # continue-on-error: a new transitive advisory must not block unrelated
+        # PRs; the gating path is Renovate vulnerabilityAlerts (minimumReleaseAge 0).
+        continue-on-error: true
+        run: pnpm audit --audit-level high
 
   typecheck:
     name: Typecheck
