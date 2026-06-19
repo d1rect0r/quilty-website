@@ -221,13 +221,78 @@ function defineSiteResources(stage: string) {
       memory: '1024 MB',
       timeout: '15 seconds',
     },
+    // Image optimization (next/image via the Sharp-based OpenNext function).
+    // 1536 MB matches the component default and gives Sharp enough vCPU to
+    // keep transform latency + billed duration low. `staticEtag` makes the
+    // function emit an ETag derived from (href, width, quality, buildId) so
+    // an unchanged image returns 304 instead of re-running Sharp on every
+    // request — set via the component flag, NOT the OPENNEXT_STATIC_ETAG env
+    // var (the component injects that internally when this is true).
+    imageOptimization: {
+      memory: '1536 MB',
+      staticEtag: true,
+    },
+    // Keep 2 SSR execution environments warm via the OpenNext EventBridge
+    // warmer. Two (not one) so that a pair of concurrent first-byte requests
+    // during an idle period don't both pay a cold start — material now that
+    // AWS bills the Lambda INIT phase. Far cheaper than provisioned
+    // concurrency for this bursty marketing + portal traffic profile;
+    // revisit (provisioned concurrency) only if cold-start rate exceeds ~5%
+    // or p99 TTFB regresses post-launch.
+    warm: 2,
+    // Deploy-time CloudFront invalidation. `paths: 'all'` issues a single
+    // `/*` (one invalidation unit, inside the free tier) so un-hashed HTML
+    // is never served stale after a deploy; content-hashed `_next/static`
+    // assets are immutable and need no invalidation. `wait: true` blocks the
+    // deploy until the invalidation completes, so a green deploy guarantees
+    // the edges are serving the new build.
+    invalidation: {
+      paths: 'all',
+      wait: true,
+    },
     transform: {
       cdn(args) {
         args.tags = { ...args.tags, ...siteTagsFor(stage) };
         // CLAUDE.md NEVER list: no public hostname without WAF + rate
-        // limit. The ARN is a runtime gate (see above) so this is
-        // always populated when the cdn transform runs.
-        args.webAclId = wafAclArn;
+        // limit. The ARN is a runtime gate (see above) so this is always
+        // populated when the cdn transform runs. The CdnArgs field is
+        // `webAclArn` — the Cdn component maps it to the distribution's
+        // confusingly-named `webAclId`. Setting `webAclId` directly on
+        // CdnArgs is a silent no-op that would leave the distribution
+        // unprotected, so the WAF ARN must be assigned to `webAclArn`.
+        args.webAclArn = wafAclArn;
+        // Distribution-level edge settings CdnArgs doesn't expose directly.
+        args.transform = {
+          ...(typeof args.transform === 'object' ? args.transform : {}),
+          distribution(distArgs) {
+            // US/EU/Israel edges for US-focused DTC traffic. A flat-rate
+            // plan, if adopted later, overrides this (a Phase C decision).
+            distArgs.priceClass = 'PriceClass_100';
+            // Cdn omits this, so CloudFront's API default (false) applies.
+            // Enable IPv6 so IPv6-only clients resolve without NAT64; the
+            // apex/www AAAA records are added by quilty-aws/dns/ (Pattern A).
+            distArgs.isIpv6Enabled = true;
+            // Negotiate HTTP/3 (QUIC) in addition to HTTP/2 — CloudFront's
+            // default is HTTP/2 only. Purely additive (HTTP/2 clients are
+            // unaffected) and cuts TTFB on lossy mobile links; HTTP/3
+            // requires TLS 1.3, which the policy below permits.
+            distArgs.httpVersion = 'http2and3';
+            // Raise the viewer TLS floor above the component default
+            // (TLSv1.2_2021). The field is typed Input<string>, so
+            // 'TLSv1.2_2025' is NOT compile-checked. Verify acceptance at the
+            // first `sst deploy`: the more likely failure surface is the
+            // bundled @pulumi/aws provider's own enum validation (it may
+            // predate the 2025 policies) rejecting the value before the
+            // request reaches CloudFront; CloudFront would also reject an
+            // unknown policy. Only set it on the ACM branch — the default
+            // cert (preview stages) ignores a minimum-protocol policy.
+            distArgs.viewerCertificate = $output(distArgs.viewerCertificate).apply((cert) =>
+              cert && !cert.cloudfrontDefaultCertificate
+                ? { ...cert, minimumProtocolVersion: 'TLSv1.2_2025' }
+                : cert,
+            );
+          },
+        };
       },
       server(args) {
         const tags = siteTagsFor(stage);
@@ -302,7 +367,11 @@ function defineSiteResources(stage: string) {
   return {
     gate: 'open' as const,
     url: site.url,
-    distributionId: site.nodes.cdn.id,
+    // The Cdn component exposes the distribution via `nodes.distribution`
+    // (an aws.cloudfront.Distribution, which has `.id`) — it has no `.id` of
+    // its own. `nodes.cdn` is optionally typed, so guard it; the dev stage
+    // always has a CDN, but the optional chain keeps the output type honest.
+    distributionId: site.nodes.cdn?.nodes.distribution.id,
   };
 }
 

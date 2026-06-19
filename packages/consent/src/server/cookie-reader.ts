@@ -129,10 +129,18 @@ export function makeServerConsentReader(input: ServerConsentReaderInput): Consen
       const gpcOverride = gpcDetected || cookieGpcHonored;
 
       // Pre-banner-activation cookie path: when no cookie is present
-      // the snapshot is default-deny merged with GPC detection.
+      // the snapshot is default-deny merged with GPC detection. GPC opts
+      // out of sale/share (analytics/marketing/personalization) — which
+      // already match the default-deny baseline — but it does NOT deny
+      // first-party functional cookies (CCPA §7025(c)(2)). So a GPC visitor
+      // (whose banner is suppressed) gets functional:true here, matching
+      // what applyGpcForceOffCookie / the edge writer persist on this same
+      // request; a no-signal visitor stays default-deny (functional:false)
+      // until the banner records an affirmative choice.
       if (parsed === null) {
         return {
           ...DEFAULT_DENY_STATE,
+          functional: gpcDetected ? true : DEFAULT_DENY_STATE.functional,
           gpc_detected: gpcDetected,
           gpc_honored: gpcDetected,
           version: TAXONOMY_VERSION,

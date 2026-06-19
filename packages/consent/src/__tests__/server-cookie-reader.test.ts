@@ -45,6 +45,20 @@ describe('makeServerConsentReader', () => {
       expect(snapshot.gpc_honored).toBe(true);
     });
 
+    it('keeps functional enabled but denies sale/share categories for a GPC visitor without a cookie', async () => {
+      // GPC opts out of sale/share (analytics/marketing/personalization)
+      // only, not first-party functional cookies — so the no-cookie+GPC
+      // reader state must match what proxy.ts / cf-functions persist on the
+      // same request (functional:true). This pins the distinction from the
+      // no-signal default-deny path above (functional:false).
+      const reader = makeServerConsentReader(makeInput('1', null));
+      const snapshot = await reader.read();
+      expect(snapshot.functional).toBe(true);
+      expect(snapshot.analytics).toBe(false);
+      expect(snapshot.marketing).toBe(false);
+      expect(snapshot.personalization).toBe(false);
+    });
+
     it('treats Sec-GPC: 0 as no opt-out asserted (gpc_detected: false)', async () => {
       const reader = makeServerConsentReader(makeInput('0', null));
       const snapshot = await reader.read();
