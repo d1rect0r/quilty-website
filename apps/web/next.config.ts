@@ -134,6 +134,28 @@ async function wellKnownHeaders() {
   ];
 }
 
+/**
+ * Pre-launch SEO fail-safe. When SITE_FORCE_NOINDEX=true, emit a sitewide
+ * `X-Robots-Tag: noindex, nofollow` so the live placeholder is reachable
+ * (Apple/AWS reviewers, shared links) yet kept out of search indexes. The
+ * HTTP header is the authoritative signal — it covers every route and
+ * content type (unlike a meta tag); layout.tsx adds a meta-robots belt-and-
+ * suspenders. FAIL-SAFE: absent/'false' => no header => indexable, so a
+ * forgotten prod env can never ship noindex. Read from process.env (the
+ * `./lib/env` side-effect import above validates it as an enum at build).
+ * NOTE: clear it at launch AND run a CloudFront `/*` invalidation, or edges
+ * keep serving the cached noindex header.
+ */
+async function siteNoindexHeaders() {
+  if (process.env.SITE_FORCE_NOINDEX !== 'true') return [];
+  return [{ source: '/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }] }];
+}
+
+/** Well-known file headers + the (conditional) pre-launch noindex header. */
+async function siteHeaders() {
+  return [...(await wellKnownHeaders()), ...(await siteNoindexHeaders())];
+}
+
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -192,7 +214,7 @@ const config: NextConfig = {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [],
   },
-  headers: wellKnownHeaders,
+  headers: siteHeaders,
   redirects: siteRedirects,
   rewrites: siteRewrites,
 };

@@ -212,6 +212,14 @@ function defineSiteResources(stage: string) {
       // chunks, so the sanitizer's client-side path always lands on
       // the `dev:` namespace as designed.
       QUILTY_PSEUDONYM_PEPPER: pseudonymPepper,
+      // Pre-launch SEO fail-safe. Sourced from the deploy-step env so the
+      // same value reaches `next build` (the authoritative X-Robots-Tag
+      // header in next.config.ts) and the Lambda runtime (layout.tsx meta
+      // robots, for dynamically-rendered routes). Absent => 'false' =>
+      // indexable (safe default). CI sets it 'true' for preview stages
+      // (never index a preview) and from the SITE_FORCE_NOINDEX repo var for
+      // prod ('true' during the placeholder phase, removed at launch).
+      SITE_FORCE_NOINDEX: process.env.SITE_FORCE_NOINDEX ?? 'false',
     },
     server: {
       // arm64 ~20% cheaper than x86_64 at the same perf. OpenNext +

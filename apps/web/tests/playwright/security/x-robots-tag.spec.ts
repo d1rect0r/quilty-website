@@ -55,11 +55,24 @@ for (const path of NOINDEX_PATHS) {
   });
 }
 
-test('@security marketing route does NOT carry X-Robots-Tag', async ({ request }) => {
-  // Marketing pages must be indexable — the defense-in-depth header
-  // is targeted at portal/api/dev surfaces only. A regression that
-  // applies the header globally would silently de-index the entire
-  // marketing tier.
+test('@security marketing route X-Robots-Tag matches the SITE_FORCE_NOINDEX posture', async ({
+  request,
+}) => {
+  // Marketing pages carry NO path-scoped X-Robots-Tag (proxy.ts targets
+  // portal/api/dev surfaces only). The ONLY thing that adds a sitewide
+  // noindex to a marketing route is the pre-launch SITE_FORCE_NOINDEX
+  // fail-safe (next.config.ts, build-time). So this asserts both directions:
+  //   - flag off (default / launched): /en must be indexable (no header) —
+  //     a regression applying the header globally would silently de-index
+  //     the entire marketing tier.
+  //   - flag on (placeholder phase): /en must carry the sitewide noindex.
+  // The Playwright webServer inherits this process's env, so reading it here
+  // predicts the server's baked-in build posture.
+  const forceNoindex = process.env.SITE_FORCE_NOINDEX === 'true';
   const response = await request.get('/en');
-  expect(response.headers()['x-robots-tag']).toBeUndefined();
+  if (forceNoindex) {
+    expect(response.headers()['x-robots-tag']).toBe('noindex, nofollow');
+  } else {
+    expect(response.headers()['x-robots-tag']).toBeUndefined();
+  }
 });

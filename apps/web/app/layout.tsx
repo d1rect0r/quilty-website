@@ -70,9 +70,13 @@ export const metadata: Metadata = {
   // homepage, causing Google to fold every stub into the apex URL
   // . Each page declares its own canonical via
   // its own `generateMetadata` / `metadata` export.
+  // Meta-robots belt-and-suspenders to the authoritative X-Robots-Tag header
+  // set in next.config.ts. Both are driven by the same SITE_FORCE_NOINDEX
+  // fail-safe: absent/false => index:true (the safe production default), so a
+  // forgotten prod env can never de-index the launched site.
   robots: {
-    index: true,
-    follow: true,
+    index: !env.SITE_FORCE_NOINDEX,
+    follow: !env.SITE_FORCE_NOINDEX,
   },
 };
 

@@ -60,6 +60,20 @@ export const env = createEnv({
       .enum(['true', 'false'])
       .optional()
       .transform((v) => v === 'true'),
+    // Pre-launch SEO fail-safe. When 'true' the site emits a sitewide
+    // noindex (X-Robots-Tag header in next.config.ts + meta robots in
+    // layout.tsx) so the live placeholder is reachable but unindexed.
+    // FAIL-SAFE DIRECTION: absent/'false' => indexable (the safe prod
+    // default), so a forgotten/misconfigured prod env can never silently
+    // de-index the launched site. Set 'true' only in the placeholder deploy
+    // env; remove at launch + trigger a fresh deploy (sst.config.ts
+    // `invalidation: { wait: true }` auto-purges the edge — no manual
+    // invalidation needed). A deploy.yml post-deploy gate fails the release
+    // if prod's index posture ever disagrees with this flag.
+    SITE_FORCE_NOINDEX: z
+      .enum(['true', 'false'])
+      .optional()
+      .transform((v) => v === 'true'),
   },
   client: {
     // Required: the metadata + canonical-URL builders need it at build.
@@ -89,6 +103,7 @@ export const env = createEnv({
     QUILTY_CONSENT_TABLE: process.env.QUILTY_CONSENT_TABLE,
     QUILTY_GUEST_STATE_TABLE: process.env.QUILTY_GUEST_STATE_TABLE,
     QUILTY_ALLOW_INMEMORY_ADAPTERS: process.env.QUILTY_ALLOW_INMEMORY_ADAPTERS,
+    SITE_FORCE_NOINDEX: process.env.SITE_FORCE_NOINDEX,
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
     NEXT_PUBLIC_SENTRY_ENVIRONMENT: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,

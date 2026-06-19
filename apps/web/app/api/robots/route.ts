@@ -152,6 +152,13 @@ export function GET(request: NextRequest): Response {
   };
 
   if (process.env.ROBOTS_DENY === '1') {
+    // WARNING: do NOT combine ROBOTS_DENY=1 with the SITE_FORCE_NOINDEX=1
+    // pre-launch fail-safe. `Disallow: /` blocks crawlers from FETCHING
+    // pages, which means they never read the `X-Robots-Tag: noindex` header
+    // and may keep externally-linked URLs indexed. The placeholder phase
+    // uses SITE_FORCE_NOINDEX (allow crawl + serve noindex) precisely so the
+    // removal directive is seen. ROBOTS_DENY is for a different purpose
+    // (hard crawl-block); they are mutually exclusive.
     // Deny-path bypasses the 1h CDN TTL so flipping the gate
     // (typically a preview-deploy cut-over to allow indexing)
     // propagates immediately rather than waiting on edge expiry.
