@@ -340,4 +340,45 @@ Three QA agents reviewed this doc (internal consistency / repo-grounding accurac
 
 ---
 
+## 13. Track 1 execution phasing
+
+Track 1 is **not** executed as one plan. It spans two repos, has hard sequencing gates with real-world propagation waits, and interleaves operator-run `apply`/console steps that Claude cannot run. It is therefore split into four phases along the natural dependency seams, each with its own verification gate before the next.
+
+### Rationale for splitting (not one-shot)
+
+- **Cross-repo** — most items live in `quilty-aws` (account/OU, `website-baseline`, DNS); plan mode is most accurate scoped to one repo at a time, and IAM/SCP/WAF deserve their own review surface.
+- **Real-world gates** — `website-baseline` must apply _before_ the first `sst deploy`; that deploy must _emit_ the CloudFront domain + ACM CNAMEs _before_ the DNS PR can be written; DNS validation must complete _before_ re-deploy. Cannot be authored-and-applied in one pass.
+- **Compounding accuracy** — each phase verifies (CI green / `terraform plan` / canaries green) before the next; small verified plans beat one ~40-item plan.
+
+### The four phases
+
+| Phase                                | Scope                                                                                                                                                                                                                                                                                                                                                              | Repo / session              | Mode                                         | Depends on                |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------- | -------------------------------------------- | ------------------------- |
+| **A — Website prep**                 | `sst.config.ts` gaps (C2 image-opt mem, C4 `warm:1`, E12 TLS min, E19 invalidation, E20 price class, E21 IPv6/AAAA); GPC `functional` bug fix code+test (E23); sitewide `noindex` (E30); `dr.md`+`rollback.md` runbooks (O10/B13). Checklist for operator-console items: Sentry project (S4), GHAS secret scanning (B14), GitHub `production` env protection (B9). | `quilty-website`            | plan-mode (code)                             | nothing — start here      |
+| **B — Account / OU / SCP**           | Repurpose `development`→`marketing-prod` rename + OU move (B4/B5); minimal PHI-deny SCP (B6).                                                                                                                                                                                                                                                                      | `quilty-aws`                | plan-mode (IaC, small)                       | org decision (locked)     |
+| **C — `website-baseline` Terraform** | **C1 deploy-enablers** (hard gates): OIDC roles + boundaries (B1/B2/B3), WAF ACL incl. Bot Control + host-header (E25), SSM params (S2), pepper secret (S1). **C2 monitoring IaC** (post-deploy-OK): canaries (O1), alarms (O2/O3), SNS (O4), budgets (O5/O6), log-buckets (O8/O9), GuardDuty (O12), Route 53 Accelerated Recovery (O7).                           | `quilty-aws`                | plan-mode (IaC) — 1–2 sessions               | B (C1); first deploy (C2) |
+| **D — Deploy ceremony**              | Flip `DEPLOY_ENABLED` (B8); first `sst deploy --stage dev`; capture outputs; Pattern A DNS PR (E6/E11); re-deploy; apply `noindex`; verify canaries green + WAF blocking.                                                                                                                                                                                          | cross-repo, operator-driven | **runbook** (`sst-deploy.md`), not plan-mode | A + C1                    |
+
+### Dependency graph
+
+```
+A (website prep) ──┐
+                   ├─► C1 (baseline gates) ─► D.1 first deploy ─► D.2 DNS PR ─► D.3 re-deploy
+B (account/OU/SCP)─┘                                                              │
+                                                  C2 (monitoring) ◄──────────────┘
+```
+
+A and B are independent and can run in parallel. C1 needs B. The ceremony (D) needs A + C1. C2 trails the first deploy.
+
+### Authoring vs operator-run
+
+- **Claude-authored (plan-mode):** all of A; the Terraform in B and C; the DNS PR records in D.2.
+- **Operator-run (cannot be automated here):** every `terraform apply` / `sst deploy`; Porkbun registrar verifications (E1–E4); AWS console steps (billing tag activation B12, GuardDuty enable, the GitHub `production` environment UI B9); Sentry project creation (S4). These are checklisted in their owning phase.
+
+### Recommended order
+
+Start with **Phase A** (self-contained, this repo, unblocks nothing-blocked work), then move to a **`quilty-aws` session** for B → C1 (so that repo's guard hooks, `terraform plan` CI, and state govern the IaC), run the **D ceremony**, then land **C2** once the site is up.
+
+---
+
 _Related: `docs/website_workflow_roadmap.md` (milestones), `docs/website_strategy_discussion.md` (D45/D47/D179), ADR-0029 (BFF auth), ADR-0030 (fail-closed config), and `quilty-aws/docs/infrastructure/aws_org_evolution_plan_website_response_2026-06-18.md` (account/OU/DNS locks)._
