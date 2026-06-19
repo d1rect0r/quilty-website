@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { env } from '@/lib/env';
 
 /**
  * Sentry Spotlight — local dev-only debug overlay for Sentry events,
@@ -25,10 +26,25 @@ import { useEffect } from 'react';
  * Tree-shaking: this component is a Client Component imported from
  * app/layout.tsx only when NODE_ENV !== 'production'. Next.js's
  * production minifier folds the dev-only branch.
+ *
+ * OPT-IN GATE (NEXT_PUBLIC_SPOTLIGHT=1): `@spotlightjs/overlay`'s
+ * `_init` injects its toolbar root as a direct child of `<body>`.
+ * In the App Router, `<body>` IS React 19's hydration root, so a
+ * non-React node appended there corrupts React's sibling references
+ * during the commit phase — the next `insertBefore` throws
+ * NotFoundError ("node is not a child of this node"), the nearest
+ * error boundary catches it, re-renders, and the commit fails again:
+ * an infinite "Maximum update depth exceeded" loop that blanks the
+ * page. So Spotlight is OFF by default and only initialises when a
+ * developer explicitly opts in. Until the overlay is mounted into a
+ * container OUTSIDE React's root (e.g. a node appended to
+ * documentElement), enabling it re-introduces the loop — opt in only
+ * when actively inspecting Sentry payloads.
  */
 export function Spotlight() {
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return;
+    if (env.NEXT_PUBLIC_SPOTLIGHT !== '1') return;
     // Use @spotlightjs/overlay's `_init` (non-deprecated; the public
     // `init` is documented as deprecated in 4.5.0). The 4.x API
     // simplified the options surface to sidecarUrl + debug; toolbar
