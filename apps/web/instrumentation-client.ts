@@ -74,7 +74,34 @@ function scheduleIdle(callback: () => void): void {
   }
 }
 
-if (shouldInitializeSentryClient() && typeof window !== 'undefined') {
+/**
+ * Skip Sentry client init on a hard-load of the `app/(errors)/` status routes
+ * (410 / 451 / 503). PRIMARY reason: these surfaces render with NO consent
+ * surface (the (errors) layout omits SiteBanner), so starting Sentry's client
+ * Session Replay there captures a session BEFORE consent is resolvable — the
+ * consent-timing defect ePrivacy Art 5(3) and the multi-state baseline
+ * (ADR-0024) forbid (the 503 is the worst case: the banner is structurally
+ * absent). SECONDARY: error pages are the visible fallback when SDKs are
+ * themselves failing, so a SDK-free shell is also more robust.
+ *
+ * Server-side error capture is UNAFFECTED — instrumentation.ts (D56) captures
+ * the 503-generating error independently of this client gate, so the only loss
+ * is pure-client-side JS errors in the error-page React tree (a narrow
+ * surface). Init is a once-per-hard-load hook and error pages are reached by
+ * direct hit / redirect, so SPA-navigation coverage loss is moot.
+ *
+ * NOTE: this gates the error-route subset; the broader "gate Replay behind
+ * resolved consent on every pre-consent surface" (ADR-0028 ConsentState) is a
+ * separate follow-up — `replaysOnErrorSampleRate` can fire pre-consent
+ * elsewhere too. Keep in sync with the `(410|451|503)` noindex pattern in
+ * proxy.ts: if locale-prefixed error routes (e.g. /en/503) are added, widen both.
+ */
+const MINIMAL_CHROME_ROUTES = /^\/(410|451|503)$/;
+function isMinimalChromeRoute(): boolean {
+  return typeof window !== 'undefined' && MINIMAL_CHROME_ROUTES.test(window.location.pathname);
+}
+
+if (shouldInitializeSentryClient() && typeof window !== 'undefined' && !isMinimalChromeRoute()) {
   scheduleIdle(() => {
     // Dynamic import: the @sentry/nextjs SDK + init code resolve into a
     // separate async chunk, kept off the shared first-load runtime.

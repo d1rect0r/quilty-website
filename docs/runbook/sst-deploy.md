@@ -31,19 +31,47 @@ Before the first SST deploy:
     encryption if SST needs it
 - [ ] GitHub repository environments + secrets/vars configured:
   - Environment `preview`:
-    - secret `AWS_DEPLOY_ROLE_ARN_PREVIEW`
+    - secret `AWS_DEPLOY_ROLE_ARN_PREVIEW`, `SENTRY_AUTH_TOKEN`,
+      `QUILTY_PSEUDONYM_PEPPER`
     - var `WAF_WEB_ACL_ARN` (read from SSM `/quilty/website/waf-web-acl-arn`)
     - var `NEXT_PUBLIC_SITE_URL_PREVIEW`, `NEXT_PUBLIC_SENTRY_DSN`
-    - secret `SENTRY_AUTH_TOKEN`
+    - (preview deploys hard-code `SITE_FORCE_NOINDEX: 'true'` in the
+      workflow — previews are never indexed — so no var is needed)
   - Environment `production`:
-    - secret `AWS_DEPLOY_ROLE_ARN_DEV`, `SENTRY_AUTH_TOKEN`
+    - secret `AWS_DEPLOY_ROLE_ARN_DEV`, `SENTRY_AUTH_TOKEN`,
+      `QUILTY_PSEUDONYM_PEPPER`
     - var `NEXT_PUBLIC_SENTRY_DSN`, `WAF_WEB_ACL_ARN`
+    - var `SITE_FORCE_NOINDEX` = `'true'` during the pre-launch placeholder
+      phase; remove it at launch (a fresh deploy then auto-invalidates the
+      edge and the SEO gate confirms the site is indexable)
+    - **required reviewer** + restrict to the `main` branch (the human gate
+      on every production deploy; environment-scoped secrets are then
+      unreadable until a reviewer approves)
 - [ ] `.github/workflows/deploy.yml` `if: false` gates flipped to the
       documented conditions (PR-open for preview, PR-closed for cleanup,
       main-push for dev-stage deploy)
 - [ ] Harness gap patched: `.claude/hooks/guard-bash.sh` updated to
       allow `sst remove --stage <non-prod>` (user manual edit per
       `docs/runbook/m1_post_scaffold_checklist.md`)
+
+### Operator one-time setup (manual, outside IaC)
+
+Console / SaaS actions the operator performs once — not code:
+
+- [ ] **Sentry project** — create the `quilty-web` Sentry project; put its
+      public DSN in the `NEXT_PUBLIC_SENTRY_DSN` GitHub var (preview +
+      production) and the `SENTRY_AUTH_TOKEN` env secret. `sst.config.ts`
+      hard-gates on the DSN — the first deploy fails without it.
+- [ ] **GitHub `production` environment protection** — add a required
+      reviewer + restrict to `main` (the human gate on every prod deploy).
+- [ ] **GHAS** — enable secret scanning + Dependabot security ALERTS in repo
+      Settings → Code security. Do NOT add a `dependabot.yml`: Renovate
+      (`renovate.json`) already owns dependency UPDATES, so the two would
+      otherwise produce duplicate PRs.
+- [ ] **Verify source-map upload** — on the first prod deploy, confirm the
+      Sentry build step logs a source-map upload (it activates only when
+      `SENTRY_AUTH_TOKEN` is present; `withSentryConfig` is already wired in
+      `next.config.ts`). Without it, production stack traces stay minified.
 
 ### Required IAM actions for the SST deploy roles
 

@@ -34,7 +34,7 @@ describe('gpc-force-off CFF — parity against proxy.ts', () => {
     expect(cookie).toBeDefined();
   });
 
-  it('cookie payload matches DEFAULT_DENY_STATE + GPC stamping', () => {
+  it('cookie payload keeps functional, denies sale/share categories, GPC-stamped', () => {
     const event = makeViewerResponse(
       { headers: { 'sec-gpc': { value: '1' } }, cookies: {} },
       { statusCode: 200 },

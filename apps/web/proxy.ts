@@ -151,16 +151,17 @@ function applyGpcForceOffCookie(request: NextRequest, response: NextResponse): v
   // field documents what was true at write time.
   const payload = JSON.stringify({
     essential: true,
-    // `functional: false` matches the default-deny baseline (DEFAULT_DENY_STATE,
-    // D35). A GPC visitor has expressed a privacy preference and never saw a
-    // banner, so non-essential categories — including `functional` — stay
-    // denied until an affirmative grant. CCPA §7025(c)(2) only compels the
-    // analytics/marketing/personalization opt-out, but the multi-state posture
-    // (WA MHMDA + MD MODPA + GDPR, anchored in ADR-0024) wants affirmative
-    // consent for functional cookies too; default-deny is the conservative
-    // alignment. An explicit later grant via the banner flips it (the cookie
-    // reader preserves an explicit `functional: true`).
-    functional: false,
+    // `functional: true` because GPC's scope is sale/share only —
+    // analytics/marketing/personalization — not first-party functional/
+    // preference cookies (W3C GPC spec, CCPA §7025, WA MHMDA, CO/CT/MD; the
+    // posture every major CMP ships). Forcing `false` here would (a) degrade
+    // UX (theme/locale) for the most privacy-conscious users and (b) signal
+    // in the audit trail that we treat functional as "sale/share" — a weaker
+    // legal position. The DEFAULT_DENY_STATE baseline (`functional: false`)
+    // is the SEPARATE no-signal path (visitor with no cookie and no GPC); a
+    // GPC signal does not compel denying functional. MHMDA's opt-in runs on
+    // its own track and governs any health data independently of this flag.
+    functional: true,
     analytics: false,
     marketing: false,
     personalization: false,

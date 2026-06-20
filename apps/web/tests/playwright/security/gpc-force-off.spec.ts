@@ -64,9 +64,11 @@ test('@security @privacy GPC cookie payload decodes to a FORCE-OFF state', async
   const payload = decoded as Record<string, unknown>;
 
   expect(payload['essential']).toBe(true);
-  // functional is default-deny for a GPC visitor (privacy-protective; the
-  // banner can later flip it on an affirmative grant). See proxy.ts.
-  expect(payload['functional']).toBe(false);
+  // functional stays enabled for a GPC visitor: GPC opts out of sale/share
+  // (analytics/marketing/personalization) only, not first-party functional
+  // cookies (CCPA §7025, WA MHMDA, all CMPs). See proxy.ts for the rationale;
+  // this matches the cf-functions/gpc-force-off.cff.js edge writer.
+  expect(payload['functional']).toBe(true);
   expect(payload['analytics']).toBe(false);
   expect(payload['marketing']).toBe(false);
   expect(payload['personalization']).toBe(false);

@@ -106,6 +106,11 @@ jobs:
           # NOT a repo-wide secret — it must never be readable by non-deploy
           # workflows. (Applies to SENTRY_AUTH_TOKEN + the AWS role ARNs too.)
           QUILTY_PSEUDONYM_PEPPER: ${{ secrets.QUILTY_PSEUDONYM_PEPPER }}
+          # Preview stages are NEVER indexed (they serve real content on a
+          # raw CloudFront URL). Hard-coded 'true' so the build bakes the
+          # sitewide X-Robots-Tag noindex header — this is what makes the
+          # "preview stages are noindex" invariant in sst.config.ts true.
+          SITE_FORCE_NOINDEX: 'true'
 
   cleanup-preview:
     if: ${{ vars.DEPLOY_ENABLED == 'true' && github.event.action == 'closed' }}
@@ -193,3 +198,51 @@ jobs:
           # hard-gates on it (throws if unset). SECRET, vended from AWS
           # Secrets Manager by quilty-aws/website-baseline/.
           QUILTY_PSEUDONYM_PEPPER: ${{ secrets.QUILTY_PSEUDONYM_PEPPER }}
+          # Pre-launch SEO fail-safe. Read at `next build` time to bake the
+          # sitewide X-Robots-Tag header. Set the SITE_FORCE_NOINDEX repo var
+          # to 'true' during the placeholder phase; remove it at launch (and
+          # run a CloudFront `/*` invalidation). Absent => indexable.
+          SITE_FORCE_NOINDEX: ${{ vars.SITE_FORCE_NOINDEX }}
+      # SEO fail-safe gate: confirm the live apex matches the INTENDED index
+      # posture. Placeholder phase (var='true') MUST serve noindex; launched
+      # (var unset/false) MUST be indexable. Either mismatch fails the
+      # release — this is the guard that stops a forgotten noindex from
+      # silently tanking launch SEO, and that confirms the placeholder really
+      # is unindexed.
+      - name: Verify production index posture (SEO fail-safe)
+        # Pass the repo var through `env` rather than interpolating
+        # `${{ }}` directly into the script (GitHub script-injection guard).
+        env:
+          WANT_NOINDEX: ${{ vars.SITE_FORCE_NOINDEX }}
+        run: |
+          set -uo pipefail
+          want_noindex="$WANT_NOINDEX"
+          read_tag() {
+            curl -sSI https://my-quilty.com/en 2>/dev/null | tr -d '\r' \
+              | awk -F': ' 'tolower($1)=="x-robots-tag"{print tolower($2)}' || true
+          }
+          # The deploy already ran `invalidation: { wait: true }`, so the edge
+          # is current. A short retry only covers brief edge warm-up — and is
+          # only useful in the placeholder phase where we EXPECT the tag to
+          # appear; in the launched phase its absence is the expected steady
+          # state, so don't spin waiting for a tag that should never come.
+          tag="$(read_tag)"
+          if [ "$want_noindex" = "true" ]; then
+            for _ in 1 2 3; do
+              [ -n "$tag" ] && break
+              sleep 5
+              tag="$(read_tag)"
+            done
+          fi
+          echo "X-Robots-Tag on /en: '${tag:-<absent>}'"
+          if [ "$want_noindex" = "true" ]; then
+            case "$tag" in
+              *noindex*) echo "OK: placeholder phase — site is noindex." ;;
+              *) echo "FAIL: SITE_FORCE_NOINDEX=true but /en is missing noindex."; exit 1 ;;
+            esac
+          else
+            case "$tag" in
+              *noindex*) echo "FATAL: prod is serving noindex but SITE_FORCE_NOINDEX is not 'true' — blocking release."; exit 1 ;;
+              *) echo "OK: launched posture — /en is indexable." ;;
+            esac
+          fi

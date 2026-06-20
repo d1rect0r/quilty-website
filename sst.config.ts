@@ -212,6 +212,14 @@ function defineSiteResources(stage: string) {
       // chunks, so the sanitizer's client-side path always lands on
       // the `dev:` namespace as designed.
       QUILTY_PSEUDONYM_PEPPER: pseudonymPepper,
+      // Pre-launch SEO fail-safe. Sourced from the deploy-step env so the
+      // same value reaches `next build` (the authoritative X-Robots-Tag
+      // header in next.config.ts) and the Lambda runtime (layout.tsx meta
+      // robots, for dynamically-rendered routes). Absent => 'false' =>
+      // indexable (safe default). CI sets it 'true' for preview stages
+      // (never index a preview) and from the SITE_FORCE_NOINDEX repo var for
+      // prod ('true' during the placeholder phase, removed at launch).
+      SITE_FORCE_NOINDEX: process.env.SITE_FORCE_NOINDEX ?? 'false',
     },
     server: {
       // arm64 ~20% cheaper than x86_64 at the same perf. OpenNext +
@@ -221,13 +229,79 @@ function defineSiteResources(stage: string) {
       memory: '1024 MB',
       timeout: '15 seconds',
     },
+    // Image optimization (next/image via the Sharp-based OpenNext function).
+    // 1536 MB matches the component default and gives Sharp enough vCPU to
+    // keep transform latency + billed duration low. `staticEtag` makes the
+    // function emit an ETag derived from (href, width, quality, buildId) so
+    // an unchanged image returns 304 instead of re-running Sharp on every
+    // request — set via the component flag, NOT the OPENNEXT_STATIC_ETAG env
+    // var (the component injects that internally when this is true).
+    imageOptimization: {
+      memory: '1536 MB',
+      staticEtag: true,
+    },
+    // Keep 2 SSR execution environments warm via the OpenNext EventBridge
+    // warmer. Two (not one) so that a pair of concurrent first-byte requests
+    // during an idle period don't both pay a cold start — material now that
+    // AWS bills the Lambda INIT phase. Far cheaper than provisioned
+    // concurrency for this bursty marketing + portal traffic profile;
+    // revisit (provisioned concurrency) only if cold-start rate exceeds ~5%
+    // or p99 TTFB regresses post-launch.
+    warm: 2,
+    // Deploy-time CloudFront invalidation. `paths: 'all'` issues a single
+    // `/*` (one invalidation unit, inside the free tier) so un-hashed HTML
+    // is never served stale after a deploy; content-hashed `_next/static`
+    // assets are immutable and need no invalidation. `wait: true` blocks the
+    // deploy until the invalidation completes, so a green deploy guarantees
+    // the edges are serving the new build.
+    invalidation: {
+      paths: 'all',
+      wait: true,
+    },
     transform: {
       cdn(args) {
         args.tags = { ...args.tags, ...siteTagsFor(stage) };
         // CLAUDE.md NEVER list: no public hostname without WAF + rate
-        // limit. The ARN is a runtime gate (see above) so this is
-        // always populated when the cdn transform runs.
-        args.webAclId = wafAclArn;
+        // limit. The ARN is a runtime gate (see above) so this is always
+        // populated when the cdn transform runs. The CdnArgs field is
+        // `webAclArn` — the Cdn component maps it to the distribution's
+        // confusingly-named `webAclId`. Setting `webAclId` directly on
+        // CdnArgs is a silent no-op that would leave the distribution
+        // unprotected, so the WAF ARN must be assigned to `webAclArn`.
+        args.webAclArn = wafAclArn;
+        // Distribution-level edge settings CdnArgs doesn't expose directly.
+        args.transform = {
+          ...(typeof args.transform === 'object' ? args.transform : {}),
+          distribution(distArgs) {
+            // US/EU/Israel edges for US-focused DTC traffic. A flat-rate
+            // plan, if adopted later, overrides this (a Phase C decision).
+            distArgs.priceClass = 'PriceClass_100';
+            // Cdn omits this, so CloudFront's API default (false) applies.
+            // Enable IPv6 so IPv6-only clients resolve without NAT64; the
+            // apex/www AAAA records are added by quilty-aws/dns/ (Pattern A).
+            distArgs.isIpv6Enabled = true;
+            // Negotiate HTTP/3 (QUIC) in addition to HTTP/2 — CloudFront's
+            // default is HTTP/2 only. Purely additive (HTTP/2 clients are
+            // unaffected) and cuts TTFB on lossy mobile links; HTTP/3
+            // requires TLS 1.3, which the policy below permits.
+            distArgs.httpVersion = 'http2and3';
+            // Pin the viewer TLS floor explicitly so it can't silently
+            // change under a component-default shift, and so there is one
+            // clear line to bump. This equals SST's current default
+            // (TLSv1.2_2021) and is a Security-Hub-passing policy. The newer
+            // TLSv1.2_2025 policy (drops CBC, adds hybrid post-quantum) is
+            // verified NOT accepted by the bundled @pulumi/aws@7.20.0 (its
+            // CloudFront enum tops out at TLSv1.2_2021), so setting it would
+            // fail the deploy — that upgrade is gated on a provider bump
+            // (deployment plan T3-28). Only set on the ACM branch — the
+            // default cert (preview stages) ignores a minimum-protocol policy.
+            distArgs.viewerCertificate = $output(distArgs.viewerCertificate).apply((cert) =>
+              cert && !cert.cloudfrontDefaultCertificate
+                ? { ...cert, minimumProtocolVersion: 'TLSv1.2_2021' }
+                : cert,
+            );
+          },
+        };
       },
       server(args) {
         const tags = siteTagsFor(stage);
@@ -302,7 +376,11 @@ function defineSiteResources(stage: string) {
   return {
     gate: 'open' as const,
     url: site.url,
-    distributionId: site.nodes.cdn.id,
+    // The Cdn component exposes the distribution via `nodes.distribution`
+    // (an aws.cloudfront.Distribution, which has `.id`) — it has no `.id` of
+    // its own. `nodes.cdn` is optionally typed, so guard it; the dev stage
+    // always has a CDN, but the optional chain keeps the output type honest.
+    distributionId: site.nodes.cdn?.nodes.distribution.id,
   };
 }
 
