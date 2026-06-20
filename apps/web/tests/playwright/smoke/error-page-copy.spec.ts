@@ -42,6 +42,12 @@ test('@smoke (errors) route group does not mount any third-party SDK script + co
   // an SSR-only render (no client hydration) would still leak the
   // raw HTML through if we only checked the hydrated DOM.
   await page.goto('/503');
+  // Settle the network so an async SDK loader (e.g. the Sentry-replay CDN
+  // bundle) can't slip in AFTER the assertion — that async race made this
+  // pass on chromium but fail on webkit when a DSN is present. Sentry is now
+  // gated off the (errors) routes (instrumentation-client.ts), so the count
+  // is a deterministic 0; networkidle keeps it that way against future SDKs.
+  await page.waitForLoadState('networkidle');
   const sdkScripts = await page
     .locator(
       'script[src*="cloudflare"], script[src*="sentry"], script[src*="amplitude"], script[src*="posthog"]',
