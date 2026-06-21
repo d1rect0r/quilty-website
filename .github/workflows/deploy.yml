@@ -96,6 +96,9 @@ jobs:
           # and exposed via this var.
           SST_DEPLOY_GATE_PASSED: 'true'
           WAF_WEB_ACL_ARN: ${{ vars.WAF_WEB_ACL_ARN }}
+          # Permissions boundary SST attaches to every Lambda exec role it creates
+          # (W2 / ADR-0071 sec 5; vended by quilty-aws website-baseline output).
+          QUILTY_WEB_DEPLOY_BOUNDARY_ARN: ${{ vars.QUILTY_WEB_DEPLOY_BOUNDARY_ARN }}
           # sst.config.ts also hard-gates on QUILTY_PSEUDONYM_PEPPER (the
           # HIPAA + GDPR Art 4(5) pseudonymisation salt for log-side
           # hashing). Without it the deploy throws. It is a SECRET (the
@@ -156,6 +159,9 @@ jobs:
           SST_DEPLOY_GATE_PASSED: 'true'
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
           WAF_WEB_ACL_ARN: ${{ vars.WAF_WEB_ACL_ARN }}
+          # Permissions boundary SST attaches to every Lambda exec role it creates
+          # (W2 / ADR-0071 sec 5; vended by quilty-aws website-baseline output).
+          QUILTY_WEB_DEPLOY_BOUNDARY_ARN: ${{ vars.QUILTY_WEB_DEPLOY_BOUNDARY_ARN }}
           QUILTY_PSEUDONYM_PEPPER: ${{ secrets.QUILTY_PSEUDONYM_PEPPER }}
 
   deploy-prod:
@@ -194,6 +200,9 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SST_DEPLOY_GATE_PASSED: 'true'
           WAF_WEB_ACL_ARN: ${{ vars.WAF_WEB_ACL_ARN }}
+          # Permissions boundary SST attaches to every Lambda exec role it creates
+          # (W2 / ADR-0071 sec 5; vended by quilty-aws website-baseline output).
+          QUILTY_WEB_DEPLOY_BOUNDARY_ARN: ${{ vars.QUILTY_WEB_DEPLOY_BOUNDARY_ARN }}
           # HIPAA + GDPR Art 4(5) pseudonymisation salt — sst.config.ts
           # hard-gates on it (throws if unset). SECRET, vended from AWS
           # Secrets Manager by quilty-aws/website-baseline/.

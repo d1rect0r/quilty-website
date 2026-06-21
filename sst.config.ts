@@ -183,8 +183,28 @@ function defineSiteResources(stage: string) {
     );
   }
 
+  const webDeployBoundaryArn = process.env.QUILTY_WEB_DEPLOY_BOUNDARY_ARN;
+  // Fail fast in CI if the boundary ARN is missing — otherwise the deploy role's
+  // CreateRole-without-boundary deny surfaces as an opaque mid-deploy AccessDenied.
+  if (process.env.SST_DEPLOY_GATE_PASSED === 'true' && !webDeployBoundaryArn) {
+    throw new Error(
+      'QUILTY_WEB_DEPLOY_BOUNDARY_ARN is required at deploy time — every ' +
+        'SST-created IAM role must carry the quilty-web-deploy-boundary (the ' +
+        'deploy role denies CreateRole without it). Vended by ' +
+        'quilty-aws/website-baseline (web_deploy_boundary_arn). See ADR-0071.',
+    );
+  }
+  // W2 (ADR-0071 sec 5): attach the boundary to EVERY IAM role SST creates. Use the raw aws.iam.Role transform (not the Function component) so it also covers the edge-signing + provider roles the Function transform misses (SST issue 3597). Gated so local dev is unaffected.
+  if (webDeployBoundaryArn) {
+    $transform(aws.iam.Role, (roleArgs) => {
+      roleArgs.permissionsBoundary = webDeployBoundaryArn;
+    });
+  }
+
   const site = new sst.aws.Nextjs('QuiltyWeb', {
     path: 'apps/web',
+    // Forces the SSR Lambda URL to IAM-auth via CloudFront OAC plus edge body signing, so the org non-public-Function-URL SCP permits the deploy (quilty-aws ADR-0071 sections 2 and 3).
+    protection: 'oac-with-edge-signing',
     domain:
       stage === 'dev'
         ? {
