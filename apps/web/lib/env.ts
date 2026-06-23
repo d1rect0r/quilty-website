@@ -83,6 +83,11 @@ export const env = createEnv({
     NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
     NEXT_PUBLIC_SENTRY_ENVIRONMENT: z.string().min(1).optional(),
     NEXT_PUBLIC_AMPLITUDE_API_KEY: z.string().min(1).optional(),
+    // Dev-only opt-in for the Sentry Spotlight overlay. Default OFF: the
+    // overlay injects into <body> (React's App Router hydration root) and
+    // corrupts the commit phase, so it only initialises when explicitly set
+    // to '1' (see components/dev/Spotlight.tsx).
+    NEXT_PUBLIC_SPOTLIGHT: z.enum(['0', '1']).optional(),
   },
   // Next.js inlines NEXT_PUBLIC_* at build; server vars are read from
   // process.env. Every key must be listed explicitly.
@@ -108,6 +113,7 @@ export const env = createEnv({
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
     NEXT_PUBLIC_SENTRY_ENVIRONMENT: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,
     NEXT_PUBLIC_AMPLITUDE_API_KEY: process.env.NEXT_PUBLIC_AMPLITUDE_API_KEY,
+    NEXT_PUBLIC_SPOTLIGHT: process.env.NEXT_PUBLIC_SPOTLIGHT,
   },
   // Coerce '' → undefined so a blank env var trips `.optional()` rather
   // than passing a malformed empty string downstream.

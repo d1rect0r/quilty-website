@@ -105,8 +105,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             the registrar's effect short-circuits in `next dev`. */}
         <ServiceWorkerRegistrar />
         {/* Sentry Spotlight — dev-only debug overlay. The component
-            gates internally on NODE_ENV; the production minifier
-            tree-shakes the dynamic import body out of the prod bundle. */}
+            gates internally on NODE_ENV + an explicit opt-in env; the
+            production minifier tree-shakes the dynamic import body out
+            of the prod bundle. */}
         <Spotlight />
         {/* Providers wraps client-side TanStack Query (ADR-0017
             Decision H) + Toast surface (ADR-0017 Decision I).
