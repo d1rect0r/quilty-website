@@ -1,5 +1,7 @@
 /// <reference path="./.sst/platform/config.d.ts" />
 
+import { defineMonitoring } from './infra/monitoring';
+
 /**
  * SST 4.x (Ion engine, Pulumi underneath) — config skeleton.
  *
@@ -11,19 +13,20 @@
  *   3. SSM parameters this config reads (hosted zone ID, log archive
  *      bucket ARN, KMS CMK ARN if needed)
  *
- * Order of operations for the first deploy:
- *   a) `quilty-aws/website-baseline/` `terraform apply` — vends OIDC
- *      role + permission boundary + SSM params (D47 + U5).
- *   b) `pnpm sst deploy --stage dev` from this repo — SST creates
- *      CloudFront + Lambda (Next.js SSR) + S3 origin + ACM cert for
- *      my-quilty.com + www.my-quilty.com. SST outputs the CloudFront
- *      domain + ACM validation CNAMEs.
- *   c) `quilty-aws/dns/` `terraform apply` (production AWS account) —
- *      writes ACM validation CNAMEs + alias records at apex + www
- *      pointing at the SST-emitted CloudFront distribution. Cross-
- *      account "Pattern A" coordinated two-step per U6.
- *   d) Re-run `pnpm sst deploy --stage dev` — ACM validates against
- *      the now-present DNS records.
+ * Order of operations for the first deploy (Pattern A, D-T1-5 — quilty-aws owns
+ * the cert, NOT SST; SST throws on dns:false without a pre-supplied cert):
+ *   a) `quilty-aws/website-baseline/` `terraform apply` — vends OIDC role +
+ *      permission boundary + SSM params, AND (enable_website_certificate=true)
+ *      creates the us-east-1 ACM cert for my-quilty.com + www, emitting its DNS
+ *      validation records (website_acm_validation_records output).
+ *   b) `quilty-aws/dns/` `terraform apply` (production AWS account) — writes the
+ *      cert's validation CNAMEs into the .com zone (cross-account). Wait for the
+ *      cert to reach ISSUED (`aws acm describe-certificate`).
+ *   c) Set the QUILTY_WEB_ACM_CERT_ARN repo var to the issued cert ARN, then
+ *      `pnpm sst deploy --stage dev` — SST creates CloudFront + Lambda (Next.js
+ *      SSR) + S3 origin and attaches the cert; it outputs the CloudFront domain.
+ *   d) `quilty-aws/dns/` `terraform apply` again with website_cloudfront_domain
+ *      set — apex + www A/AAAA aliases point at the SST distribution.
  *   e) `quilty-aws/auth/` `terraform apply` with
  *      `enable_custom_domain = true` (per U5) — Cognito custom domain
  *      `auth.my-quilty.com` activates (15-60 min provisioning).
@@ -52,6 +55,32 @@
 const DEPLOY_GATE_ENV = 'SST_DEPLOY_GATE_PASSED';
 const WAF_ACL_ARN_ENV = 'WAF_WEB_ACL_ARN';
 const PSEUDONYM_PEPPER_ENV = 'QUILTY_PSEUDONYM_PEPPER';
+
+// --- M2 (ADR-0071) cross-repo monitoring contract ----------------------------
+// These three values are produced by quilty-aws/website-baseline/ as SSM
+// parameters and surfaced to this deploy as env vars (see deploy.yml). The
+// alarms + access-logging that watch SST-created resources can ONLY be authored
+// here (the distribution id + server function name exist only after SST creates
+// them), and they route into the durable SNS topic + log bucket that TF owns.
+// The ACM cert ARN is consumed here only to ATTACH the cert to the distribution
+// (the DaysToExpiry alarm is TF-owned, in website-baseline — D-T1-5).
+//   M1.1: alerts SNS topic ARN (/quilty/website/alerts-topic-arn)
+//   M1.7: CloudFront access-log bucket regional domain
+//         (/quilty/website/cloudfront-access-logs-bucket-domain)
+//   D-T1-5 / M3.2: ACM cert ARN created+validated by quilty-aws (the account
+//         that owns the my-quilty.com hosted zone) (/quilty/website/acm-cert-arn)
+const ALERTS_TOPIC_ARN_ENV = 'QUILTY_WEB_ALERTS_TOPIC_ARN';
+const CF_LOG_BUCKET_DOMAIN_ENV = 'QUILTY_WEB_CLOUDFRONT_LOG_BUCKET_DOMAIN';
+const ACM_CERT_ARN_ENV = 'QUILTY_WEB_ACM_CERT_ARN';
+
+// CLOUDFRONT-scope WAF Web ACL owned by quilty-aws/website-baseline/waf.tf. The
+// CloudWatch metric `WebACL` dimension is the ACL NAME, which is the 3rd
+// path segment of the ARN: arn:aws:wafv2:us-east-1:<acct>:global/webacl/<name>/<id>.
+function wafAclNameFromArn(arn: string): string | undefined {
+  // ['arn:...:global', 'webacl', '<name>', '<id>'] → index 2 is the name.
+  const segments = arn.split('/');
+  return segments.length >= 4 && segments[1] === 'webacl' ? segments[2] : undefined;
+}
 
 function shouldProvisionResources(): boolean {
   return process.env[DEPLOY_GATE_ENV] === 'true';
@@ -201,20 +230,68 @@ function defineSiteResources(stage: string) {
     });
   }
 
+  // Durable, audit-bearing stages (the live public surface) get the full
+  // monitoring + access-logging treatment. Ephemeral `preview-pr-*` stages do
+  // NOT — per-PR alarms/dashboards would churn resources and route preview
+  // noise into the production alerts topic. Mirrors the log-group retention
+  // guard below (same closed-enum set; `prod-*` ad-hoc clones excluded on purpose).
+  const durableStage = stage === 'dev' || stage === 'production' || stage === 'prod';
+
+  // M2.1 — alert-routing contract (fail fast on durable stages). Every alarm
+  // authored below publishes to the SNS topic quilty-aws/website-baseline/ owns
+  // (M1.1). A monitoring-anchor site must never deploy with alarms that route
+  // into the void, so on a durable stage the topic ARN is a hard deploy gate —
+  // same posture as WAF + pepper. Preview stages skip monitoring, so it's optional there.
+  const alertsTopicArn = process.env[ALERTS_TOPIC_ARN_ENV];
+  if (durableStage && !alertsTopicArn) {
+    throw new Error(
+      `${ALERTS_TOPIC_ARN_ENV} is required at SST deploy time for the ${stage} ` +
+        'stage — the live site is a monitoring anchor and its CloudFront/Lambda/' +
+        'ACM alarms must route to a real SNS topic. Vended by ' +
+        'quilty-aws/website-baseline/ (M1.1). See quilty-aws/docs/runbooks/track1-go-live.md.',
+    );
+  }
+
+  // M2.5 — CloudFront standard (v1) access-log bucket regional domain (M1.7).
+  // Access logging is enabled only on durable stages (the bucket lives in the
+  // marketing-prod account; preview churn is not worth the storage). Optional
+  // even there: a first dev deploy before the bucket lands ships without it.
+  const cfLogBucketDomain = durableStage ? process.env[CF_LOG_BUCKET_DOMAIN_ENV] : undefined;
+
+  // M2.4 / D-T1-5 — ACM certificate ARN. SST's Cdn requires a pre-validated
+  // `cert` whenever `dns: false` (it throws otherwise — it will not create a
+  // cert it cannot validate). Under Pattern A the my-quilty.com hosted zone
+  // lives in a DIFFERENT account than this deploy role, so quilty-aws (which
+  // owns the zone) creates + DNS-validates the us-east-1 cert and exports its
+  // ARN. Until that ARN is provided the dev stage deploys on the raw CloudFront
+  // URL (no custom domain) — which is exactly the correct pre-DNS state. The
+  // same ARN drives the M2.4 DaysToExpiry alarm.
+  const acmCertArn = process.env[ACM_CERT_ARN_ENV];
+
   const site = new sst.aws.Nextjs('QuiltyWeb', {
     path: 'apps/web',
     // Forces the SSR Lambda URL to IAM-auth via CloudFront OAC plus edge body signing, so the org non-public-Function-URL SCP permits the deploy (quilty-aws ADR-0071 sections 2 and 3).
     protection: 'oac-with-edge-signing',
     domain:
-      stage === 'dev'
+      // The custom domain attaches only once quilty-aws has vended a validated
+      // ACM cert ARN (D-T1-5). `dns: false` without a `cert` makes SST's Cdn
+      // throw ("Need to provide a validated certificate when DNS is disabled"),
+      // so gating on acmCertArn is what keeps a pre-cert dev deploy valid: it
+      // serves on the raw CloudFront URL until Pattern A (quilty-aws/dns) lands
+      // the cert + apex/www alias records. preview-pr-* always uses the raw URL.
+      stage === 'dev' && acmCertArn
         ? {
             name: 'my-quilty.com',
             redirects: ['www.my-quilty.com'],
-            // ACM cert validation records written by quilty-aws/dns/
-            // in a coordinated apply (U6 Pattern A).
+            // DNS records (ACM validation CNAME + apex/www alias) are written
+            // by quilty-aws/dns/ in a coordinated cross-account apply (U6
+            // Pattern A); SST must not try to manage them.
             dns: false,
+            // Pre-validated us-east-1 cert from quilty-aws (the account that
+            // owns the my-quilty.com hosted zone). Required by SST when dns:false.
+            cert: acmCertArn,
           }
-        : undefined, // preview-pr-* stages use the raw CloudFront URL
+        : undefined, // raw CloudFront URL (pre-cert dev, or preview-pr-* stages)
     environment: {
       // NEXT_PUBLIC_SITE_URL must be a VALID URL on every stage: lib/env.ts
       // (ADR-0030) validates it via createEnv when next.config.ts loads at
@@ -320,6 +397,21 @@ function defineSiteResources(stage: string) {
                 ? { ...cert, minimumProtocolVersion: 'TLSv1.2_2021' }
                 : cert,
             );
+            // M2.5 / O8 — CloudFront STANDARD (v1) access logging into the
+            // TF-owned bucket (quilty-aws M1.7). The Logging.Bucket field wants
+            // the bucket's DNS domain (<name>.s3.<region>.amazonaws.com), which
+            // is exactly what the SSM param exports — no string-munging here.
+            // `includeCookies: false` keeps session/PHI hygiene (request headers
+            // are never in v1 logs anyway; cookies are the only opt-in field).
+            // Gated: a stage without the bucket domain ships without logging
+            // rather than failing the deploy.
+            if (cfLogBucketDomain) {
+              distArgs.loggingConfig = {
+                bucket: cfLogBucketDomain,
+                includeCookies: false,
+                prefix: 'cf/',
+              };
+            }
           },
         };
       },
@@ -393,14 +485,50 @@ function defineSiteResources(stage: string) {
     },
   });
 
+  // The Cdn component exposes the distribution via `nodes.distribution` (an
+  // aws.cloudfront.Distribution, which has `.id`) — it has no `.id` of its own.
+  // `nodes.cdn` + `nodes.server` are optionally typed; a deployed Nextjs always
+  // has both, so a missing handle means an SST component-API change — fail loud
+  // rather than silently skip monitoring (the worst failure mode for an anchor).
+  const distributionId = site.nodes.cdn?.nodes.distribution.id;
+  const serverFunctionName = site.nodes.server?.name;
+  if (!distributionId || !serverFunctionName) {
+    throw new Error(
+      'SST did not expose the CloudFront distribution id and/or server Lambda ' +
+        'name (site.nodes.cdn / site.nodes.server) — the monitoring contract ' +
+        'cannot be authored. This indicates an SST Nextjs component API change; ' +
+        'see infra/monitoring.ts.',
+    );
+  }
+
+  // M2.2–M2.6 — author the CloudFront/Lambda/ACM alarms + golden-signals
+  // dashboard, all routed to the quilty-aws-owned SNS topic. WAF + canary
+  // metrics are owned by quilty-aws; the dashboard references them read-only.
+  // Durable stages only (preview stays alarm-free); alertsTopicArn is guaranteed
+  // present here by the fail-fast gate above.
+  if (durableStage && alertsTopicArn) {
+    defineMonitoring({
+      namePrefix: `quilty-web-${stage}`,
+      alertsTopicArn,
+      distributionId,
+      serverFunctionName,
+      wafAclName: wafAclNameFromArn(wafAclArn),
+      syntheticsCanaryName: 'quilty-web-apex', // quilty-aws canary_synthetics.tf (M1.4)
+      rustCanaryNamespace: 'Quilty/WebsiteCanary', // quilty-aws canary_rust.tf (M1.3)
+      // Fresh-literal spread so the fixed-key QuiltyTags interface satisfies the
+      // Record<string, string> param (a named no-index-signature type would not).
+      tags: { ...siteTagsFor(stage) },
+      // Full URL (not a bare repo-relative path) so an on-call engineer can
+      // click straight from the SNS email / Slack message to the runbook in the
+      // sibling repo at 3am, without first having to know the repo location.
+      runbook: 'https://github.com/d1rect0r/quilty-aws/blob/main/docs/runbooks/track1-go-live.md',
+    });
+  }
+
   return {
     gate: 'open' as const,
     url: site.url,
-    // The Cdn component exposes the distribution via `nodes.distribution`
-    // (an aws.cloudfront.Distribution, which has `.id`) — it has no `.id` of
-    // its own. `nodes.cdn` is optionally typed, so guard it; the dev stage
-    // always has a CDN, but the optional chain keeps the output type honest.
-    distributionId: site.nodes.cdn?.nodes.distribution.id,
+    distributionId,
   };
 }
 

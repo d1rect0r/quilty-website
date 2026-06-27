@@ -193,6 +193,30 @@ jobs:
       # Phase 0 in the existing `development` AWS account (D47). Phase 1
       # migration to `marketing-prod` flips the stage name + the OIDC
       # role target.
+      # M2.8 — deploy-window alarm suppression. Disable alarm ACTIONS (not the
+      # alarms) for the SST-authored website alarms so a deploy's brief cold-start
+      # / invalidation blip can't self-page. Scoped to the `quilty-web-dev-`
+      # prefix so the quilty-aws-owned `quilty-marketing-prod-*` alarms are
+      # untouched. Best-effort (continue-on-error) so a first deploy — before any
+      # alarm exists — isn't blocked. Re-enabled unconditionally after deploy.
+      - name: Suppress website alarm actions during deploy
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          # Read names into an array, one per line, so each becomes a separate
+          # argv. `--output text` for a flat-list query is tab-separated on one
+          # line, so normalise tabs→newlines and drop blanks — robust across AWS
+          # CLI output-format quirks (no reliance on unquoted word-splitting).
+          mapfile -t names < <(aws cloudwatch describe-alarms --region us-east-1 \
+            --alarm-name-prefix 'quilty-web-dev-' \
+            --query 'MetricAlarms[].AlarmName' --output text | tr '\t' '\n' | sed '/^$/d')
+          if [ "${#names[@]}" -gt 0 ]; then
+            echo "Suppressing actions on: ${names[*]}"
+            aws cloudwatch disable-alarm-actions --region us-east-1 --alarm-names "${names[@]}"
+          else
+            echo "No quilty-web-dev-* alarms yet (first deploy) — nothing to suppress."
+          fi
+
       - run: pnpm sst deploy --stage dev
         env:
           NEXT_PUBLIC_SITE_URL: https://my-quilty.com
@@ -207,11 +231,44 @@ jobs:
           # hard-gates on it (throws if unset). SECRET, vended from AWS
           # Secrets Manager by quilty-aws/website-baseline/.
           QUILTY_PSEUDONYM_PEPPER: ${{ secrets.QUILTY_PSEUDONYM_PEPPER }}
+          # M2.1 — SNS alerts topic ARN. sst.config.ts hard-gates on it for the
+          # durable `dev` stage (every CloudFront/Lambda/ACM alarm routes here).
+          # Vended by quilty-aws/website-baseline/ (M1.1) as an SSM param.
+          QUILTY_WEB_ALERTS_TOPIC_ARN: ${{ vars.QUILTY_WEB_ALERTS_TOPIC_ARN }}
+          # M2.5 — CloudFront access-log bucket regional domain (M1.7). Optional;
+          # when set, the distribution ships standard (v1) access logs to it.
+          QUILTY_WEB_CLOUDFRONT_LOG_BUCKET_DOMAIN: ${{ vars.QUILTY_WEB_CLOUDFRONT_LOG_BUCKET_DOMAIN }}
+          # M2.4 / D-T1-5 — pre-validated us-east-1 ACM cert ARN from quilty-aws
+          # (the hosted-zone account). When set, the custom domain attaches and
+          # the DaysToExpiry alarm is authored; absent => raw CloudFront URL.
+          QUILTY_WEB_ACM_CERT_ARN: ${{ vars.QUILTY_WEB_ACM_CERT_ARN }}
           # Pre-launch SEO fail-safe. Read at `next build` time to bake the
           # sitewide X-Robots-Tag header. Set the SITE_FORCE_NOINDEX repo var
           # to 'true' during the placeholder phase; remove it at launch (and
           # run a CloudFront `/*` invalidation). Absent => indexable.
           SITE_FORCE_NOINDEX: ${{ vars.SITE_FORCE_NOINDEX }}
+
+      # M2.8 — restore alarm actions no matter how the deploy ended. `if: always()`
+      # guarantees the suppression window closes even on a failed/cancelled deploy,
+      # so alarms never stay silently disabled. continue-on-error so a rare
+      # transient enable-alarm-actions API error can't flip an otherwise-green
+      # deploy red — which would also make the "Notify deploy result" step (it
+      # reads job.status) wrongly report a failed deploy. Residual risk (alarms
+      # left disabled after a failed re-enable) is low and self-heals on the next
+      # deploy; real outages still page via the quilty-aws canary deadman +
+      # SNS-delivery-failure alarms, which are independent of these action states.
+      - name: Restore website alarm actions
+        if: always()
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          mapfile -t names < <(aws cloudwatch describe-alarms --region us-east-1 \
+            --alarm-name-prefix 'quilty-web-dev-' \
+            --query 'MetricAlarms[].AlarmName' --output text | tr '\t' '\n' | sed '/^$/d')
+          if [ "${#names[@]}" -gt 0 ]; then
+            echo "Re-enabling actions on: ${names[*]}"
+            aws cloudwatch enable-alarm-actions --region us-east-1 --alarm-names "${names[@]}"
+          fi
       # SEO fail-safe gate: confirm the live apex matches the INTENDED index
       # posture. Placeholder phase (var='true') MUST serve noindex; launched
       # (var unset/false) MUST be indexable. Either mismatch fails the
@@ -255,3 +312,30 @@ jobs:
               *) echo "OK: launched posture — /en is indexable." ;;
             esac
           fi
+
+      # M2.7 — deploy-result notification. Publishes a deploy success/failure
+      # line to the same SNS alerts topic the alarms use, so Slack + email get a
+      # release signal (and a failed deploy is impossible to miss). Best-effort:
+      # a green deploy must not be flipped red by a notification hiccup, and the
+      # publish itself surfaces in the step log if the alert pipe is broken.
+      # `if: always()` so a FAILED deploy still notifies. The deploy role (admin
+      # + boundary, same account as the topic) can sns:Publish over HTTPS, which
+      # the topic's DenyInsecureTransport statement permits.
+      - name: Notify deploy result
+        if: always()
+        continue-on-error: true
+        env:
+          TOPIC_ARN: ${{ vars.QUILTY_WEB_ALERTS_TOPIC_ARN }}
+          DEPLOY_RESULT: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -uo pipefail
+          if [ -z "${TOPIC_ARN:-}" ]; then
+            echo "QUILTY_WEB_ALERTS_TOPIC_ARN unset — skipping deploy notification."
+            exit 0
+          fi
+          subject="[quilty-web] dev deploy ${DEPLOY_RESULT}"
+          aws sns publish --region us-east-1 --topic-arn "$TOPIC_ARN" \
+            --subject "$subject" \
+            --message "quilty-website dev deploy ${DEPLOY_RESULT} for ${COMMIT_SHA}. Run: ${RUN_URL}"
