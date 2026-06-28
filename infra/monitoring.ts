@@ -462,10 +462,19 @@ export function defineMonitoring(i: MonitoringInputs): void {
             // widget gives on-call visibility into their errors (an image-opt
             // failure breaks every next/image request). A dedicated image-opt
             // Errors alarm is a Track-2 item, gated on SST exposing that node.
+            //
+            // `${namePrefix}` is an UNQUOTED free-text term, not a
+            // FunctionName="..." filter: a quoted value is an EXACT match, and
+            // no function is named literally `quilty-web-dev` (the real names are
+            // `quilty-web-dev-QuiltyWebServer…`, `…ImageOptimization…`, etc.), so
+            // the quoted form returned zero series. Unquoted, CloudWatch tokenizes
+            // on the hyphens and ANDs the tokens (quilty AND web AND dev), which
+            // matches every `quilty-web-dev-*` function while excluding the
+            // separately-named `quilty-marketing-prod-website-canary` Lambda.
             metrics: [
               [
                 {
-                  expression: `SEARCH('{AWS/Lambda,FunctionName} MetricName="Errors" FunctionName="${namePrefix}"', 'Sum', 300)`,
+                  expression: `SEARCH('{AWS/Lambda,FunctionName} MetricName="Errors" ${namePrefix}', 'Sum', 300)`,
                   label: 'Errors per function',
                   id: 'e1',
                   region,

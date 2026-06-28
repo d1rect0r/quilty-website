@@ -239,8 +239,10 @@ jobs:
           # when set, the distribution ships standard (v1) access logs to it.
           QUILTY_WEB_CLOUDFRONT_LOG_BUCKET_DOMAIN: ${{ vars.QUILTY_WEB_CLOUDFRONT_LOG_BUCKET_DOMAIN }}
           # M2.4 / D-T1-5 — pre-validated us-east-1 ACM cert ARN from quilty-aws
-          # (the hosted-zone account). When set, the custom domain attaches and
-          # the DaysToExpiry alarm is authored; absent => raw CloudFront URL.
+          # (the hosted-zone account). When set, the custom domain attaches;
+          # absent => raw CloudFront URL. The cert's DaysToExpiry alarm is
+          # TF-owned (quilty-aws/website-baseline/monitoring.tf), not authored
+          # here — SST sets none, to avoid double-paging (D-T1-5).
           QUILTY_WEB_ACM_CERT_ARN: ${{ vars.QUILTY_WEB_ACM_CERT_ARN }}
           # Pre-launch SEO fail-safe. Read at `next build` time to bake the
           # sitewide X-Robots-Tag header. Set the SITE_FORCE_NOINDEX repo var
@@ -269,12 +271,26 @@ jobs:
             echo "Re-enabling actions on: ${names[*]}"
             aws cloudwatch enable-alarm-actions --region us-east-1 --alarm-names "${names[@]}"
           fi
-      # SEO fail-safe gate: confirm the live apex matches the INTENDED index
+      # SEO fail-safe gate: confirm the deployed site matches the INTENDED index
       # posture. Placeholder phase (var='true') MUST serve noindex; launched
       # (var unset/false) MUST be indexable. Either mismatch fails the
       # release — this is the guard that stops a forgotten noindex from
       # silently tanking launch SEO, and that confirms the placeholder really
       # is unindexed.
+      #
+      # Targets the CloudFront DISTRIBUTION domain, NOT the my-quilty.com apex:
+      # the apex A/AAAA aliases are written by quilty-aws/dns/ in a LATER,
+      # separate cross-account apply (Pattern A, runbook B4), so on the first
+      # domain-attaching deploy the apex does not resolve yet — curling it would
+      # false-fail this gate and emit a bogus "deploy failed" alert. The
+      # X-Robots-Tag is baked at `next build` and emitted by the middleware on
+      # EVERY host, so the always-resolvable distribution domain is an equivalent
+      # posture check. The distribution id is read from the cloudfront-5xx alarm
+      # the SST deploy just created (its DistributionId dimension is the id by
+      # construction), avoiding any dependence on DNS or tag propagation.
+      # NOTE: the `quilty-web-dev-` alarm name is dev-stage-pinned, matching this
+      # workflow's hardcoded `sst deploy --stage dev` + the alarm-suppression prefix
+      # above; a future durable-stage rename must update all three together.
       - name: Verify production index posture (SEO fail-safe)
         # Pass the repo var through `env` rather than interpolating
         # `${{ }}` directly into the script (GitHub script-injection guard).
@@ -283,8 +299,20 @@ jobs:
         run: |
           set -uo pipefail
           want_noindex="$WANT_NOINDEX"
+          dist_id="$(aws cloudwatch describe-alarms --region us-east-1 \
+            --alarm-names quilty-web-dev-cloudfront-5xx \
+            --query "MetricAlarms[0].Dimensions[?Name=='DistributionId'].Value" \
+            --output text 2>/dev/null || true)"
+          if [ -z "$dist_id" ] || [ "$dist_id" = "None" ]; then
+            echo "FAIL: could not read the distribution id from the quilty-web-dev-cloudfront-5xx alarm."; exit 1
+          fi
+          cf_domain="$(aws cloudfront get-distribution --id "$dist_id" \
+            --query 'Distribution.DomainName' --output text 2>/dev/null || true)"
+          if [ -z "$cf_domain" ] || [ "$cf_domain" = "None" ]; then
+            echo "FAIL: could not resolve the CloudFront domain for distribution $dist_id."; exit 1
+          fi
           read_tag() {
-            curl -sSI https://my-quilty.com/en 2>/dev/null | tr -d '\r' \
+            curl -sSI "https://${cf_domain}/en" 2>/dev/null | tr -d '\r' \
               | awk -F': ' 'tolower($1)=="x-robots-tag"{print tolower($2)}' || true
           }
           # The deploy already ran `invalidation: { wait: true }`, so the edge
@@ -300,7 +328,7 @@ jobs:
               tag="$(read_tag)"
             done
           fi
-          echo "X-Robots-Tag on /en: '${tag:-<absent>}'"
+          echo "X-Robots-Tag on https://${cf_domain}/en: '${tag:-<absent>}'"
           if [ "$want_noindex" = "true" ]; then
             case "$tag" in
               *noindex*) echo "OK: placeholder phase — site is noindex." ;;

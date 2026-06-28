@@ -263,10 +263,60 @@ function defineSiteResources(stage: string) {
   // cert it cannot validate). Under Pattern A the my-quilty.com hosted zone
   // lives in a DIFFERENT account than this deploy role, so quilty-aws (which
   // owns the zone) creates + DNS-validates the us-east-1 cert and exports its
-  // ARN. Until that ARN is provided the dev stage deploys on the raw CloudFront
-  // URL (no custom domain) — which is exactly the correct pre-DNS state. The
-  // same ARN drives the M2.4 DaysToExpiry alarm.
+  // ARN. Until that ARN is provided the durable stage deploys on the raw
+  // CloudFront URL (no custom domain) — which is exactly the correct pre-DNS
+  // state. The cert is watched by the TF-owned DaysToExpiry alarms in
+  // quilty-aws/website-baseline/monitoring.tf (D-T1-5) — SST authors none, to
+  // avoid double-paging.
   const acmCertArn = process.env[ACM_CERT_ARN_ENV];
+
+  // Edge security-header baseline (CloudFront ResponseHeadersPolicy). The
+  // Next.js middleware (apps/web/proxy.ts → packages/security headers-builder)
+  // sets the full security-header set on SSR/document responses, but OpenNext
+  // serves _next/static assets straight from S3/CloudFront and CloudFront
+  // generates its own error bodies (OAC 403, 404, origin 5xx) that never
+  // traverse the middleware. This policy carries the same baseline at the edge so
+  // those responses are covered too. Every header uses override:false, so where
+  // the app already set a value (SSR) the app's per-tier value wins — this only
+  // FILLS gaps, never clobbers. HSTS, CSP, and CORP are intentionally omitted:
+  // HSTS only needs to ride the main document (the app owns the HSTS_PHASE ramp,
+  // D60); CSP is per-tier (marketing vs portal) so it can't be a single edge
+  // value; and Cross-Origin-Resource-Policy is left to the app because
+  // apps/web/next.config.ts deliberately sets CORP `cross-origin` on the
+  // `public/.well-known/*` deeplink/security files (AASA, assetlinks, security.txt,
+  // traffic-advice, gpc) and its comment explicitly warns against a
+  // "CORP-everywhere hardening sweep" — forcing `same-origin` at the edge here is
+  // exactly that sweep. The SSR middleware still sets CORP where it matters.
+  const securityHeadersPolicy = new aws.cloudfront.ResponseHeadersPolicy(
+    `quilty-web-${stage}-security-headers`,
+    {
+      name: `quilty-web-${stage}-security-headers`,
+      comment:
+        'Edge security-header baseline for static assets + CloudFront error responses (SSR sets its own via middleware; override=false so the app wins).',
+      securityHeadersConfig: {
+        contentTypeOptions: { override: false }, // X-Content-Type-Options: nosniff
+        frameOptions: { frameOption: 'DENY', override: false },
+        referrerPolicy: { referrerPolicy: 'strict-origin-when-cross-origin', override: false },
+      },
+      customHeadersConfig: {
+        items: [
+          {
+            header: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), payment=()',
+            override: false,
+          },
+          {
+            header: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin-allow-popups',
+            override: false,
+          },
+          // NOTE: Cross-Origin-Resource-Policy is deliberately NOT set here — see
+          // the block comment above (next.config.ts owns CORP, with cross-origin
+          // on the .well-known files).
+        ],
+      },
+    },
+  );
 
   const site = new sst.aws.Nextjs('QuiltyWeb', {
     path: 'apps/web',
@@ -276,10 +326,17 @@ function defineSiteResources(stage: string) {
       // The custom domain attaches only once quilty-aws has vended a validated
       // ACM cert ARN (D-T1-5). `dns: false` without a `cert` makes SST's Cdn
       // throw ("Need to provide a validated certificate when DNS is disabled"),
-      // so gating on acmCertArn is what keeps a pre-cert dev deploy valid: it
+      // so gating on acmCertArn is what keeps a pre-cert deploy valid: it
       // serves on the raw CloudFront URL until Pattern A (quilty-aws/dns) lands
       // the cert + apex/www alias records. preview-pr-* always uses the raw URL.
-      stage === 'dev' && acmCertArn
+      //
+      // Gated on `durableStage` (NOT a bare `stage === 'dev'`) so it stays in
+      // lock-step with the monitoring/access-logging predicate above. The
+      // documented marketing-prod migration flips the live stage name; if this
+      // used `=== 'dev'`, that rename would leave durableStage true (alarms +
+      // cert-expiry watch still deploy) while the domain silently fell back to
+      // the raw CloudFront URL — a green deploy with a dead my-quilty.com.
+      durableStage && acmCertArn
         ? {
             name: 'my-quilty.com',
             redirects: ['www.my-quilty.com'],
@@ -411,6 +468,26 @@ function defineSiteResources(stage: string) {
                 includeCookies: false,
                 prefix: 'cf/',
               };
+            }
+            // Attach the edge security-header baseline to EVERY cache behavior —
+            // the default (→ SSR) plus the static/image ordered behaviors — so
+            // _next/static assets and CloudFront error responses carry the
+            // headers, not just SSR documents. `?? policyId` preserves any policy
+            // SST might attach in future (only one ResponseHeadersPolicy is
+            // allowed per behavior); SST currently sets none.
+            const policyId = securityHeadersPolicy.id;
+            distArgs.defaultCacheBehavior = $output(distArgs.defaultCacheBehavior).apply((b) => ({
+              ...b,
+              responseHeadersPolicyId: b.responseHeadersPolicyId ?? policyId,
+            }));
+            if (distArgs.orderedCacheBehaviors) {
+              distArgs.orderedCacheBehaviors = $output(distArgs.orderedCacheBehaviors).apply(
+                (behaviors) =>
+                  (behaviors ?? []).map((b) => ({
+                    ...b,
+                    responseHeadersPolicyId: b.responseHeadersPolicyId ?? policyId,
+                  })),
+              );
             }
           },
         };
