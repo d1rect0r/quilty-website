@@ -140,10 +140,17 @@ else
   note "pepper:         <resolved from Secrets Manager, ${#PEPPER} chars> ✓"
 fi
 
-# Sentry — operator-supplied (outside AWS). Required by sst.config.ts.
-[ -n "${NEXT_PUBLIC_SENTRY_DSN:-}" ] || die "NEXT_PUBLIC_SENTRY_DSN unset — export it (Sentry project DSN, A2)"
-[ -n "${SENTRY_AUTH_TOKEN:-}" ] || die "SENTRY_AUTH_TOKEN unset — export it (Sentry auth token, A2)"
-note "Sentry DSN/token: <from env> ✓"
+# Sentry — operator-supplied (outside AWS). The DSN is the HARD gate (sst.config.ts
+# throws without NEXT_PUBLIC_SENTRY_DSN). SENTRY_AUTH_TOKEN is OPTIONAL — next.config
+# omits it when absent and just skips source-map upload (readable stack traces); not a
+# deploy blocker.
+[ -n "${NEXT_PUBLIC_SENTRY_DSN:-}" ] || die "NEXT_PUBLIC_SENTRY_DSN unset — export it (Sentry project DSN)"
+SENTRY_AUTH_TOKEN="${SENTRY_AUTH_TOKEN:-}"
+if [ -n "$SENTRY_AUTH_TOKEN" ]; then
+  note "Sentry DSN + auth token: <from env> ✓"
+else
+  note "Sentry DSN <from env> ✓ (no SENTRY_AUTH_TOKEN — source maps won't upload; not a blocker)"
+fi
 note "site URL:       ${SITE_URL}"
 note "noindex:        ${SITE_FORCE_NOINDEX}"
 
@@ -210,9 +217,14 @@ suppressed_names=""
 
 # --- SEO index-posture gate (CloudFront distribution domain, pre-DNS-safe) ----
 # Lifted from deploy.yml: the apex aliases are written LATER (B4) so we check the
-# always-resolvable distribution domain. Posture is baked at build, emitted on
-# every host, so this is an equivalent check. Distribution id comes from the
+# always-resolvable distribution domain. The distribution has my-quilty.com as its
+# alternate domain name and the OpenNext SSR validates the forwarded Host, so the
+# RAW *.cloudfront.net host returns 400 "Invalid Host header". We therefore send the
+# real site Host (matching the runbook's `curl -H 'Host: my-quilty.com'`
+# validate-before-cutover step) — TLS/SNI still rides the cloudfront.net cert, only
+# the HTTP Host names the configured domain. Distribution id comes from the
 # cloudfront-5xx alarm the deploy just created.
+site_host="${SITE_URL#http://}"; site_host="${site_host#https://}"; site_host="${site_host%%/*}"
 cf_domain=""
 if [ "$deploy_rc" -eq 0 ]; then
   echo
@@ -229,11 +241,11 @@ if [ "$deploy_rc" -eq 0 ]; then
     if [ -z "$cf_domain" ] || [ "$cf_domain" = "None" ]; then
       note "WARN: could not resolve CloudFront domain for ${dist_id} — skipping SEO gate."
     else
-      tag="$(curl -sSI "https://${cf_domain}/en" 2>/dev/null | tr -d '\r' \
+      tag="$(curl -sSI "https://${cf_domain}/en" -H "Host: ${site_host}" 2>/dev/null | tr -d '\r' \
         | awk -F': ' 'tolower($1)=="x-robots-tag"{print tolower($2)}' || true)"
       if [ "$SITE_FORCE_NOINDEX" = "true" ]; then
         for _ in 1 2 3; do [ -n "$tag" ] && break; sleep 5
-          tag="$(curl -sSI "https://${cf_domain}/en" 2>/dev/null | tr -d '\r' | awk -F': ' 'tolower($1)=="x-robots-tag"{print tolower($2)}' || true)"
+          tag="$(curl -sSI "https://${cf_domain}/en" -H "Host: ${site_host}" 2>/dev/null | tr -d '\r' | awk -F': ' 'tolower($1)=="x-robots-tag"{print tolower($2)}' || true)"
         done
         case "$tag" in
           *noindex*) note "OK: placeholder phase — /en is noindex." ;;

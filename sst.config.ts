@@ -1,6 +1,9 @@
 /// <reference path="./.sst/platform/config.d.ts" />
 
-import { defineMonitoring } from './infra/monitoring';
+// NOTE: ./infra/monitoring is imported DYNAMICALLY inside defineSiteResources()
+// (see the `await import` below). SST (Ion engine) forbids top-level runtime imports
+// in sst.config.ts — they must be dynamic imports inside the function that uses them,
+// or `sst deploy` aborts with "top level imports - this is not allowed".
 
 /**
  * SST 4.x (Ion engine, Pulumi underneath) — config skeleton.
@@ -154,7 +157,7 @@ function siteTagsFor(stage: string): QuiltyTags {
   };
 }
 
-function defineSiteResources(stage: string) {
+async function defineSiteResources(stage: string) {
   if (!shouldProvisionResources()) {
     return {
       gate: 'closed' as const,
@@ -291,8 +294,9 @@ function defineSiteResources(stage: string) {
     `quilty-web-${stage}-security-headers`,
     {
       name: `quilty-web-${stage}-security-headers`,
+      // CloudFront caps ResponseHeadersPolicy comment at 128 chars — keep it short.
       comment:
-        'Edge security-header baseline for static assets + CloudFront error responses (SSR sets its own via middleware; override=false so the app wins).',
+        'Edge security headers for static assets + CloudFront error bodies (SSR sets its own; override=false).',
       securityHeadersConfig: {
         contentTypeOptions: { override: false }, // X-Content-Type-Options: nosniff
         frameOptions: { frameOption: 'DENY', override: false },
@@ -495,16 +499,22 @@ function defineSiteResources(stage: string) {
       server(args) {
         const tags = siteTagsFor(stage);
         args.tags = { ...args.tags, ...tags };
-        // reservedConcurrency belongs on FunctionArgs.concurrency.reserved,
-        // not on SsrSiteArgs.server — the latter has no concurrency
-        // field so the prior placement was silently discarded. Caps the
-        // Lambda from exhausting the shared dev-account concurrency
-        // pool the Rust auth-backend Lambdas live in. 100 is calibrated
-        // for zero-today / hundreds-at-launch traffic.
-        args.concurrency = {
-          ...(typeof args.concurrency === 'object' ? args.concurrency : {}),
-          reserved: 100,
-        };
+        // Reserved concurrency is OPT-IN via SSR_RESERVED_CONCURRENCY, UNSET by
+        // default. AWS rejects any reservation that drops the account's unreserved
+        // pool below the mandated floor of 10 — a brand-new account starts AT 10, so
+        // a hardcoded reservation makes `sst deploy` fail with
+        // InvalidParameterValueException. Also, marketing-prod is the website's
+        // DEDICATED account (the Rust auth Lambdas live in the production account),
+        // so there is no cross-workload pool to isolate against here. Once a Lambda
+        // concurrency quota increase lands, set SSR_RESERVED_CONCURRENCY (e.g. 100)
+        // to cap the SSR Lambda.
+        const ssrReserved = process.env.SSR_RESERVED_CONCURRENCY;
+        if (ssrReserved && Number(ssrReserved) > 0) {
+          args.concurrency = {
+            ...(typeof args.concurrency === 'object' ? args.concurrency : {}),
+            reserved: Number(ssrReserved),
+          };
+        }
         // 6yr retention satisfies 45 CFR §164.530(j)(2); the D67 PHI
         // sanitizer chokepoint at wrapLogger/wrapErrorReporter is what
         // makes long retention safe. `format: 'json'` produces OTel-
@@ -584,6 +594,8 @@ function defineSiteResources(stage: string) {
   // Durable stages only (preview stays alarm-free); alertsTopicArn is guaranteed
   // present here by the fail-fast gate above.
   if (durableStage && alertsTopicArn) {
+    // Dynamic import — SST (Ion) forbids top-level runtime imports in sst.config.ts.
+    const { defineMonitoring } = await import('./infra/monitoring');
     defineMonitoring({
       namePrefix: `quilty-web-${stage}`,
       alertsTopicArn,
