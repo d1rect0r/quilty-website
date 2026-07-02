@@ -11,11 +11,11 @@ URL rewrites.
 Three CFFs that today live in `apps/web/proxy.ts` (Next.js Edge
 runtime, executed at the OpenNext Lambda origin):
 
-| CFF                         | Event           | proxy.ts counterpart                       | Activation gate                                       |
-| --------------------------- | --------------- | ------------------------------------------ | ----------------------------------------------------- |
-| `gpc-force-off.cff.js`      | viewer-response | `applyGpcForceOffCookie` (proxy.ts)        | end-to-end parity test in staging + 1-week clean bake |
-| `security-headers.cff.js`   | viewer-response | `applySecurityHeaders` baseline (proxy.ts) | Same as above                                         |
-| `robots-tag-defense.cff.js` | viewer-response | `shouldNoindexPath` (proxy.ts)             | Same as above                                         |
+| CFF                         | Event           | proxy.ts counterpart                       | Activation gate                                             |
+| --------------------------- | --------------- | ------------------------------------------ | ----------------------------------------------------------- |
+| `gpc-force-off.cff.js`      | viewer-response | `applyGpcForceOffCookie` (proxy.ts)        | end-to-end parity test in staging + 1-week clean bake       |
+| `security-headers.cff.js`   | viewer-response | `applySecurityHeaders` baseline (proxy.ts) | **SUPERSEDED by the RHP (T2-6) — do not wire; see gate §2** |
+| `robots-tag-defense.cff.js` | viewer-response | `shouldNoindexPath` (proxy.ts)             | Same as above                                               |
 
 All three CFFs run on the VIEWER-RESPONSE pass. An earlier draft used
 a two-CFF viewer-request + viewer-response stash for the GPC cookie
@@ -117,11 +117,19 @@ new sst.aws.Nextjs('Web', {
    one from the CFF) and the browser's last-wins semantics produce
    non-deterministic Max-Age values.
 
-2. **Inject HSTS phase from canonical source** — `security-headers.cff.js`
-   hardcodes `max-age=300` (scaffold-phase value). Add a deploy-time
-   build step that reads the current phase from
-   `packages/security/src/domain/headers-builder.ts` and template-
-   substitutes the value before publishing the CFF.
+2. **`security-headers.cff.js` is SUPERSEDED by the ResponseHeadersPolicy (T2-6, 2026-07)** —
+   `sst.config.ts` now sets the full static security-header baseline — including the
+   apex-only HSTS ramp (`strictTransportSecurity`, phase-driven via `HSTS_PHASE`) — via a
+   native CloudFront ResponseHeadersPolicy attached to every behaviour, so `_next/static`
+   assets and CloudFront error bodies carry the headers too. A static ResponseHeadersPolicy
+   does this more cheaply and with zero drift surface vs. a hand-maintained CFF. **Therefore,
+   if the CFF tier is ever activated, DROP `security-headers.cff.js`** (the RHP is its
+   canonical replacement) and wire only the _dynamic_ CFFs — `gpc-force-off.cff.js` and
+   `robots-tag-defense.cff.js` — whose per-request logic the static RHP cannot express. Do
+   NOT wire `security-headers.cff.js`: its hardcoded `max-age=300` would drift from the
+   RHP/app phase value. HSTS ramp source of truth: `quilty-aws/docs/runbooks/hsts-ramp.md`.
+   (The file + its parity test are retained for now as reference; they are inert — nothing
+   wires them — so they cause no live drift.)
 
 3. **Run AWS CloudFront `test-function` against staging** — the
    in-process `new Function(...)` eval the parity tests use does NOT

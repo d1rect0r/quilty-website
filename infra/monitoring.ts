@@ -37,6 +37,11 @@ export interface MonitoringInputs {
   readonly distributionId: $util.Input<string>;
   /** Server (SSR) Lambda function name (Output from the SST Function node). */
   readonly serverFunctionName: $util.Input<string>;
+  /**
+   * Name of the ISR revalidation dead-letter queue (T2-2 / C2-1), created in
+   * sst.config.ts on durable stages. `undefined` on stages without a DLQ.
+   */
+  readonly revalidationDlqName?: $util.Input<string>;
   /** CLOUDFRONT-scope WAF Web ACL name (parsed from the ARN) for the dashboard. */
   readonly wafAclName?: string;
   /** Synthetics browser-canary name owned by quilty-aws (M1.4). */
@@ -54,7 +59,15 @@ export interface MonitoringInputs {
 // matches via `describe-alarms --alarm-name-prefix`. Keep the prefix stable.
 
 export function defineMonitoring(i: MonitoringInputs): void {
-  const { namePrefix, alertsTopicArn, distributionId, serverFunctionName, tags, runbook } = i;
+  const {
+    namePrefix,
+    alertsTopicArn,
+    distributionId,
+    serverFunctionName,
+    revalidationDlqName,
+    tags,
+    runbook,
+  } = i;
   const topic = [alertsTopicArn];
 
   // Small helper so every alarm shares the routing + tags + name convention.
@@ -123,6 +136,28 @@ export function defineMonitoring(i: MonitoringInputs): void {
     evaluationPeriods: 5,
     datapointsToAlarm: 5,
     threshold: 3000,
+    comparisonOperator: 'GreaterThanThreshold',
+    treatMissingData: 'notBreaching',
+  });
+
+  // T2-4 (C2-4/C2-6 companion) — CloudFront OriginLatency p99 (P3). The direct,
+  // automated half of the "p99 TTFB > 1s" concurrency trigger — the p95 > 3s alarm
+  // above catches gross degradation but does NOT bound the p99 tail (p95 can sit at
+  // 3s while p99 blows past 1s under a cold-start-heavy, right-skewed distribution).
+  // p99 OriginLatency is the closest edge-measured proxy for user TTFB. Sustained
+  // p99 > 1s under real traffic → same runbook: usually cold starts (see the
+  // server-cold-start-rate alarm) or slow downstream fetches. notBreaching: no
+  // traffic emits no OriginLatency. Requires the monitoring subscription (below).
+  mkAlarm('cloudfront-origin-latency-p99', {
+    alarmDescription: `[OWNER] platform [SEVERITY] P3 [FIRES_WHEN] CloudFront OriginLatency p99 > 1000 ms for 5 of 5 minutes (tail latency — the documented p99-TTFB concurrency trigger; usually cold starts). [INVESTIGATE] docs/runbooks/website-concurrency.md — check the cold-start rate, then raise reserved / add provisioned concurrency. [RUNBOOK] ${runbook}`,
+    namespace: 'AWS/CloudFront',
+    metricName: 'OriginLatency',
+    dimensions: cfDims,
+    extendedStatistic: 'p99',
+    period: 60,
+    evaluationPeriods: 5,
+    datapointsToAlarm: 5,
+    threshold: 1000,
     comparisonOperator: 'GreaterThanThreshold',
     treatMissingData: 'notBreaching',
   });
@@ -205,6 +240,83 @@ export function defineMonitoring(i: MonitoringInputs): void {
     comparisonOperator: 'GreaterThanThreshold',
     treatMissingData: 'notBreaching',
   });
+
+  // T2-4 (C2-4/C2-6) — SSR cold-start RATE detector (P3). Metric math:
+  // 100 * (InitDuration SampleCount) / (Invocations Sum). InitDuration is emitted
+  // ONLY by cold-start executions (warm invocations have no INIT phase), so its
+  // SampleCount is exactly the cold-start count. This directly measures the documented
+  // trigger for enabling provisioned concurrency (>5% sustained). `warm: 2` keeps the
+  // rate ~0% at rest; a sustained spike after launch means real users are eating cold
+  // starts → follow the concurrency runbook (raise reserved once the account quota
+  // lands, or add provisioned concurrency). The rate is guarded to only evaluate at
+  // >=100 invocations/5min (see the expression) so a single cold start in a low-traffic
+  // window can't false-page; it is also MISSING (→ notBreaching) with no cold starts or
+  // no traffic. So idle / fully-warm / low-traffic sites never page — the alarm fires
+  // only once REAL traffic sustains a >5% cold-start rate, exactly when concurrency
+  // tuning matters. P3: a tuning signal, not a user-facing outage.
+  mkAlarm('server-cold-start-rate', {
+    alarmDescription: `[OWNER] platform [SEVERITY] P3 [FIRES_WHEN] SSR cold-start rate (InitDuration samples / Invocations) > 5% for 3 of 3 five-minute periods — the documented trigger to enable provisioned concurrency. [INVESTIGATE] docs/runbooks/website-concurrency.md — confirm p99 latency, then raise reserved concurrency / add provisioned concurrency. [RUNBOOK] ${runbook}`,
+    metricQueries: [
+      {
+        id: 'coldstarts',
+        returnData: false,
+        metric: {
+          namespace: 'AWS/Lambda',
+          metricName: 'InitDuration',
+          dimensions: lambdaDims,
+          stat: 'SampleCount',
+          period: 300,
+        },
+      },
+      {
+        id: 'invocations',
+        returnData: false,
+        metric: {
+          namespace: 'AWS/Lambda',
+          metricName: 'Invocations',
+          dimensions: lambdaDims,
+          stat: 'Sum',
+          period: 300,
+        },
+      },
+      {
+        id: 'rate',
+        // Guard against low-volume noise: 1 cold start out of a handful of requests
+        // reads as a huge rate. Only evaluate the rate at >= 100 invocations / 5-min
+        // (~20 req/min); below that return 0 (OK). Above it, 100*coldstarts/invocations
+        // — which is still MISSING (→ notBreaching) when there are no cold starts.
+        expression: 'IF(invocations >= 100, 100 * coldstarts / invocations, 0)',
+        label: 'ColdStartRatePct',
+        returnData: true,
+      },
+    ],
+    evaluationPeriods: 3,
+    datapointsToAlarm: 3,
+    threshold: 5,
+    comparisonOperator: 'GreaterThanThreshold',
+    treatMissingData: 'notBreaching',
+  });
+
+  // T2-2 (C2-1) — ISR revalidation DLQ backlog (P2). OpenNext silently drops a
+  // repeatedly-failing revalidation without a DLQ; sst.config.ts now gives the
+  // revalidation queue one (maxReceiveCount=3). ANY message here means a page
+  // failed to re-render 3x and is serving stale with no other signal. treat-missing
+  // = notBreaching (an idle/empty DLQ emits no datapoints; absence != backlog).
+  // Authored only when the DLQ exists (durable stages).
+  if (revalidationDlqName) {
+    mkAlarm('revalidation-dlq-backlog', {
+      alarmDescription: `[OWNER] platform [SEVERITY] P2 [FIRES_WHEN] the ISR revalidation dead-letter queue holds >= 1 message (a revalidation failed its subscriber 3x -> a page is serving stale). [INVESTIGATE] the revalidation subscriber Lambda logs + inspect/redrive the DLQ messages. [RUNBOOK] ${runbook}`,
+      namespace: 'AWS/SQS',
+      metricName: 'ApproximateNumberOfMessagesVisible',
+      dimensions: { QueueName: revalidationDlqName },
+      statistic: 'Maximum',
+      period: 300,
+      evaluationPeriods: 1,
+      threshold: 1,
+      comparisonOperator: 'GreaterThanOrEqualToThreshold',
+      treatMissingData: 'notBreaching',
+    });
+  }
 
   // ACM DaysToExpiry alarms are intentionally NOT authored here. Under D-T1-5
   // the my-quilty.com cert is created + OWNED by quilty-aws/website-baseline/
@@ -479,6 +591,94 @@ export function defineMonitoring(i: MonitoringInputs): void {
                   id: 'e1',
                   region,
                 },
+              ],
+            ],
+          },
+        },
+        // T2-11 (O2-3) — RED/USE completion widgets. The rows above cover CF
+        // rate/errors/duration + Lambda errors/throttles/concurrency/duration +
+        // canary success; these three close the gaps: cache-hit ratio (CDN
+        // efficiency / origin-offload — a "utilization" signal), WAF blocked-BY-RULE
+        // (which rule is firing during an attack, vs the aggregate above), and the
+        // external-probe LATENCY trend (vs success-only above).
+        {
+          type: 'metric',
+          x: 0,
+          y: 24,
+          width: 12,
+          height: 6,
+          properties: {
+            title: 'CloudFront — cache hit rate',
+            region,
+            view: 'timeSeries',
+            metrics: [
+              [
+                'AWS/CloudFront',
+                'CacheHitRate',
+                'DistributionId',
+                distributionId,
+                'Region',
+                'Global',
+                { stat: 'Average', label: 'Cache hit %' },
+              ],
+            ],
+          },
+        },
+        // WAF blocked-by-rule via a SEARCH so it auto-discovers every rule (SQLi /
+        // rate-limit / Bot Control / …) without hardcoding names — one line per Rule
+        // dimension value (incl. the "ALL" aggregate). Guarded on wafAclName like the
+        // aggregate WAF widget above (an empty metrics array aborts PutDashboard).
+        ...(i.wafAclName
+          ? [
+              {
+                type: 'metric',
+                x: 12,
+                y: 24,
+                width: 12,
+                height: 6,
+                properties: {
+                  title: 'WAF — blocked by rule',
+                  region,
+                  view: 'timeSeries',
+                  stacked: false,
+                  metrics: [
+                    [
+                      {
+                        expression: `SEARCH('{AWS/WAFV2,Rule,WebACL} MetricName="BlockedRequests" WebACL="${i.wafAclName}"', 'Sum', 300)`,
+                        label: 'Blocked by rule',
+                        id: 'w1',
+                        region,
+                      },
+                    ],
+                  ],
+                },
+              },
+            ]
+          : []),
+        {
+          type: 'metric',
+          x: 0,
+          y: 30,
+          width: 24,
+          height: 6,
+          properties: {
+            title: 'External canaries — latency',
+            region,
+            view: 'timeSeries',
+            metrics: [
+              [
+                i.rustCanaryNamespace,
+                'ProbeLatencyMs',
+                'Path',
+                '/',
+                { stat: 'Average', label: 'Apex HTTP probe latency (ms)' },
+              ],
+              [
+                'CloudWatchSynthetics',
+                'Duration',
+                'CanaryName',
+                i.syntheticsCanaryName,
+                { stat: 'Average', label: 'Browser canary run (ms)', yAxis: 'right' },
               ],
             ],
           },

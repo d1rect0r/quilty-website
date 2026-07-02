@@ -240,6 +240,52 @@ async function defineSiteResources(stage: string) {
   // guard below (same closed-enum set; `prod-*` ad-hoc clones excluded on purpose).
   const durableStage = stage === 'dev' || stage === 'production' || stage === 'prod';
 
+  // T2-2 (Track 2 / C2-1) — dead-letter the OpenNext ISR revalidation queue.
+  // OpenNext creates `${name}RevalidationEvents` (FIFO) internally with NO DLQ, so
+  // a revalidation message that repeatedly fails its subscriber is retried until it
+  // SILENTLY expires — the page never re-renders (stale content, zero signal). The
+  // Nextjs component exposes no per-queue hook, so we (a) create a matching FIFO DLQ
+  // and (b) inject it via a NAME-SCOPED global transform that fires ONLY for the
+  // revalidation queue (never the DLQ or any other Queue). retry=3 → maxReceiveCount.
+  // A CloudWatch alarm on the DLQ depth (infra/monitoring.ts) pages on any dead
+  // revalidation. Durable stages only — preview stages would churn the resource.
+  // NB: the transform is registered BEFORE `new sst.aws.Nextjs(...)` below, so it is
+  // active when the component creates the revalidation queue; the DLQ is created
+  // first, so its own instantiation predates (and the name guard also excludes) it.
+  let revalidationDlqName: $util.Input<string> | undefined;
+  if (durableStage) {
+    const revalidationDlq = new sst.aws.Queue('QuiltyWebRevalidationDlq', {
+      fifo: true,
+      transform: {
+        queue: (qArgs) => {
+          // 14-day retention: a dead revalidation stays inspectable + redrivable for
+          // two weeks, then auto-expires — bounded SQS cost + no unbounded-DLQ audit
+          // smell. (SST's Queue exposes no top-level retention/tags arg, so we set
+          // them on the underlying aws.sqs.Queue.) At-rest encryption is SQS-managed
+          // SSE by default (zero-PHI revalidation metadata = page path + timestamp),
+          // matching the source queue — no CMK needed.
+          qArgs.messageRetentionSeconds = 1209600;
+          qArgs.tags = { ...qArgs.tags, ...siteTagsFor(stage) };
+        },
+      },
+    });
+    revalidationDlqName = revalidationDlq.nodes.queue.name;
+    // COUPLING NOTE: this name-scoped transform depends on OpenNext's INTERNAL queue
+    // logical name (`${Nextjs component name}RevalidationEvents` = 'QuiltyWeb' +
+    // 'RevalidationEvents'). If an open-next/SST bump renames it, the guard silently
+    // stops matching and the revalidation queue loses its DLQ — the DLQ-depth alarm
+    // would then watch an empty DLQ and stay green. Called out as a post-SST-upgrade
+    // check in the ops runbook (T2-14) so a version bump can't erode this silently.
+    $transform(sst.aws.Queue, (queueArgs, _opts, name) => {
+      if (name === 'QuiltyWebRevalidationEvents') {
+        // retry=3 → maxReceiveCount: 1 primary + 2 retries rides out a transient
+        // downstream/DB blip; a permanent failure dead-letters promptly. ISR is
+        // best-effort (the page is already cached), so failing after 3 is the balance.
+        queueArgs.dlq = { queue: revalidationDlq.arn, retry: 3 };
+      }
+    });
+  }
+
   // M2.1 — alert-routing contract (fail fast on durable stages). Every alarm
   // authored below publishes to the SNS topic quilty-aws/website-baseline/ owns
   // (M1.1). A monitoring-anchor site must never deploy with alarms that route
@@ -273,6 +319,33 @@ async function defineSiteResources(stage: string) {
   // avoid double-paging.
   const acmCertArn = process.env[ACM_CERT_ARN_ENV];
 
+  // T2-6 (E2-5) — HSTS apex-only ramp (D-T2-F). Single source of truth for the ramp
+  // stage: drives BOTH the SSR Lambda env `HSTS_PHASE` (proxy.ts → buildHstsValue) and
+  // the edge RHP max-age (below), so SSR documents AND static / CloudFront-error
+  // responses carry the SAME directive (today only SSR docs have HSTS — the edge gap
+  // this closes). Currently `short-ramp` (advancing from scaffold=300; the ramp is
+  // deliberately incremental so an HTTPS misconfig rolls back within max-age, not a
+  // year). Apex-only: the RHP always sets includeSubdomains:false, and ONLY the phases
+  // that buildHstsValue leaves apex-only are permitted here — `long-ramp`/`preload`
+  // (which add includeSubDomains) are a deliberate Track-3 step needing buildHstsValue
+  // reconciled to apex-only first + the founder's includeSubDomains call (see
+  // docs/runbooks/hsts-ramp.md). The map mirrors @quilty/security buildHstsValue
+  // max-ages by value (not imported — keeps Next.js deps out of the SST/Pulumi config).
+  const HSTS_PHASE = 'short-ramp';
+  const HSTS_APEX_ONLY_MAX_AGE: Record<string, number> = {
+    scaffold: 300,
+    'short-ramp': 86400,
+    'medium-ramp': 604800,
+  };
+  const HSTS_MAX_AGE_SECONDS = HSTS_APEX_ONLY_MAX_AGE[HSTS_PHASE];
+  if (HSTS_MAX_AGE_SECONDS === undefined) {
+    throw new Error(
+      `HSTS_PHASE='${HSTS_PHASE}' is not an apex-only ramp phase (D-T2-F). Allowed: ` +
+        'scaffold, short-ramp, medium-ramp. Reaching long-ramp/preload needs the ' +
+        'Track-3 includeSubDomains reconciliation — see docs/runbooks/hsts-ramp.md.',
+    );
+  }
+
   // Edge security-header baseline (CloudFront ResponseHeadersPolicy). The
   // Next.js middleware (apps/web/proxy.ts → packages/security headers-builder)
   // sets the full security-header set on SSR/document responses, but OpenNext
@@ -281,9 +354,11 @@ async function defineSiteResources(stage: string) {
   // traverse the middleware. This policy carries the same baseline at the edge so
   // those responses are covered too. Every header uses override:false, so where
   // the app already set a value (SSR) the app's per-tier value wins — this only
-  // FILLS gaps, never clobbers. HSTS, CSP, and CORP are intentionally omitted:
-  // HSTS only needs to ride the main document (the app owns the HSTS_PHASE ramp,
-  // D60); CSP is per-tier (marketing vs portal) so it can't be a single edge
+  // FILLS gaps, never clobbers. HSTS is now set here too (T2-6, apex-only, driven by
+  // the HSTS_PHASE block above) so _next/static assets AND CloudFront error bodies carry
+  // it — previously only SSR documents did (the app still sets it on those; override:false
+  // keeps the app's SSR value authoritative). CSP and CORP remain intentionally omitted:
+  // CSP is per-tier (marketing vs portal) so it can't be a single edge
   // value; and Cross-Origin-Resource-Policy is left to the app because
   // apps/web/next.config.ts deliberately sets CORP `cross-origin` on the
   // `public/.well-known/*` deeplink/security files (AASA, assetlinks, security.txt,
@@ -301,6 +376,16 @@ async function defineSiteResources(stage: string) {
         contentTypeOptions: { override: false }, // X-Content-Type-Options: nosniff
         frameOptions: { frameOption: 'DENY', override: false },
         referrerPolicy: { referrerPolicy: 'strict-origin-when-cross-origin', override: false },
+        // T2-6 (E2-5) — HSTS at the edge, apex-only per D-T2-F (includeSubdomains:false,
+        // preload:false). max-age comes from the HSTS_PHASE block above (single source).
+        // override:false so the app's SSR-document value stays authoritative; this fills
+        // the gap on _next/static assets + CloudFront-generated error bodies.
+        strictTransportSecurity: {
+          accessControlMaxAgeSec: HSTS_MAX_AGE_SECONDS,
+          includeSubdomains: false,
+          preload: false,
+          override: false,
+        },
       },
       customHeadersConfig: {
         items: [
@@ -365,6 +450,11 @@ async function defineSiteResources(stage: string) {
       // docs/runbook/sst-deploy.md).
       NEXT_PUBLIC_SITE_URL: 'https://my-quilty.com',
       NEXT_PUBLIC_SENTRY_DSN: sentryDsn,
+      // T2-6 (E2-5) — server-only HSTS ramp phase read by proxy.ts (currentHstsPhase →
+      // buildHstsValue) so SSR documents carry the SAME apex-only max-age the edge RHP
+      // sets above. Single source = the HSTS_PHASE const; advancing the ramp is a bump of
+      // that const + redeploy (see docs/runbooks/hsts-ramp.md).
+      HSTS_PHASE,
       // Server-only — never expose to the client bundle. The Next.js
       // build replaces unprefixed env vars with undefined in browser
       // chunks, so the sanitizer's client-side path always lands on
@@ -473,6 +563,25 @@ async function defineSiteResources(stage: string) {
                 prefix: 'cf/',
               };
             }
+            // T2-5 (E2-1) — custom error responses for CloudFront-GENERATED origin
+            // failures only. 502 (Lambda origin unreachable / OAC-signature / malformed
+            // response) and 504 (SSR exceeded the 20s originReadTimeout) are the only codes
+            // CloudFront synthesises — the SSR Lambda itself renders BRANDED pages for
+            // 404/500/410/451/503 (not-found.tsx / error.tsx / (errors)/* routes), so those
+            // are deliberately NOT intercepted (a customErrorResponse without a page is a
+            // no-op for them; one WITH a page would clobber the branded body).
+            // The win: CloudFront's DEFAULT error-cache TTL is 300s, so a transient origin
+            // blip would serve errors to everyone for 5 min. errorCachingMinTtl: 5 recovers
+            // in ~5s while still shielding a struggling origin from a per-request retry storm.
+            // Codes are preserved (no responseCode remap) so 502 vs 504 stays visible in the
+            // access logs / 5xx metrics. A BRANDED static origin-down page (responsePagePath
+            // → an S3 `_next/static/*` object, served even when the Lambda origin is down) is
+            // a deliberate Track-3 upgrade — deferred here per the enterprise verdict for a
+            // low-traffic marketing site (502/504 are rare; revisit if telemetry shows >~1%).
+            distArgs.customErrorResponses = [
+              { errorCode: 502, errorCachingMinTtl: 5 },
+              { errorCode: 504, errorCachingMinTtl: 5 },
+            ];
             // Attach the edge security-header baseline to EVERY cache behavior —
             // the default (→ SSR) plus the static/image ordered behaviors — so
             // _next/static assets and CloudFront error responses carry the
@@ -550,6 +659,16 @@ async function defineSiteResources(stage: string) {
         };
       },
       assets(args) {
+        // T2-3 (C2-5): enable versioning on durable stages so overwritten
+        // stable-path assets (BUILD_ID, .well-known/*) accrue noncurrent versions
+        // that the lifecycle rule (added after the component, below) expires after
+        // 30 days — the house hardened-bucket convention (versioned + noncurrent
+        // lifecycle). Immutable hashed _next/static/* keys are never overwritten, so
+        // their CURRENT objects are never versioned away — safe for clients holding
+        // cached HTML that still references old chunk hashes.
+        if (durableStage) {
+          args.versioning = true;
+        }
         // SST's `BucketArgs` exposes a nested `transform.bucket` for
         // the underlying Pulumi s3.Bucket — that's where tags + the
         // dev-stage forceDestroy guard land. Setting `args.tags` or
@@ -588,6 +707,44 @@ async function defineSiteResources(stage: string) {
     );
   }
 
+  // T2-3 (C2-5) — lifecycle on the (now-versioned) assets bucket. SST's Bucket
+  // lifecycle abstraction exposes only current-object `expiresIn`, so we author the
+  // raw Pulumi config (aws.s3.BucketLifecycleConfiguration — the non-deprecated
+  // resource SST itself uses; `rules` is the current plural field): (1) expire
+  // NONCURRENT versions after 30 days while keeping the 5 newest — bounds the
+  // overwritten stable-path files (BUILD_ID, .well-known/*) to ~a month / ~5 deploys
+  // of history on this low-frequency-deploy site (matches the house lambda-artifacts
+  // convention) WITHOUT ever touching a CURRENT object, so immutable _next/static/*
+  // chunks stay reachable for cached-HTML clients; (2) abort incomplete multipart
+  // uploads after 7 days (standard S3 hygiene). This is orthogonal to the deploy-time
+  // CloudFront `/*` invalidation — CloudFront fetches by KEY, never by S3 version id,
+  // so expiring noncurrent versions cannot 404 a served asset. Durable stages only,
+  // matching the versioning gate above; each rule needs an explicit empty `filter`
+  // to apply bucket-wide.
+  if (durableStage) {
+    new aws.s3.BucketLifecycleConfiguration(
+      'QuiltyWebAssetsLifecycle',
+      {
+        bucket: site.nodes.assets.nodes.bucket.bucket,
+        rules: [
+          {
+            id: 'expire-noncurrent-asset-versions',
+            status: 'Enabled',
+            filter: {},
+            noncurrentVersionExpiration: { noncurrentDays: 30, newerNoncurrentVersions: 5 },
+          },
+          {
+            id: 'abort-incomplete-multipart-uploads',
+            status: 'Enabled',
+            filter: {},
+            abortIncompleteMultipartUpload: { daysAfterInitiation: 7 },
+          },
+        ],
+      },
+      { parent: site },
+    );
+  }
+
   // M2.2–M2.6 — author the CloudFront/Lambda/ACM alarms + golden-signals
   // dashboard, all routed to the quilty-aws-owned SNS topic. WAF + canary
   // metrics are owned by quilty-aws; the dashboard references them read-only.
@@ -601,6 +758,9 @@ async function defineSiteResources(stage: string) {
       alertsTopicArn,
       distributionId,
       serverFunctionName,
+      // T2-2: name of the ISR revalidation DLQ (created above on durable stages)
+      // so monitoring can alarm on its depth. undefined on non-durable stages.
+      revalidationDlqName,
       wafAclName: wafAclNameFromArn(wafAclArn),
       syntheticsCanaryName: 'quilty-web-apex', // quilty-aws canary_synthetics.tf (M1.4)
       rustCanaryNamespace: 'Quilty/WebsiteCanary', // quilty-aws canary_rust.tf (M1.3)
