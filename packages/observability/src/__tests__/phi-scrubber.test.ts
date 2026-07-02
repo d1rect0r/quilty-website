@@ -113,13 +113,13 @@ describe('makePhiScrubber', () => {
   it('redacts user.email + user.ip_address; retains user.id', () => {
     const evt: SentryEventLike = {
       user: {
-        id: 'hmac.v1:abc123',
+        id: 'hmac.deadbeef:abc123',
         email: 'user@example.com',
         ip_address: '203.0.113.42',
       },
     };
     const out = scrubber.scrubSentryEvent(evt);
-    expect(out?.user?.id).toBe('hmac.v1:abc123');
+    expect(out?.user?.id).toBe('hmac.deadbeef:abc123');
     expect(out?.user?.email).toBe('[REDACTED]');
     expect(out?.user?.ip_address).toBe('[REDACTED]');
   });

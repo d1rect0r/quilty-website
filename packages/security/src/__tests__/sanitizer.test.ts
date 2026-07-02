@@ -291,6 +291,7 @@ describe('sanitizeAsync HMAC pseudonymization', () => {
   // the module-scope cache between cases so the next case re-reads.
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     __resetPepperCacheForTesting();
   });
 
@@ -299,10 +300,11 @@ describe('sanitizeAsync HMAC pseudonymization', () => {
     __resetPepperCacheForTesting();
     const uuid = '550e8400-e29b-41d4-a716-446655440000';
     const out = await sanitizeAsync(uuid);
-    expect(out).toMatch(/^hmac\.v1:[0-9a-f]{24}$/);
+    // hmac.<8-hex value-derived segment>:<24-hex hash>
+    expect(out).toMatch(/^hmac\.[0-9a-f]{8}:[0-9a-f]{24}$/);
   });
 
-  it('two different peppers produce different hashes for the same input (defends against cross-environment correlation)', async () => {
+  it('two different peppers produce different hashes AND different segments (cross-env correlation + rotation distinguishability)', async () => {
     const uuid = '550e8400-e29b-41d4-a716-446655440000';
 
     vi.stubEnv('QUILTY_PSEUDONYM_PEPPER', 'pepper-prod');
@@ -314,8 +316,12 @@ describe('sanitizeAsync HMAC pseudonymization', () => {
     const devHash = await sanitizeAsync(uuid);
 
     expect(prodHash).not.toBe(devHash);
-    expect(prodHash).toMatch(/^hmac\.v1:[0-9a-f]{24}$/);
-    expect(devHash).toMatch(/^hmac\.v1:[0-9a-f]{24}$/);
+    expect(prodHash).toMatch(/^hmac\.[0-9a-f]{8}:[0-9a-f]{24}$/);
+    expect(devHash).toMatch(/^hmac\.[0-9a-f]{8}:[0-9a-f]{24}$/);
+    // The value-derived segment differs across pepper eras — the audit pipeline can
+    // distinguish pre- vs post-rotation pseudonyms without re-hashing history.
+    const seg = (h: string) => h.split(':')[0];
+    expect(seg(prodHash)).not.toBe(seg(devHash));
   });
 
   it('same pepper + same input produces the same hash (deterministic for log-correlation)', async () => {
@@ -333,5 +339,96 @@ describe('sanitizeAsync HMAC pseudonymization', () => {
     const uuid = '550e8400-e29b-41d4-a716-446655440000';
     const out = await sanitizeAsync(uuid);
     expect(out).toMatch(/^dev:[0-9a-f]{24}$/);
+  });
+
+  it('T2-15: fetches the CURRENT pepper from the Parameters-and-Secrets extension, preferred over env', async () => {
+    // Durable stages set QUILTY_PEPPER_VIA_EXTENSION=1; the Lambda runtime provides
+    // AWS_SESSION_TOKEN; the extension serves the current pepper on localhost:2773.
+    vi.stubEnv('QUILTY_PEPPER_VIA_EXTENSION', '1');
+    vi.stubEnv('AWS_SESSION_TOKEN', 'test-session-token');
+    vi.stubEnv('QUILTY_PSEUDONYM_PEPPER', 'env-pepper');
+    const extFetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ SecretString: 'extension-pepper' }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', extFetch);
+    __resetPepperCacheForTesting();
+
+    const uuid = '550e8400-e29b-41d4-a716-446655440000';
+    const extHash = await sanitizeAsync(uuid);
+    expect(extHash).toMatch(/^hmac\.[0-9a-f]{8}:[0-9a-f]{24}$/);
+    expect(extFetch).toHaveBeenCalledOnce();
+
+    // Prove the extension value (not env) produced it: the env-pepper hash differs in
+    // BOTH the value-derived segment and the body.
+    vi.unstubAllGlobals();
+    vi.stubEnv('QUILTY_PEPPER_VIA_EXTENSION', '');
+    __resetPepperCacheForTesting();
+    const envHash = await sanitizeAsync(uuid);
+    expect(extHash).not.toBe(envHash);
+    expect(extHash.split(':')[0]).not.toBe(envHash.split(':')[0]);
+  });
+
+  it('T2-15: the SAME pepper value yields the SAME pseudonym via the extension and via the env (no path-dependent fork)', async () => {
+    const uuid = '550e8400-e29b-41d4-a716-446655440000';
+    // Path 1: extension serves value X (env holds something else — extension wins).
+    vi.stubEnv('QUILTY_PEPPER_VIA_EXTENSION', '1');
+    vi.stubEnv('AWS_SESSION_TOKEN', 'test-session-token');
+    vi.stubEnv('QUILTY_PSEUDONYM_PEPPER', 'unused-env');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ SecretString: 'shared-value' }), { status: 200 }),
+      ),
+    );
+    __resetPepperCacheForTesting();
+    const viaExt = await sanitizeAsync(uuid);
+
+    // Path 2: env holds the SAME value X, no extension.
+    vi.unstubAllGlobals();
+    vi.stubEnv('QUILTY_PEPPER_VIA_EXTENSION', '');
+    vi.stubEnv('QUILTY_PSEUDONYM_PEPPER', 'shared-value');
+    __resetPepperCacheForTesting();
+    const viaEnv = await sanitizeAsync(uuid);
+
+    // Same underlying value => identical pseudonym (segment + body) on both paths.
+    expect(viaExt).toBe(viaEnv);
+  });
+
+  it('T2-15: falls back to the env pepper AND emits an observable warning when the extension errors', async () => {
+    vi.stubEnv('QUILTY_PEPPER_VIA_EXTENSION', '1');
+    vi.stubEnv('AWS_SESSION_TOKEN', 'test-session-token');
+    vi.stubEnv('QUILTY_PSEUDONYM_PEPPER', 'env-pepper');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('extension unavailable');
+      }),
+    );
+    __resetPepperCacheForTesting();
+    const out = await sanitizeAsync('550e8400-e29b-41d4-a716-446655440000');
+    // Still HMAC (env safety net), NOT the weak dev: fallback.
+    expect(out).toMatch(/^hmac\.[0-9a-f]{8}:[0-9a-f]{24}$/);
+    // And the fallback is OBSERVABLE (a warn fired, no token/secret) so a fleet-wide
+    // extension outage is detectable rather than silent.
+    expect(warn).toHaveBeenCalledOnce();
+    const warnMsg = String(warn.mock.calls[0]?.[0] ?? '');
+    expect(warnMsg).not.toContain('test-session-token');
+    expect(warnMsg).not.toContain('env-pepper');
+    warn.mockRestore();
+  });
+
+  it('T2-15: does NOT call the extension unless the deploy attached it (QUILTY_PEPPER_VIA_EXTENSION unset)', async () => {
+    // Even with a session token present, an unset gate => env-only, no localhost call.
+    vi.stubEnv('AWS_SESSION_TOKEN', 'test-session-token');
+    vi.stubEnv('QUILTY_PSEUDONYM_PEPPER', 'env-pepper');
+    const extFetch = vi.fn();
+    vi.stubGlobal('fetch', extFetch);
+    __resetPepperCacheForTesting();
+    const out = await sanitizeAsync('550e8400-e29b-41d4-a716-446655440000');
+    expect(extFetch).not.toHaveBeenCalled();
+    expect(out).toMatch(/^hmac\.[0-9a-f]{8}:[0-9a-f]{24}$/);
   });
 });

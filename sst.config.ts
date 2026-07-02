@@ -407,8 +407,53 @@ async function defineSiteResources(stage: string) {
     },
   );
 
+  // T2-15 (B2-6) — fetch the pseudonym pepper at RUNTIME via the AWS Parameters-and-
+  // Secrets Lambda extension, so a pepper rotation is picked up WITHOUT a redeploy.
+  // The extension LAYER (added in the server transform below) exposes localhost:2773;
+  // @quilty/security getPepperKey() fetches the CURRENT pepper from it and falls back
+  // to the deploy-time QUILTY_PSEUDONYM_PEPPER env — which is deliberately RETAINED as
+  // a safety net, so an extension failure can never SILENTLY drop to unpeppered `dev:`
+  // hashing (a privacy regression). Durable stages only; the layer ARN resolves from
+  // the AWS-published SSM param (no hardcoded version), the CMK ARN from the quilty-aws
+  // cross-registry export. Secret ARN uses the wildcard random-suffix pattern.
+  const paramsSecretsLayerArn = durableStage
+    ? aws.ssm.getParameterOutput({
+        name: '/aws/service/aws-parameters-and-secrets-lambda-extension/arm64/latest',
+      }).value
+    : undefined;
+  const pepperRuntimePermissions = durableStage
+    ? [
+        {
+          actions: ['secretsmanager:GetSecretValue'],
+          resources: [
+            $interpolate`arn:aws:secretsmanager:us-east-1:${aws.getCallerIdentityOutput().accountId}:secret:quilty/website/pseudonym-pepper-*`,
+          ],
+        },
+        {
+          actions: ['kms:Decrypt'],
+          resources: [
+            aws.ssm.getParameterOutput({ name: '/quilty/website/secrets-cmk-arn' }).value,
+          ],
+          // Constrain the decrypt to Secrets-Manager-mediated calls ONLY. The CMK is
+          // SHARED with the synthetic-canary-bypass secret, so a bare Decrypt would be
+          // a general decryption oracle under that key if the SSR Lambda were popped
+          // (SSRF/RCE). The key policy's ViaService applies to the service principal,
+          // not this identity — so the constraint must be on the identity policy too.
+          conditions: [
+            {
+              test: 'StringEquals',
+              variable: 'kms:ViaService',
+              values: ['secretsmanager.us-east-1.amazonaws.com'],
+            },
+          ],
+        },
+      ]
+    : [];
+
   const site = new sst.aws.Nextjs('QuiltyWeb', {
     path: 'apps/web',
+    // T2-15: runtime pepper fetch (extension layer added in the server transform).
+    permissions: pepperRuntimePermissions,
     // Forces the SSR Lambda URL to IAM-auth via CloudFront OAC plus edge body signing, so the org non-public-Function-URL SCP permits the deploy (quilty-aws ADR-0071 sections 2 and 3).
     protection: 'oac-with-edge-signing',
     domain:
@@ -460,6 +505,11 @@ async function defineSiteResources(stage: string) {
       // chunks, so the sanitizer's client-side path always lands on
       // the `dev:` namespace as designed.
       QUILTY_PSEUDONYM_PEPPER: pseudonymPepper,
+      // T2-15: signals @quilty/security that the Parameters-and-Secrets extension
+      // layer is attached (set ONLY on durable stages, where the server transform adds
+      // paramsSecretsLayerArn), so the sanitizer fetches the CURRENT pepper at runtime.
+      // Absent on preview => env-only, no wasted localhost call + no false fallback warn.
+      ...(durableStage ? { QUILTY_PEPPER_VIA_EXTENSION: '1' } : {}),
       // Pre-launch SEO fail-safe. Sourced from the deploy-step env so the
       // same value reaches `next build` (the authoritative X-Robots-Tag
       // header in next.config.ts) and the Lambda runtime (layout.tsx meta
@@ -608,6 +658,17 @@ async function defineSiteResources(stage: string) {
       server(args) {
         const tags = siteTagsFor(stage);
         args.tags = { ...args.tags, ...tags };
+        // T2-15: attach the AWS Parameters-and-Secrets extension so proxy.ts /
+        // @quilty/security can fetch the pepper at runtime (durable stages only;
+        // the layer ARN resolves from the AWS-published SSM param, no hardcoded
+        // version). The matching secretsmanager/kms IAM is on the `permissions`
+        // prop above; the deploy-time env stays as the fallback.
+        if (paramsSecretsLayerArn) {
+          args.layers = [
+            ...(Array.isArray(args.layers) ? args.layers : []),
+            paramsSecretsLayerArn,
+          ];
+        }
         // Reserved concurrency is OPT-IN via SSR_RESERVED_CONCURRENCY, UNSET by
         // default. AWS rejects any reservation that drops the account's unreserved
         // pool below the mandated floor of 10 — a brand-new account starts AT 10, so

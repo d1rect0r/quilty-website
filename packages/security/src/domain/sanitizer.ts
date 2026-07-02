@@ -153,6 +153,7 @@ const PHI_KEY_DENYLIST: ReadonlySet<string> = new Set([
   'api_key',
   'auth_token',
   'session_token',
+  'aws_session_token', // AWS runtime creds (normalizeKey lowercases AWS_SESSION_TOKEN)
   'refresh_token',
   'access_token',
   'id_token',
@@ -163,6 +164,7 @@ const PHI_KEY_DENYLIST: ReadonlySet<string> = new Set([
   'authorization',
   'x_auth_token',
   'x_api_key',
+  'x_aws_parameters_secrets_token', // Parameters-and-Secrets extension auth header
   'x_forwarded_for',
   'cf_connecting_ip',
   // Persistent device identifiers (D67 + D148 — FTC Cerebral order's
@@ -280,9 +282,15 @@ function isPhiKey(key: string): boolean {
  * collapsed collision resistance to ~2^32, surfacing as duplicate
  * pseudonyms above ~4B emissions.
  *
- * Versioned namespace prefix (`hmac.v1:` / `dev:`) lets the audit
- * pipeline distinguish pre-rotation vs post-rotation pseudonyms without
- * re-hashing historical data on every annual pepper rotation.
+ * Versioned namespace prefix: `hmac.<seg>:` for the peppered path (`dev:`
+ * for the unpeppered fallback). `<seg>` is a short one-way digest of the
+ * pepper VALUE (see computePepper), NOT a code constant — so a pepper
+ * rotation automatically changes the prefix with no redeploy, the segment
+ * is identical across the extension + env paths for the same value, and
+ * distinct pepper eras get distinct segments. This lets the audit pipeline
+ * distinguish pre- vs post-rotation pseudonyms (even during a fleet-turnover
+ * window where old + new coexist) without re-hashing history.
+ * See docs/runbooks/website-pepper-rotation.md.
  *
  * Browser-runtime safety: NEXT_PUBLIC_* prefix is intentionally absent,
  * so the pepper is replaced with `undefined` at the Next.js client
@@ -292,8 +300,10 @@ function isPhiKey(key: string): boolean {
  * server-side HMAC is what defends against log-side adversaries).
  */
 const PSEUDONYM_PEPPER_ENV = 'QUILTY_PSEUDONYM_PEPPER';
-const PSEUDONYM_PEPPER_VERSION = 'v1';
 const PSEUDONYM_HASH_PREFIX_LENGTH = 24;
+// The version segment is a short one-way digest of the pepper VALUE (not a code
+// constant), so it rotates automatically with the pepper — see computePepper().
+const PSEUDONYM_VERSION_SEGMENT_LENGTH = 8;
 
 // Local minimal type for the imported HMAC key. The full WebCrypto
 // `CryptoKey` lives in lib.dom.d.ts; some workspace packages compile
@@ -307,26 +317,119 @@ interface PepperKey {
   readonly usages: readonly string[];
 }
 
-let cachedPepperKey: PepperKey | null = null;
-let cachedPepperLookupAttempted = false;
+// The resolved pepper: the imported HMAC key + the version SEGMENT derived from the
+// pepper value (see computePepper). Cached together so hashId emits a per-pepper-era
+// prefix without re-deriving on every call.
+interface ResolvedPepper {
+  readonly key: PepperKey;
+  readonly segment: string;
+}
 
-async function getPepperKey(): Promise<PepperKey | null> {
-  if (cachedPepperLookupAttempted) return cachedPepperKey;
-  cachedPepperLookupAttempted = true;
-  // Guard `process.env` so the module loads cleanly in browser bundles
-  // where `process` is undefined; Next.js inlines the env access at
-  // build time + tree-shakes the fallback when the var is empty.
-  const pepper = typeof process !== 'undefined' ? process.env[PSEUDONYM_PEPPER_ENV] : undefined;
+// Memoize the in-flight PROMISE (not a boolean + a separately-set result), so
+// concurrent callers on a cold instance await the SAME lookup — a hash issued while
+// the pepper fetch is still pending never sees a transient null (BUG-class: silent
+// `dev:` during the cold-start window, widened to the ~2s extension fetch by T2-15).
+let cachedPepperPromise: Promise<ResolvedPepper | null> | null = null;
+
+// T2-15 — the pepper's Secrets Manager id, fetched at runtime via the AWS
+// Parameters-and-Secrets Lambda extension (localhost:2773). The extension serves the
+// CURRENT secret, so a rotation is picked up as the Lambda fleet cycles — no redeploy.
+const PEPPER_SECRET_ID = 'quilty/website/pseudonym-pepper';
+
+/** Deploy-time env pepper — the fallback + the tests / dev / browser path. */
+function readPepperFromEnv(): string | undefined {
+  return typeof process !== 'undefined' ? process.env[PSEUDONYM_PEPPER_ENV] : undefined;
+}
+
+/**
+ * Fetch the CURRENT pepper from the AWS Parameters-and-Secrets Lambda extension.
+ * Returns null (→ env fallback) whenever the extension isn't present or errors — in
+ * particular whenever `AWS_SESSION_TOKEN` is unset (tests / dev / browser), so this
+ * NEVER makes a network call outside the Lambda runtime. The deploy-time env fallback
+ * guarantees the pepper is always available even if this fails, so log
+ * pseudonymisation can never silently degrade to the unpeppered `dev:` path.
+ */
+async function fetchPepperFromExtension(): Promise<string | null> {
+  if (typeof process === 'undefined') return null;
+  // Only attempt when the deploy signalled the extension is attached (durable stages
+  // set QUILTY_PEPPER_VIA_EXTENSION=1). This skips the guaranteed-to-fail localhost
+  // call on preview / dev / test / browser, AND makes any failure below a REAL signal
+  // (extension expected but unreachable) worth surfacing.
+  if (process.env.QUILTY_PEPPER_VIA_EXTENSION !== '1') return null;
+  const token = process.env.AWS_SESSION_TOKEN;
+  if (!token || typeof fetch === 'undefined') return null;
+  const port = process.env.PARAMETERS_SECRETS_EXTENSION_HTTP_PORT ?? '2773';
+  try {
+    const res = await fetch(
+      `http://localhost:${port}/secretsmanager/get?secretId=${encodeURIComponent(PEPPER_SECRET_ID)}`,
+      {
+        headers: { 'X-Aws-Parameters-Secrets-Token': token },
+        signal: AbortSignal.timeout(2000),
+      },
+    );
+    if (!res.ok) {
+      warnExtensionFallback(`http ${res.status}`);
+      return null;
+    }
+    const body = (await res.json()) as { SecretString?: string };
+    if (body.SecretString && body.SecretString.length > 0) return body.SecretString;
+    warnExtensionFallback('empty SecretString');
+    return null;
+  } catch (err) {
+    // Network / parse / timeout. The env fallback still covers AVAILABILITY, but a
+    // fleet-wide outage here means we're serving the (possibly stale) env pepper
+    // blind — so surface it. Never logs the token or the secret value.
+    warnExtensionFallback(err instanceof Error ? err.name : 'fetch failed');
+    return null;
+  }
+}
+
+// One structured warning per instance when the extension was EXPECTED but the env
+// fallback engaged — enough for a CloudWatch metric-filter alarm on rotation-freshness
+// loss, with no token / secret / PII in the message.
+let extensionFallbackWarned = false;
+function warnExtensionFallback(reason: string): void {
+  if (extensionFallbackWarned) return;
+  extensionFallbackWarned = true;
+  if (typeof console !== 'undefined') {
+    console.warn(
+      `[pepper] Parameters-and-Secrets extension unavailable (${reason}); serving the ` +
+        `deploy-time env pepper. Rotation freshness may be lost — see ` +
+        `website-pepper-rotation.md.`,
+    );
+  }
+}
+
+function getPepper(): Promise<ResolvedPepper | null> {
+  return (cachedPepperPromise ??= computePepper());
+}
+
+async function computePepper(): Promise<ResolvedPepper | null> {
+  // T2-15: prefer the extension's CURRENT pepper (rotation without redeploy), then
+  // the deploy-time env. Resolved once per warm instance — a rotation propagates as
+  // instances cycle. `process` is guarded so this loads cleanly in browser bundles.
+  const pepper = (await fetchPepperFromExtension()) ?? readPepperFromEnv();
   if (pepper === undefined || pepper.length === 0) return null;
   const raw = new TextEncoder().encode(pepper);
-  cachedPepperKey = (await globalThis.crypto.subtle.importKey(
-    'raw',
-    raw,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  )) as PepperKey;
-  return cachedPepperKey;
+  const [key, digest] = await Promise.all([
+    globalThis.crypto.subtle.importKey(
+      'raw',
+      raw,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    ) as Promise<PepperKey>,
+    globalThis.crypto.subtle.digest('SHA-256', raw),
+  ]);
+  // Version segment = a short one-way digest of the pepper VALUE. It rotates
+  // automatically when the pepper does (no code bump / redeploy), is IDENTICAL across
+  // the extension + env paths for the same value (so a fallback never forks the
+  // pseudonym space for an unchanged pepper), and DIFFERS across pepper eras — so the
+  // audit pipeline can distinguish pre- vs post-rotation pseudonyms, even during a
+  // fleet-turnover window where old + new coexist. 8 hex (32 bits) of SHA-256 leaks
+  // nothing usable about the 256-bit+ pepper.
+  const segment = bufferToHex(digest).slice(0, PSEUDONYM_VERSION_SEGMENT_LENGTH);
+  return { key, segment };
 }
 
 function bufferToHex(buf: ArrayBuffer): string {
@@ -340,18 +443,18 @@ function bufferToHex(buf: ArrayBuffer): string {
 
 async function hashId(value: string): Promise<string> {
   const data = new TextEncoder().encode(value);
-  const key = await getPepperKey();
-  if (key !== null) {
-    // `key` is our local `PepperKey` alias to keep the type-check
-    // portable across workspace packages whose tsconfig omits
-    // lib: ["DOM"]. The runtime is the validator — Web Crypto throws
-    // if the value isn't actually a valid CryptoKey.
+  const resolved = await getPepper();
+  if (resolved !== null) {
+    // `resolved.key` is our local `PepperKey` alias to keep the type-check
+    // portable across workspace packages whose tsconfig omits lib: ["DOM"].
+    // The runtime is the validator — Web Crypto throws if the value isn't
+    // actually a valid CryptoKey.
     const sig = await globalThis.crypto.subtle.sign(
       'HMAC',
-      key as unknown as Parameters<typeof globalThis.crypto.subtle.sign>[1],
+      resolved.key as unknown as Parameters<typeof globalThis.crypto.subtle.sign>[1],
       data,
     );
-    return `hmac.${PSEUDONYM_PEPPER_VERSION}:${bufferToHex(sig).slice(
+    return `hmac.${resolved.segment}:${bufferToHex(sig).slice(
       0,
       PSEUDONYM_HASH_PREFIX_LENGTH,
     )}`;
@@ -365,8 +468,8 @@ async function hashId(value: string): Promise<string> {
  * different pepper between cases. Never call from production code.
  */
 export function __resetPepperCacheForTesting(): void {
-  cachedPepperKey = null;
-  cachedPepperLookupAttempted = false;
+  cachedPepperPromise = null;
+  extensionFallbackWarned = false;
 }
 
 function isLikelyJwt(value: string): boolean {
