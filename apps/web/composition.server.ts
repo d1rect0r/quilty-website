@@ -28,7 +28,7 @@ import { CONSENT_COOKIE_NAME } from '@quilty/consent';
 import { makeInMemoryConsentStore, makeServerConsentReader } from '@quilty/consent/server';
 import { makeInMemoryEmailSender, wrapEmailSender } from '@quilty/email';
 import { makeInMemoryGuestStateStore } from '@quilty/guest-state/server';
-import { makeInMemoryRateLimiter } from '@quilty/rate-limit';
+import { makeDynamoDbRateLimiter, makeInMemoryRateLimiter } from '@quilty/rate-limit';
 import {
   makeAmplitudeNodeAnalytics,
   makeCloudWatchLogger,
@@ -79,7 +79,24 @@ export function makeServerContainer(): ServerContainer {
     }
   };
 
-  guardInMemoryAdapter('rate-limiter', env.QUILTY_RATE_LIMIT_TABLE);
+  // Rate limiter: the DynamoDB adapter activates on QUILTY_RATE_LIMIT_TABLE
+  // (bounded sliding-window, fail-OPEN on infra errors — the WAF rate rules
+  // are the hard backstop, and the TF-owned table alarms surface the
+  // degradation). Without the table env, the in-memory adapter must clear
+  // the fail-closed guard (prod requires the explicit opt-in).
+  let rateLimiter;
+  if (env.QUILTY_RATE_LIMIT_TABLE !== undefined) {
+    rateLimiter = makeDynamoDbRateLimiter({
+      region: process.env['AWS_REGION'] ?? 'us-east-1',
+      tableName: env.QUILTY_RATE_LIMIT_TABLE,
+      onFailOpen: (reason) => {
+        wrappedLogger.warn('rate_limiter_fail_open', { adapter: 'dynamodb', reason });
+      },
+    });
+  } else {
+    guardInMemoryAdapter('rate-limiter', undefined);
+    rateLimiter = makeInMemoryRateLimiter();
+  }
   guardInMemoryAdapter('consent-store', env.QUILTY_CONSENT_TABLE);
   guardInMemoryAdapter('guest-state-store', env.QUILTY_GUEST_STATE_TABLE);
 
@@ -152,13 +169,10 @@ export function makeServerContainer(): ServerContainer {
     // activates once the Cloudflare BAA + secret-key provisioning are both
     // green (see baa-inventory.md).
     captchaVerifier: makeInMemoryCaptchaVerifier(),
-    // In-memory sliding-window limiter — guarded at construction above
-    // (no internal guard); load-bearing for auth-adjacent paths, so the
-    // production guard refuses it without an explicit opt-in. The DynamoDB
-    // adapter activates once QUILTY_RATE_LIMIT_TABLE + the Lambda IAM grant
-    // ship (presence of the table env then trips the guard's "wire the real
-    // adapter" branch).
-    rateLimiter: makeInMemoryRateLimiter(),
+    // Selected above: DynamoDB sliding-window when QUILTY_RATE_LIMIT_TABLE
+    // is set (distributed, bounded-item, fail-open with a logged warn);
+    // otherwise the in-memory adapter behind the fail-closed guard.
+    rateLimiter,
     // In-memory ConsentStore (D63) — guarded at construction above (no
     // internal guard). Edge tier owns its own Map; the cross-tier disjoint
     // state is intentional pre-DynamoDB (auth callback migrate() hits the

@@ -36,7 +36,11 @@ const SENTRY_REPORT_URI_RAW = process.env.SENTRY_CSP_REPORT_URI ?? '';
  */
 function sanitizeCspValue(raw: string): string {
   if (!raw) return '';
-  if (!/^https?:\/\/[^\s;]+$/.test(raw)) {
+  // `"` and `,` are additionally rejected because the same value is
+  // interpolated into the quoted, comma-separated Reporting-Endpoints
+  // header (buildReportingEndpointsHeader) — either would break out of
+  // that header's URL quoting / list structure.
+  if (!/^https?:\/\/[^\s;",]+$/.test(raw)) {
     return '';
   }
   return raw;
@@ -125,9 +129,7 @@ export function buildMarketingCsp(opts: CspOptions = {}): string {
     // enforcing.
     `require-trusted-types-for 'script'`,
   ];
-  if (SENTRY_REPORT_URI) {
-    directives.push(`report-uri ${SENTRY_REPORT_URI}`);
-  }
+  pushReportingDirectives(directives);
   return directives.join('; ');
 }
 
@@ -167,10 +169,45 @@ export function buildPortalCsp(nonce: string, opts: CspOptions = {}): string {
     `upgrade-insecure-requests`,
     `require-trusted-types-for 'script'`,
   ];
-  if (SENTRY_REPORT_URI) {
-    directives.push(`report-uri ${SENTRY_REPORT_URI}`);
-  }
+  pushReportingDirectives(directives);
   return directives.join('; ');
+}
+
+/** Endpoint group name binding the `report-to` directive to the
+ * Reporting-Endpoints response header. */
+const REPORTING_ENDPOINT_NAME = 'csp-endpoint';
+
+/**
+ * Append the report-sink directives to a tier's directive list.
+ *
+ * BOTH mechanisms ship deliberately (2026 standard practice; Sentry's docs
+ * recommend the pair): `report-uri` (deprecated but still carrying real
+ * traffic — Firefox only shipped Reporting-API CSP delivery in 149,
+ * 2026-03, and Safari support is partial) and `report-to` (Reporting API
+ * v1, batched `application/reports+json`, which Sentry ingests since Relay
+ * 24.3.0). Browsers that understand `report-to` ignore `report-uri`, so
+ * nothing double-reports. `report-to` resolves its endpoint name via the
+ * `Reporting-Endpoints` response header — the call site MUST pair the CSP
+ * with `buildReportingEndpointsHeader()` or those browsers silently drop
+ * every report.
+ */
+function pushReportingDirectives(directives: string[]): void {
+  if (SENTRY_REPORT_URI) {
+    directives.push(`report-uri ${SENTRY_REPORT_URI}`, `report-to ${REPORTING_ENDPOINT_NAME}`);
+  }
+}
+
+/**
+ * The `Reporting-Endpoints` header value pairing with `report-to` —
+ * `csp-endpoint="<sink URL>"`. Returns null when no sink is configured
+ * (SENTRY_CSP_REPORT_URI unset or rejected by sanitization), in which case
+ * the CSP carries no reporting directives either: the pair is
+ * all-or-nothing by construction, because a dangling `report-to` name
+ * silently drops reports and a bare Reporting-Endpoints header is inert.
+ */
+export function buildReportingEndpointsHeader(): string | null {
+  if (!SENTRY_REPORT_URI) return null;
+  return `${REPORTING_ENDPOINT_NAME}="${SENTRY_REPORT_URI}"`;
 }
 
 /**

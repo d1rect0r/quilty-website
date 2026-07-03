@@ -1,3 +1,4 @@
+import { DescribeTableCommand, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { NextResponse } from 'next/server';
 
 /**
@@ -9,20 +10,22 @@ import { NextResponse } from 'next/server';
  * "ready to serve traffic" — a load balancer reading 503 here
  * would drain traffic until the dependency recovers.
  *
- * Pre-activation scope: synthetic dependency checks only. The
- * actual live-dependency wiring activates when:
+ * Activation state:
  *
- *   - DynamoDB tables exist (consent-store, rate-limit, idempotency,
- *     vended by `quilty-aws/website-baseline/`) — then this endpoint
- *     fires a cheap `DescribeTable` against the canary table.
- *   - Sentry ingest is BAA-covered — then this endpoint fires a
- *     synthetic `transport.send({ type: 'health-probe' })` against
- *     Sentry's ingest URL (Sentry's own SDK guards against
- *     amplifying its own outage, so this is safe per Sentry docs).
+ *   - DynamoDB — LIVE when the activation envs are set (the rate-limit +
+ *     idempotency tables, vended by `quilty-aws/website-baseline/`): a
+ *     cheap `DescribeTable` against each. Falls back to `synthetic-ok`
+ *     when the envs are absent (dev/preview).
+ *   - Sentry ingest — still synthetic until Sentry ingest is BAA-covered;
+ *     then this endpoint fires a synthetic
+ *     `transport.send({ type: 'health-probe' })` against Sentry's ingest
+ *     URL (Sentry's own SDK guards against amplifying its own outage, so
+ *     this is safe per Sentry docs).
  *
- * Today: every dependency reports `'synthetic-ok'` with a synthetic
- * `duration_ms: 0`. The runbook at `docs/runbook/sentry-monitors.md`
- * documents the activation path.
+ * Because `sentry_ingest` remains synthetic, the endpoint still returns
+ * 503 overall by design — the deploy wrapper's smoke gate pins that. When
+ * the LAST synthetic probe goes live, flip the smoke-gate assertion to 200
+ * (paired edit — see docs/runbook/launch-gate.md).
  *
  * Why a separate endpoint from `/api/health`: Kubernetes liveness
  * vs. readiness distinction. Liveness = "Lambda alive"; readiness =
@@ -78,20 +81,59 @@ interface ReadyResponse {
   readonly dependencies: Readonly<Record<string, DependencyHealth>>;
 }
 
+// Module-scope client reuse across warm invocations; constructed lazily so
+// the route imports cleanly where no AWS runtime exists.
+let dynamoClient: DynamoDBClient | null = null;
+
 /**
- * Synthetic dependency probes. Each returns a `DependencyHealth`
- * record. The synthetic implementation is intentionally trivial —
- * the activation path lives in the runbook.
+ * Live DynamoDB probe: DescribeTable on each activation-env table, bounded
+ * to 2s so a degraded table can't hang the readiness check past the
+ * poller's patience. ACTIVE only when both activation envs are set (the
+ * deploy hard-gates them on durable stages); dev/preview stay synthetic.
+ */
+async function probeDynamo(): Promise<DependencyHealth> {
+  const tables = [
+    process.env['QUILTY_RATE_LIMIT_TABLE'],
+    process.env['QUILTY_IDEMPOTENCY_TABLE'],
+  ].filter((t): t is string => typeof t === 'string' && t.length > 0);
+  if (tables.length < 2) {
+    return { status: 'synthetic-ok', duration_ms: 0, message: 'activation envs not set' };
+  }
+  dynamoClient ??= new DynamoDBClient({ region: process.env['AWS_REGION'] ?? 'us-east-1' });
+  const client = dynamoClient;
+  const startedAt = Date.now();
+  try {
+    await Promise.all(
+      tables.map((tableName) =>
+        client.send(new DescribeTableCommand({ TableName: tableName }), {
+          abortSignal: AbortSignal.timeout(2000),
+        }),
+      ),
+    );
+    return { status: 'ok', duration_ms: Date.now() - startedAt };
+  } catch (err) {
+    return {
+      status: 'degraded',
+      duration_ms: Date.now() - startedAt,
+      // Error NAME only — SDK messages can echo ARNs/table internals.
+      message: err instanceof Error ? err.name : 'probe failed',
+    };
+  }
+}
+
+/**
+ * Dependency probes. DynamoDB is live (env-gated); Sentry ingest stays
+ * synthetic until the BAA activation (runbook: docs/runbook/sentry-monitors.md).
  */
 async function probeDependencies(): Promise<Readonly<Record<string, DependencyHealth>>> {
-  return Promise.resolve({
-    dynamodb: { status: 'synthetic-ok', duration_ms: 0, message: 'tables not provisioned yet' },
+  return {
+    dynamodb: await probeDynamo(),
     sentry_ingest: {
       status: 'synthetic-ok',
       duration_ms: 0,
       message: 'BAA explicit-request pending',
     },
-  });
+  };
 }
 
 export async function GET(): Promise<NextResponse<ReadyResponse>> {

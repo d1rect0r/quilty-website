@@ -3,6 +3,7 @@ import { makeEnvFlagEvaluator } from '@quilty/observability';
 import {
   buildMarketingCsp,
   buildPortalCsp,
+  buildReportingEndpointsHeader,
   buildSecurityHeaders,
   generateCsrfTokenEdge,
   generateNonce,
@@ -266,11 +267,9 @@ const GUEST_STATE_ENABLED = getTypedFlag(makeEnvFlagEvaluator(), 'guest_state_en
 function isGuestNavigation(request: NextRequest, pathname: string): boolean {
   if (request.method !== 'GET') return false;
   if (request.headers.get('sec-fetch-dest') !== 'document') return false;
-  // `/api/` excluded with a string predicate (NOT a `/^\/`-anchored regex
-  // literal — the cf-functions noindex drift test extracts those from this
-  // file and these are not noindex patterns). `isPortalRoute` (imported,
-  // so invisible to the drift extractor) excludes the portal + `/auth/*`,
-  // matching the no-trailing-slash index `/{locale}/account` correctly.
+  // `/api/` excluded with a string predicate. `isPortalRoute` (imported)
+  // excludes the portal + `/auth/*`, matching the no-trailing-slash index
+  // `/{locale}/account` correctly.
   if (pathname.startsWith('/api/')) return false;
   if (isPortalRoute(pathname)) return false;
   return true;
@@ -327,6 +326,14 @@ function applySecurityHeaders(
         ? buildPortalCsp(options.nonce, { isDevelopment: isDev })
         : buildMarketingCsp({ isDevelopment: isDev });
     response.headers.set('Content-Security-Policy-Report-Only', cspValue);
+    // Pairs with the CSP's `report-to csp-endpoint` directive — without this
+    // header, Reporting-API browsers (Chrome 96+, Firefox 149+) silently
+    // drop every violation report. Null (no sink configured) means the CSP
+    // carries no reporting directives either; the pair is all-or-nothing.
+    const reportingEndpoints = buildReportingEndpointsHeader();
+    if (reportingEndpoints !== null) {
+      response.headers.set('Reporting-Endpoints', reportingEndpoints);
+    }
   }
   for (const { key, value } of buildSecurityHeaders()) {
     response.headers.set(key, value);

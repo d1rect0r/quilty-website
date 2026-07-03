@@ -12,20 +12,27 @@
  * globally, so the edge function executes here. The contract test
  * locks the cross-runtime invariant against regressions (e.g., a
  * future base64url-encoder rewrite that changes char ordering).
+ *
+ * Both mint paths resolve keys through the shared csrf-keys provider,
+ * whose caching means the key set must be reset between cases that
+ * change the stubbed CSRF_SECRET.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateCsrfTokenEdge } from '../domain/csrf-edge';
 import { verifyCsrf, type CsrfVerifyInput } from '../domain/csrf';
+import { __resetCsrfKeyCacheForTesting } from '../domain/csrf-keys';
 
 const VALID_SECRET = 'a'.repeat(32);
 const EXPECTED_ORIGIN = 'https://my-quilty.com';
 
 describe('generateCsrfTokenEdge — edge mint shape + entropy', () => {
   beforeEach(() => {
+    __resetCsrfKeyCacheForTesting();
     vi.stubEnv('CSRF_SECRET', VALID_SECRET);
   });
   afterEach(() => {
     vi.unstubAllEnvs();
+    __resetCsrfKeyCacheForTesting();
   });
 
   it('returns a `<random>.<signature>` shape matching the Node mint', async () => {
@@ -51,24 +58,26 @@ describe('generateCsrfTokenEdge — edge mint shape + entropy', () => {
     expect(a.split('.')[0]).not.toBe(b.split('.')[0]);
   });
 
-  it('throws when CSRF_SECRET is shorter than 32 chars', async () => {
+  it('rejects (fail-closed) when CSRF_SECRET is shorter than 32 chars', async () => {
     vi.stubEnv('CSRF_SECRET', 'short');
-    await expect(generateCsrfTokenEdge()).rejects.toThrow(/CSRF_SECRET/);
+    await expect(generateCsrfTokenEdge()).rejects.toThrow(/CSRF signing key unavailable/);
   });
 
-  it('throws when CSRF_SECRET is unset', async () => {
+  it('rejects (fail-closed) when CSRF_SECRET is unset', async () => {
     vi.unstubAllEnvs();
     vi.stubEnv('CSRF_SECRET', '');
-    await expect(generateCsrfTokenEdge()).rejects.toThrow(/CSRF_SECRET/);
+    await expect(generateCsrfTokenEdge()).rejects.toThrow(/CSRF signing key unavailable/);
   });
 });
 
 describe('generateCsrfTokenEdge ↔ verifyCsrf cross-runtime contract', () => {
   beforeEach(() => {
+    __resetCsrfKeyCacheForTesting();
     vi.stubEnv('CSRF_SECRET', VALID_SECRET);
   });
   afterEach(() => {
     vi.unstubAllEnvs();
+    __resetCsrfKeyCacheForTesting();
   });
 
   function makeInputFromEdgeToken(token: string): CsrfVerifyInput {
@@ -84,7 +93,7 @@ describe('generateCsrfTokenEdge ↔ verifyCsrf cross-runtime contract', () => {
 
   it('edge-minted token verifies under the Node verifier', async () => {
     const token = await generateCsrfTokenEdge();
-    const result = verifyCsrf(makeInputFromEdgeToken(token));
+    const result = await verifyCsrf(makeInputFromEdgeToken(token));
     expect(result.ok).toBe(true);
   });
 
@@ -94,14 +103,18 @@ describe('generateCsrfTokenEdge ↔ verifyCsrf cross-runtime contract', () => {
     // signature derivation accidentally varies per call.
     const t1 = await generateCsrfTokenEdge();
     const t2 = await generateCsrfTokenEdge();
-    expect(verifyCsrf(makeInputFromEdgeToken(t1)).ok).toBe(true);
-    expect(verifyCsrf(makeInputFromEdgeToken(t2)).ok).toBe(true);
+    expect((await verifyCsrf(makeInputFromEdgeToken(t1))).ok).toBe(true);
+    expect((await verifyCsrf(makeInputFromEdgeToken(t2))).ok).toBe(true);
   });
 
-  it('edge-minted token fails verification under a rotated secret', async () => {
+  it('edge-minted token fails verification under a hard-replaced secret', async () => {
+    // Env-sourced keys carry NO previous generation (dual-key overlap is a
+    // Secrets-Manager-staging-label feature), so swapping the env secret is
+    // a hard cutover and the old token must fail — the fail-closed floor.
     const token = await generateCsrfTokenEdge();
+    __resetCsrfKeyCacheForTesting();
     vi.stubEnv('CSRF_SECRET', 'b'.repeat(32));
-    const result = verifyCsrf(makeInputFromEdgeToken(token));
+    const result = await verifyCsrf(makeInputFromEdgeToken(token));
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.kind).toBe('token_invalid');
@@ -115,7 +128,7 @@ describe('generateCsrfTokenEdge ↔ verifyCsrf cross-runtime contract', () => {
     // detects the mismatch.
     const [, sig] = token.split('.');
     const forged = `${'forged_random_part_with_43_chars_padding_____'}.${sig ?? ''}`;
-    const result = verifyCsrf({
+    const result = await verifyCsrf({
       origin: EXPECTED_ORIGIN,
       referer: null,
       cookieToken: forged,

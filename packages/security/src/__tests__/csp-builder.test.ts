@@ -189,3 +189,47 @@ describe('Sentry CSP report-uri env var handling', () => {
     expect(csp).toContain('https://*.ingest.us.sentry.io');
   });
 });
+
+describe('CSP report sink — report-uri + report-to + Reporting-Endpoints triple', () => {
+  const SINK = 'https://o123.ingest.us.sentry.io/api/456/security/?sentry_key=abc';
+
+  beforeEach(() => {
+    vi.resetModules();
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('emits BOTH report-uri and report-to on both tiers when the sink is set', async () => {
+    vi.stubEnv('SENTRY_CSP_REPORT_URI', SINK);
+    const mod = await import('../domain/csp-builder');
+    for (const csp of [mod.buildMarketingCsp(), mod.buildPortalCsp('testnonce')]) {
+      expect(csp).toContain(`report-uri ${SINK}`);
+      expect(csp).toContain('report-to csp-endpoint');
+    }
+  });
+
+  it('pairs the CSP with a Reporting-Endpoints header naming the same group', async () => {
+    vi.stubEnv('SENTRY_CSP_REPORT_URI', SINK);
+    const mod = await import('../domain/csp-builder');
+    expect(mod.buildReportingEndpointsHeader()).toBe(`csp-endpoint="${SINK}"`);
+  });
+
+  it('is all-or-nothing: no sink → no directives AND no header', async () => {
+    vi.stubEnv('SENTRY_CSP_REPORT_URI', '');
+    const mod = await import('../domain/csp-builder');
+    expect(mod.buildMarketingCsp()).not.toContain('report-to');
+    expect(mod.buildPortalCsp('n')).not.toContain('report-to');
+    expect(mod.buildReportingEndpointsHeader()).toBeNull();
+  });
+
+  it('rejects a sink value that would break Reporting-Endpoints quoting', async () => {
+    // A `"` inside the URL would close the quoted string in the
+    // Reporting-Endpoints header; sanitization must reject the whole value
+    // (all-or-nothing: the CSP then carries no reporting directives either).
+    vi.stubEnv('SENTRY_CSP_REPORT_URI', 'https://x.example.com/r"y');
+    const mod = await import('../domain/csp-builder');
+    expect(mod.buildReportingEndpointsHeader()).toBeNull();
+    expect(mod.buildMarketingCsp()).not.toContain('report-uri');
+  });
+});

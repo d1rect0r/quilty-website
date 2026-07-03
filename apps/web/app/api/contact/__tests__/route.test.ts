@@ -105,7 +105,7 @@ vi.mock('next/headers', () => ({
 }));
 
 async function makeValidBody(overrides: Partial<Record<string, unknown>> = {}) {
-  const csrf = generateCsrfToken();
+  const csrf = await generateCsrfToken();
   mockCookies.set('__Host-quilty_csrf', csrf);
   mockHeaders.set('origin', SITE_ORIGIN);
   mockHeaders.set('x-quilty-csrf', csrf);

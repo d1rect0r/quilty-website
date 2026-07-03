@@ -18,28 +18,11 @@
  */
 
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { getCsrfKeys } from './csrf-keys';
 import type { CsrfError, Result } from '../errors';
 
 const TOKEN_RANDOM_BYTES = 32;
 const TOKEN_PARTS_SEPARATOR = '.';
-
-/**
- * HMAC secret resolution. The composition root injects the secret via
- * env var; the function reads it at call time so a rotation that
- * updates the env var takes effect on the next request without a cold
- * restart. A missing secret is a deployment misconfiguration — fail
- * loud rather than silently degrade to no-signing (which would let
- * any random string pass verification).
- */
-function readCsrfSecret(): string {
-  const secret = process.env['CSRF_SECRET'];
-  if (!secret || secret.length < 32) {
-    throw new Error(
-      'CSRF_SECRET env var must be set to a value ≥ 32 chars (HMAC-SHA-256 requires ≥ 256 bits of entropy). Provision via the SST secret pipeline.',
-    );
-  }
-  return secret;
-}
 
 function sign(payload: string, secret: string): string {
   return createHmac('sha256', secret).update(payload).digest('base64url');
@@ -48,12 +31,14 @@ function sign(payload: string, secret: string): string {
 /**
  * Generate a fresh CSRF token. Called once per form render — the same
  * token is written to the cookie AND embedded in the form's hidden
- * input + sent in the `X-Quilty-CSRF` header on submit.
+ * input + sent in the `X-Quilty-CSRF` header on submit. Always signs
+ * with the CURRENT key (`getCsrfKeys().current`); a missing key throws
+ * (fail-closed — see csrf-keys.ts).
  */
-export function generateCsrfToken(): string {
-  const secret = readCsrfSecret();
+export async function generateCsrfToken(): Promise<string> {
+  const { current } = await getCsrfKeys();
   const random = randomBytes(TOKEN_RANDOM_BYTES).toString('base64url');
-  const sig = sign(random, secret);
+  const sig = sign(random, current);
   return `${random}${TOKEN_PARTS_SEPARATOR}${sig}`;
 }
 
@@ -68,8 +53,12 @@ export interface CsrfVerifyInput {
 
 /**
  * Triple-layer verification. Returns Result so the call site narrows
- * the error branch exhaustively — no bare exceptions across the BFF
- * boundary per the project's error-discipline convention.
+ * the VERIFICATION error branch exhaustively. One deliberate exception
+ * crosses the boundary: the key provider's fail-closed throw when no
+ * signing key is available (deployment misconfiguration / secrets
+ * outage) — callers must catch that and map it to a retryable 5xx
+ * (see the contact route), because "cannot verify" is not a
+ * verification outcome.
  *
  * Verification order (fail-fast):
  *   1. Origin OR Referer header matches expectedOrigin. Either is
@@ -78,12 +67,14 @@ export interface CsrfVerifyInput {
  *      stops cross-origin forms (browsers preflight any non-simple
  *      header so a malicious form on attacker.com cannot send it).
  *   3. Cookie token + body token + header token all present + equal.
- *   4. Token signature verifies under the current CSRF_SECRET. This
- *      is the chokepoint that prevents a forged token (an attacker
- *      who could set the cookie via a same-site oversight could not
- *      mint a valid signature).
+ *   4. Token signature verifies under the CURRENT signing key, then —
+ *      dual-key rotation support — under the PREVIOUS key (Secrets
+ *      Manager AWSPREVIOUS), so an operator rotation never 403s tokens
+ *      minted moments before it. This is the chokepoint that prevents
+ *      a forged token (an attacker who could set the cookie via a
+ *      same-site oversight could not mint a valid signature).
  */
-export function verifyCsrf(input: CsrfVerifyInput): Result<true, CsrfError> {
+export async function verifyCsrf(input: CsrfVerifyInput): Promise<Result<true, CsrfError>> {
   const originMatch =
     (input.origin !== null && input.origin === input.expectedOrigin) ||
     (input.referer !== null && input.referer.startsWith(`${input.expectedOrigin}/`));
@@ -136,14 +127,21 @@ export function verifyCsrf(input: CsrfVerifyInput): Result<true, CsrfError> {
   const random = parts[0];
   const providedSig = parts[1];
 
-  const secret = readCsrfSecret();
-  const expectedSig = sign(random, secret);
-  if (providedSig.length !== expectedSig.length) {
-    return { ok: false, error: { kind: 'token_invalid', reason: 'signature_length' } };
+  // Dual-key acceptance: try CURRENT, then PREVIOUS. Sequential try-each
+  // (the Django SECRET_KEY_FALLBACKS shape) — the token carries no key id,
+  // and one extra HMAC on the miss path is cheaper than a format change.
+  // Each comparison is individually constant-time; which KEY matched is not
+  // a secret (an attacker learns nothing beyond "old token still valid").
+  const { current, previous } = await getCsrfKeys();
+  const candidates = previous !== null ? [current, previous] : [current];
+  for (const key of candidates) {
+    const expectedSig = sign(random, key);
+    if (
+      providedSig.length === expectedSig.length &&
+      timingSafeEqual(Buffer.from(providedSig), Buffer.from(expectedSig))
+    ) {
+      return { ok: true, value: true };
+    }
   }
-  if (!timingSafeEqual(Buffer.from(providedSig), Buffer.from(expectedSig))) {
-    return { ok: false, error: { kind: 'token_invalid', reason: 'signature_invalid' } };
-  }
-
-  return { ok: true, value: true };
+  return { ok: false, error: { kind: 'token_invalid', reason: 'signature_invalid' } };
 }

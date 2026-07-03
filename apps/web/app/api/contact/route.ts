@@ -6,7 +6,13 @@ import { verifyCsrf } from '@quilty/security/server';
 import { getServerContainer } from '@/lib/get-container';
 import { makeServerContainer } from '@/composition.server';
 import { mintCorrelationId } from '@/lib/correlation-id';
-import { claimIdempotent, storeIdempotent } from '@/lib/idempotency';
+import { readExpectedOrigin } from '@/lib/expected-origin';
+import {
+  claimIdempotent,
+  releaseIdempotent,
+  storeIdempotent,
+  IdempotencyUnavailableError,
+} from '@/lib/idempotency';
 import {
   contactFormSchema,
   type ContactFormResult,
@@ -128,10 +134,6 @@ function statusForResult(envelope: ContactFormResult): number {
   }
 }
 
-function readExpectedOrigin(): string {
-  return process.env['QUILTY_SITE_ORIGIN'] ?? 'http://localhost:3000';
-}
-
 function readClientIp(headerStore: Awaited<ReturnType<typeof headers>>): string {
   const xff = headerStore.get('x-forwarded-for');
   if (xff) {
@@ -154,6 +156,18 @@ function extractIdempotencyKey(raw: unknown): string {
   return typeof candidate === 'string' ? candidate : '';
 }
 
+/**
+ * Pre-claim key-shape gate (mirrors the Zod `z.string().uuid()` the schema
+ * enforces later). The claim is a DynamoDB write that runs BEFORE the rate
+ * limiter, so without this an attacker gets one unauthenticated write per
+ * arbitrary-string key (WAF rate rules are the only bound), and a >2KB key
+ * is an invalid partition key whose ValidationException would surface as an
+ * attacker-triggerable 502 indistinguishable from a real table outage.
+ * A non-UUID key skips the idempotency layer entirely — Zod then rejects it
+ * with the proper field error.
+ */
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function POST(request: Request): Promise<NextResponse> {
   const container = getServerContainer(makeServerContainer);
   const correlationId = mintCorrelationId();
@@ -168,19 +182,54 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  // Idempotency-key lookup FIRST — the 8-piece sequence per the
-  // module doc + Stripe convention. Looking up before Zod parse means
+  // Idempotency-key claim FIRST — the 8-piece sequence per the
+  // module doc + Stripe convention. Claiming before Zod parse means
   // a retry with the same UUID short-circuits without re-running the
   // schema validator, AND a network-retry-after-a-successful-send
   // returns the cached success envelope rather than re-sending the
-  // email. The idempotency key shape is itself loosely validated
-  // here (must be present + non-empty string) — strict UUID checking
-  // still happens in the Zod parse step below for fresh submissions.
+  // email. The claim is two-phase: a concurrent duplicate (double-
+  // click racing itself) gets `inflight` → a short client retry, by
+  // which time the winner's envelope is cached. The key must be
+  // UUID-shaped BEFORE the claim (see UUID_SHAPE) — a non-UUID key
+  // skips the layer and lands in the Zod field error below. Because
+  // keys are client-minted per mount and never persisted in cookies/
+  // URLs, an attacker cannot target a victim's key; the residual
+  // (writes ahead of the rate limiter) is bounded by the WAF rules.
   const idemKeyRaw = extractIdempotencyKey(body);
-  if (idemKeyRaw.length > 0) {
-    const cached = claimIdempotent<ContactFormResult>(`contact:${idemKeyRaw}`);
-    if (cached) {
-      return jsonResult(cached, statusForResult(cached));
+  const idempotencyActive = UUID_SHAPE.test(idemKeyRaw);
+  const idemKey = `contact:${idemKeyRaw.toLowerCase()}`;
+  // Release a fresh claim rejected by a PRE-execution guard (the cache-only-
+  // executed-outcomes rule in lib/idempotency.ts) — a cached guard failure
+  // would brick every retry under the client's per-mount key for the TTL.
+  const releaseClaim = async (): Promise<void> => {
+    if (idempotencyActive) await releaseIdempotent(idemKey);
+  };
+  if (idempotencyActive) {
+    let claim;
+    try {
+      claim = await claimIdempotent<ContactFormResult>(idemKey);
+    } catch (err) {
+      if (err instanceof IdempotencyUnavailableError) {
+        // Fail CLOSED: without a claim we cannot rule out a duplicate
+        // send — refuse rather than risk it. 502 matches the "we did
+        // not perform the side effect" semantics of send_failed.
+        container.logger.warn('contact_form_idempotency_unavailable', {
+          route: '/api/contact',
+          request_id: correlationId,
+        });
+        return jsonResult({ ok: false, reason: 'send_failed' }, 502);
+      }
+      throw err;
+    }
+    if (claim.state === 'cached') {
+      return jsonResult(claim.value, statusForResult(claim.value));
+    }
+    if (claim.state === 'inflight') {
+      // A concurrent request with the same key is mid-flight; the
+      // client retries shortly and hits the cached envelope. (The
+      // envelope schema has no dedicated concurrent-request reason —
+      // logs disambiguate; a dedicated reason code is a launch-gate.md row.)
+      return jsonResult({ ok: false, reason: 'rate_limit', retry_after_ms: 2000 }, 429);
     }
   }
 
@@ -197,6 +246,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         fieldErrors[key as keyof typeof contactFormSchema.shape] = issue.message;
       }
     }
+    await releaseClaim();
     return jsonResult(
       {
         ok: false,
@@ -207,23 +257,34 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
   const values = parsed.data;
-  const idemKey = `contact:${values.idempotency_key}`;
 
-  // CSRF — triple layer.
+  // CSRF — triple layer. The verify RESULT is exhaustive, but the key
+  // PROVIDER throws when no signing key is available (fail-closed) — map
+  // that to a structured retryable envelope instead of a bare 500 the
+  // client can't parse (mirrors the idempotency-unavailable handling).
   const headerStore = await headers();
   const cookieStore = await cookies();
-  const csrfResult = verifyCsrf({
-    origin: headerStore.get('origin'),
-    referer: headerStore.get('referer'),
-    cookieToken: cookieStore.get(CSRF_COOKIE_NAME)?.value ?? null,
-    bodyToken: values.csrf_token,
-    headerToken: headerStore.get('x-quilty-csrf'),
-    expectedOrigin: readExpectedOrigin(),
-  });
+  let csrfResult;
+  try {
+    csrfResult = await verifyCsrf({
+      origin: headerStore.get('origin'),
+      referer: headerStore.get('referer'),
+      cookieToken: cookieStore.get(CSRF_COOKIE_NAME)?.value ?? null,
+      bodyToken: values.csrf_token,
+      headerToken: headerStore.get('x-quilty-csrf'),
+      expectedOrigin: readExpectedOrigin(),
+    });
+  } catch {
+    container.logger.warn('contact_form_csrf_keys_unavailable', {
+      route: '/api/contact',
+      request_id: correlationId,
+    });
+    await releaseClaim();
+    return jsonResult({ ok: false, reason: 'send_failed' }, 502);
+  }
   if (!csrfResult.ok) {
-    const envelope: ContactFormResult = { ok: false, reason: 'csrf' };
-    storeIdempotent(idemKey, envelope);
-    return jsonResult(envelope, 403);
+    await releaseClaim();
+    return jsonResult({ ok: false, reason: 'csrf' }, 403);
   }
 
   // Honeypot — read all FormData-style fields, find anything OTHER
@@ -243,7 +304,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     // Silent success to the bot — return ok envelope but DO NOT send
     // an email. The user-facing copy never knows.
     const envelope: ContactFormResult = { ok: true, digest: correlationId };
-    storeIdempotent(idemKey, envelope);
+    await storeIdempotent(idemKey, envelope);
     // Log a numeric tally (length of the tripped field name) rather
     // than the field name itself — the honeypot rotation pool includes
     // PHI-adjacent names like `address_line_3` and logging the name
@@ -257,24 +318,25 @@ export async function POST(request: Request): Promise<NextResponse> {
     return jsonResult(envelope, 200);
   }
 
-  // Time-trap.
+  // Time-trap. Guard failure — released, not cached: "too fast" / "stale
+  // form" are exactly the rejections a human corrects and resubmits under
+  // the same per-mount key.
   const timeResult = verifyTimeTrap({ token: values.time_token });
   if (!timeResult.ok) {
-    const envelope: ContactFormResult = { ok: false, reason: 'time_trap' };
-    storeIdempotent(idemKey, envelope);
-    return jsonResult(envelope, 400);
+    await releaseClaim();
+    return jsonResult({ ok: false, reason: 'time_trap' }, 400);
   }
 
-  // Turnstile / captcha verification.
+  // Turnstile / captcha verification. Guard failure — released, not cached
+  // (the user redoes the challenge and resubmits).
   const clientIp = readClientIp(headerStore);
   const captchaResult = await container.captchaVerifier.verify(values.turnstile_token, {
     action: 'contact_form',
     remoteIp: clientIp,
   });
   if (!captchaResult.ok) {
-    const envelope: ContactFormResult = { ok: false, reason: 'captcha' };
-    storeIdempotent(idemKey, envelope);
-    return jsonResult(envelope, 400);
+    await releaseClaim();
+    return jsonResult({ ok: false, reason: 'captcha' }, 400);
   }
 
   // Rate-limit — per-IP first, then per-email. Either limit triggers
@@ -311,6 +373,9 @@ export async function POST(request: Request): Promise<NextResponse> {
     .slice(0, 32);
   const emailKey = `contact:email:${emailHash}`;
   if (!bypassRateLimit) {
+    // Rate-limit rejections are guard failures — released, not cached: a
+    // cached 429 would keep serving a STALE retry_after_ms under the
+    // client's per-mount key long after the window actually reset.
     const ipDecision = await container.rateLimiter.consume(ipKey, RATE_LIMIT_POLICY);
     if (!ipDecision.allowed) {
       const envelope: ContactFormResult = {
@@ -318,7 +383,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         reason: 'rate_limit',
         retry_after_ms: ipDecision.retryAfterMs,
       };
-      storeIdempotent(idemKey, envelope);
+      await releaseClaim();
       return jsonResult(envelope, 429);
     }
     const emailDecision = await container.rateLimiter.consume(emailKey, RATE_LIMIT_POLICY);
@@ -328,7 +393,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         reason: 'rate_limit',
         retry_after_ms: emailDecision.retryAfterMs,
       };
-      storeIdempotent(idemKey, envelope);
+      await releaseClaim();
       return jsonResult(envelope, 429);
     }
   }
@@ -350,7 +415,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   });
   if (!sendResult.ok) {
     const envelope: ContactFormResult = { ok: false, reason: 'send_failed' };
-    storeIdempotent(idemKey, envelope);
+    await storeIdempotent(idemKey, envelope);
     // Log only the coarse reason classifier (transient / permanent).
     // The adapter's `message` field is intentionally NOT forwarded —
     // SES error strings can echo the recipient address, and while the
@@ -369,7 +434,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const success: ContactFormResult = { ok: true, digest: correlationId };
-  storeIdempotent(idemKey, success);
+  await storeIdempotent(idemKey, success);
   container.logger.info('contact_form_submission', {
     route: '/api/contact',
     request_id: correlationId,

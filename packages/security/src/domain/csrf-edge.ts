@@ -31,18 +31,10 @@
  * attacker's forgery problem).
  */
 
+import { getCsrfKeys } from './csrf-keys';
+
 const TOKEN_RANDOM_BYTES = 32;
 const TOKEN_PARTS_SEPARATOR = '.';
-
-function readCsrfSecret(): string {
-  const secret = process.env['CSRF_SECRET'];
-  if (!secret || secret.length < 32) {
-    throw new Error(
-      'CSRF_SECRET env var must be set to a value ≥ 32 chars (HMAC-SHA-256 requires ≥ 256 bits of entropy). Provision via the SST secret pipeline.',
-    );
-  }
-  return secret;
-}
 
 /**
  * URL-safe base64 encoder for `Uint8Array`. Matches the
@@ -85,11 +77,13 @@ async function signWebCrypto(payload: string, key: CryptoKey): Promise<string> {
  * `verifyCsrf()` accepts it on submit.
  */
 export async function generateCsrfTokenEdge(): Promise<string> {
-  const secret = readCsrfSecret();
+  // Always signs with the CURRENT key; a missing key throws (fail-closed —
+  // see csrf-keys.ts for the extension-fetch + rotation semantics).
+  const { current } = await getCsrfKeys();
   const randomBytes = new Uint8Array(TOKEN_RANDOM_BYTES);
   crypto.getRandomValues(randomBytes);
   const random = base64urlEncode(randomBytes);
-  const key = await importHmacKey(secret);
+  const key = await importHmacKey(current);
   const sig = await signWebCrypto(random, key);
   return `${random}${TOKEN_PARTS_SEPARATOR}${sig}`;
 }

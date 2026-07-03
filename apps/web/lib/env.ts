@@ -43,8 +43,10 @@ export const env = createEnv({
     QUILTY_SITE_ORIGIN: z.string().url().optional(),
     RATELIMIT_BYPASS_TOKEN: z.string().min(1).optional(),
     // Real-adapter activation envs (DynamoDB tables). Presence selects the
-    // real adapter over the in-memory one in the composition root.
+    // real adapter over the in-memory one (rate-limit/consent/guest-state in
+    // the composition root; idempotency inside lib/idempotency.ts).
     QUILTY_RATE_LIMIT_TABLE: z.string().min(1).optional(),
+    QUILTY_IDEMPOTENCY_TABLE: z.string().min(1).optional(),
     QUILTY_CONSENT_TABLE: z.string().min(1).optional(),
     QUILTY_GUEST_STATE_TABLE: z.string().min(1).optional(),
     // Fail-closed escape hatch (ADR-0030): an EXPLICIT, documented, audited
@@ -100,6 +102,7 @@ export const env = createEnv({
     QUILTY_SITE_ORIGIN: process.env.QUILTY_SITE_ORIGIN,
     RATELIMIT_BYPASS_TOKEN: process.env.RATELIMIT_BYPASS_TOKEN,
     QUILTY_RATE_LIMIT_TABLE: process.env.QUILTY_RATE_LIMIT_TABLE,
+    QUILTY_IDEMPOTENCY_TABLE: process.env.QUILTY_IDEMPOTENCY_TABLE,
     QUILTY_CONSENT_TABLE: process.env.QUILTY_CONSENT_TABLE,
     QUILTY_GUEST_STATE_TABLE: process.env.QUILTY_GUEST_STATE_TABLE,
     QUILTY_ALLOW_INMEMORY_ADAPTERS: process.env.QUILTY_ALLOW_INMEMORY_ADAPTERS,

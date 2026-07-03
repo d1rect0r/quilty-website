@@ -378,8 +378,7 @@ describe('sanitizeAsync HMAC pseudonymization', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(
-        async () =>
-          new Response(JSON.stringify({ SecretString: 'shared-value' }), { status: 200 }),
+        async () => new Response(JSON.stringify({ SecretString: 'shared-value' }), { status: 200 }),
       ),
     );
     __resetPepperCacheForTesting();
@@ -400,7 +399,7 @@ describe('sanitizeAsync HMAC pseudonymization', () => {
     vi.stubEnv('QUILTY_PEPPER_VIA_EXTENSION', '1');
     vi.stubEnv('AWS_SESSION_TOKEN', 'test-session-token');
     vi.stubEnv('QUILTY_PSEUDONYM_PEPPER', 'env-pepper');
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => {
@@ -430,5 +429,59 @@ describe('sanitizeAsync HMAC pseudonymization', () => {
     const out = await sanitizeAsync('550e8400-e29b-41d4-a716-446655440000');
     expect(extFetch).not.toHaveBeenCalled();
     expect(out).toMatch(/^hmac\.[0-9a-f]{8}:[0-9a-f]{24}$/);
+  });
+
+  it('retries a FAILED extension fetch after the retry window instead of pinning the fallback forever', async () => {
+    // A slow-to-start extension at cold start must not permanently pin the
+    // instance to the env fallback (or, post env-removal, to `dev:` hashes).
+    vi.useFakeTimers();
+    vi.stubEnv('QUILTY_PEPPER_VIA_EXTENSION', '1');
+    vi.stubEnv('AWS_SESSION_TOKEN', 'test-session-token');
+    vi.stubEnv('QUILTY_PSEUDONYM_PEPPER', '');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let healthy = false;
+    const extFetch = vi.fn(async () =>
+      healthy
+        ? new Response(JSON.stringify({ SecretString: 'late-pepper' }), { status: 200 })
+        : new Response('starting', { status: 503 }),
+    );
+    vi.stubGlobal('fetch', extFetch);
+    __resetPepperCacheForTesting();
+
+    const uuid = '550e8400-e29b-41d4-a716-446655440000';
+    // Cold start: extension down, no env => visibly-marked dev hash.
+    expect(await sanitizeAsync(uuid)).toMatch(/^dev:/);
+    // Inside the retry window: served from the held failure, no re-probe.
+    expect(await sanitizeAsync(uuid)).toMatch(/^dev:/);
+    expect(extFetch).toHaveBeenCalledTimes(1);
+    // Past the window with the extension recovered: self-heals to HMAC.
+    healthy = true;
+    await vi.advanceTimersByTimeAsync(31_000);
+    expect(await sanitizeAsync(uuid)).toMatch(/^hmac\.[0-9a-f]{8}:[0-9a-f]{24}$/);
+    expect(extFetch).toHaveBeenCalledTimes(2);
+
+    warn.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it('caches an extension-served pepper for the instance lifetime (no TTL re-probe)', async () => {
+    vi.useFakeTimers();
+    vi.stubEnv('QUILTY_PEPPER_VIA_EXTENSION', '1');
+    vi.stubEnv('AWS_SESSION_TOKEN', 'test-session-token');
+    const extFetch = vi.fn(
+      async () => new Response(JSON.stringify({ SecretString: 'stable-pepper' }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', extFetch);
+    __resetPepperCacheForTesting();
+
+    const uuid = '550e8400-e29b-41d4-a716-446655440000';
+    const first = await sanitizeAsync(uuid);
+    await vi.advanceTimersByTimeAsync(600_000);
+    const later = await sanitizeAsync(uuid);
+    expect(later).toBe(first);
+    // Rotation propagates via fleet cycling (documented T2-15 semantic) —
+    // a healthy instance never re-probes localhost.
+    expect(extFetch).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 });

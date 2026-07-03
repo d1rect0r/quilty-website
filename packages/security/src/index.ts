@@ -74,6 +74,7 @@ export { assertNoPHI } from './domain/assert-no-phi';
 export {
   buildMarketingCsp,
   buildPortalCsp,
+  buildReportingEndpointsHeader,
   generateNonce,
   isPortalRoute,
 } from './domain/csp-builder';

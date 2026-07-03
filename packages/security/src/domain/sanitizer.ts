@@ -329,7 +329,32 @@ interface ResolvedPepper {
 // concurrent callers on a cold instance await the SAME lookup — a hash issued while
 // the pepper fetch is still pending never sees a transient null (BUG-class: silent
 // `dev:` during the cold-start window, widened to the ~2s extension fetch by T2-15).
-let cachedPepperPromise: Promise<ResolvedPepper | null> | null = null;
+//
+// Retry semantics: when the EXTENSION is the expected source (durable stages),
+// a resolution that did NOT come from the extension (fallback env, or null) is
+// held only for a short retry window instead of the instance lifetime —
+// otherwise one slow extension startup at cold start would permanently pin
+// the instance to the (possibly absent) env fallback and pseudonyms would
+// silently stay `dev:`-marked until the instance recycled. Extension-served
+// resolutions ARE instance-lifetime cached (rotation propagates as the fleet
+// cycles — the documented T2-15 semantic). The 30s window bounds localhost
+// re-probing to a trickle, not a per-log-line hammer.
+//
+// DELIBERATE ASYMMETRY with the CSRF key provider (csrf-keys.ts): the pepper
+// is instance-lifetime cached once extension-served (pseudonym continuity
+// matters more than rotation immediacy — the value-derived version segment
+// already disambiguates eras), while CSRF keys refresh on a 300s TTL
+// (rotation must reach warm instances or fresh tokens 403 on stale ones).
+// Do not "harmonize" the two.
+interface CachedPepper {
+  promise: Promise<ResolvedPepper | null>;
+  at: number;
+  /** True when the resolution is final for this instance (extension answered,
+   * or the extension isn't expected at all — env/dev path). */
+  authoritative: boolean;
+}
+let cachedPepper: CachedPepper | null = null;
+const PEPPER_RETRY_WINDOW_MS = 30_000;
 
 // T2-15 — the pepper's Secrets Manager id, fetched at runtime via the AWS
 // Parameters-and-Secrets Lambda extension (localhost:2773). The extension serves the
@@ -392,6 +417,10 @@ function warnExtensionFallback(reason: string): void {
   if (extensionFallbackWarned) return;
   extensionFallbackWarned = true;
   if (typeof console !== 'undefined') {
+    // Direct console.warn (not the Logger port): the sanitizer IS the
+    // chokepoint the logger wraps — importing the logger here would be
+    // circular. Structured, secret-free, metric-filter-friendly.
+    // eslint-disable-next-line no-console
     console.warn(
       `[pepper] Parameters-and-Secrets extension unavailable (${reason}); serving the ` +
         `deploy-time env pepper. Rotation freshness may be lost — see ` +
@@ -401,24 +430,41 @@ function warnExtensionFallback(reason: string): void {
 }
 
 function getPepper(): Promise<ResolvedPepper | null> {
-  return (cachedPepperPromise ??= computePepper());
+  const extensionExpected =
+    typeof process !== 'undefined' && process.env.QUILTY_PEPPER_VIA_EXTENSION === '1';
+  if (cachedPepper !== null) {
+    const retryDue =
+      !cachedPepper.authoritative && Date.now() - cachedPepper.at > PEPPER_RETRY_WINDOW_MS;
+    if (!retryDue) return cachedPepper.promise;
+  }
+  const entry: CachedPepper = {
+    at: Date.now(),
+    // Without the extension in play, whatever computePepper resolves (env or
+    // null) is final for this instance; with it, only an extension-served
+    // value is — computePepper flips this flag when the extension answers.
+    authoritative: !extensionExpected,
+    promise: Promise.resolve(null),
+  };
+  entry.promise = computePepper(entry);
+  cachedPepper = entry;
+  return entry.promise;
 }
 
-async function computePepper(): Promise<ResolvedPepper | null> {
+async function computePepper(entry: CachedPepper): Promise<ResolvedPepper | null> {
   // T2-15: prefer the extension's CURRENT pepper (rotation without redeploy), then
-  // the deploy-time env. Resolved once per warm instance — a rotation propagates as
-  // instances cycle. `process` is guarded so this loads cleanly in browser bundles.
-  const pepper = (await fetchPepperFromExtension()) ?? readPepperFromEnv();
+  // the deploy-time env. An extension-served value is resolved once per warm
+  // instance — a rotation propagates as instances cycle; a FAILED extension fetch
+  // is retried after PEPPER_RETRY_WINDOW_MS (see getPepper). `process` is guarded
+  // so this loads cleanly in browser bundles.
+  const fromExtension = await fetchPepperFromExtension();
+  if (fromExtension !== null) entry.authoritative = true;
+  const pepper = fromExtension ?? readPepperFromEnv();
   if (pepper === undefined || pepper.length === 0) return null;
   const raw = new TextEncoder().encode(pepper);
   const [key, digest] = await Promise.all([
-    globalThis.crypto.subtle.importKey(
-      'raw',
-      raw,
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign'],
-    ) as Promise<PepperKey>,
+    globalThis.crypto.subtle.importKey('raw', raw, { name: 'HMAC', hash: 'SHA-256' }, false, [
+      'sign',
+    ]) as Promise<PepperKey>,
     globalThis.crypto.subtle.digest('SHA-256', raw),
   ]);
   // Version segment = a short one-way digest of the pepper VALUE. It rotates
@@ -454,10 +500,7 @@ async function hashId(value: string): Promise<string> {
       resolved.key as unknown as Parameters<typeof globalThis.crypto.subtle.sign>[1],
       data,
     );
-    return `hmac.${resolved.segment}:${bufferToHex(sig).slice(
-      0,
-      PSEUDONYM_HASH_PREFIX_LENGTH,
-    )}`;
+    return `hmac.${resolved.segment}:${bufferToHex(sig).slice(0, PSEUDONYM_HASH_PREFIX_LENGTH)}`;
   }
   const buf = await globalThis.crypto.subtle.digest('SHA-256', data);
   return `dev:${bufferToHex(buf).slice(0, PSEUDONYM_HASH_PREFIX_LENGTH)}`;
@@ -468,7 +511,7 @@ async function hashId(value: string): Promise<string> {
  * different pepper between cases. Never call from production code.
  */
 export function __resetPepperCacheForTesting(): void {
-  cachedPepperPromise = null;
+  cachedPepper = null;
   extensionFallbackWarned = false;
 }
 
