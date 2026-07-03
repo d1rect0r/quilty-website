@@ -57,11 +57,6 @@
         "workbox-strategies",
         "workbox-sw"
       ]
-    },
-    "cf-functions": {
-      "entry": ["__tests__/**/*.test.ts"],
-      "project": ["__tests__/**/*.ts"],
-      "ignore": ["*.cff.js"]
     }
   }
 }

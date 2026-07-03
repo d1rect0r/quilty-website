@@ -40,6 +40,11 @@ analyze/
 # SST 4.x (Ion engine, Pulumi underneath)
 .sst/
 .open-next/
+# Generated per-workspace by `sst dev`/`sst deploy` (SST resource-linking
+# types). No code uses `Resource.*` linking — config flows via env vars — so
+# the files carry no value on a fresh checkout; ignored rather than committed.
+# Revisit (commit them, per SST's docs suggestion) if linking is ever adopted.
+sst-env.d.ts
 
 # Velite (content layer compiler — emits to .velite/ at apps/web/)
 .velite/

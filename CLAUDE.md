@@ -55,9 +55,8 @@ The strategy doc is authoritative for D1-D49 + Round-5 revisions + D50-D69 + U1-
   - `auth.my-quilty.com` — Cognito Managed Login (D6 _Round-5 revised — was "Hosted UI"_), provisioned, activated at M1 cutover (next sprint per U5)
   - `help.my-quilty.com` — reserved for hosted help center (Zendesk/Intercom)
   - `app.my-quilty.com` — reserved if web product surface ever ships
-- **Phase 0 AWS account:** existing `development` account (D47, $0 incremental cost)
-- **Phase 1 trigger:** public launch or first revenue → vend `marketing-prod` account in Workloads-NonHIPAA OU, migrate website out of `development`
-- **Cross-account DNS pattern:** Pattern A — SST owns dev-account resources; `quilty-aws/dns/` layer (in prod account) adds Route 53 records via two-step coordinated deploy (one ceremony at cutover, dormant after)
+- **Website AWS account:** `619758066987` = **`quilty-marketing-prod`** (the former `development` account, formally REPURPOSED — not freshly vended — into the new `Workloads/Customer-Surface` OU per quilty-aws ADR-0071; a dev/SDLC account gets vended fresh when next needed). The SSO profile name **`quilty-dev` is retained** on the lightweight rename and points at this account. This supersedes the original D47 "Phase 0 in development, Phase 1 vends marketing-prod" narrative — the isolation move already happened.
+- **Cross-account DNS pattern:** Pattern A — SST owns marketing-prod resources; `quilty-aws/dns/` layer (in prod account `975630231383`, which owns the my-quilty.com zone) adds Route 53 records via two-step coordinated deploy (one ceremony at cutover, dormant after)
 
 ---
 
@@ -84,7 +83,7 @@ Tokens never reach the browser (BFF pattern, D5). PHI never reaches the website 
 - **CSP nonce + strict-dynamic** from day one, report-only → enforce when clean (D32). Web Almanac 2025: CSP is the single most retrofit-hostile header.
 - **Server-side ConsentState** single source of truth (D35). All analytics/marketing SDKs gated by consent. GPC `Sec-GPC: 1` honored at edge.
 - **Session replay default mask-all**, allowlist non-PHI elements only (D40). Documented in BAA scope.
-- **HIPAA-aligned, but website is in Workloads-NonHIPAA scope.** The Cerebral $7M and Monument cases were tracking-pixel exfiltration from PHI-handling accounts — Phase 1 migration into a dedicated `marketing-prod` account outside the BAA OU isolates this risk.
+- **HIPAA-aligned, but website is in zero-PHI Customer-Surface scope.** The Cerebral $7M and Monument cases were tracking-pixel exfiltration from PHI-handling accounts — the website lives in the dedicated `quilty-marketing-prod` account (Customer-Surface OU, `phi_deny` SCP) outside the BAA OU, which isolates this risk. That isolation is DONE (ADR-0071), not a future Phase-1 step.
 - **SCP forbids access to PHI buckets** from website-account principals (enforced at Phase 1 cutover).
 
 ---
@@ -181,7 +180,7 @@ Cross-repo: `~/.claude/projects/-Users-d1rect0r-interneta-AppBuilding-quilty-aws
 Before the first M1 session in this repo:
 
 1. `cp .claude/settings.local.json.template .claude/settings.local.json` (the local file is gitignored)
-2. `aws sso login --profile quilty-dev` (Phase 0 deploys to the `development` account — verify your SSO profile name matches your AWS config)
+2. `aws sso login --profile quilty-dev` (deploys target the `quilty-marketing-prod` account `619758066987` — the profile NAME is `quilty-dev` for historical reasons; verify it matches your AWS config)
 3. `export GITHUB_PAT=<fine-grained PAT>` if using the GitHub MCP server
 4. `export CONTEXT7_API_KEY=<key>` if using the Context7 docs MCP server
 5. Confirm signing key: `git config --get user.signingkey` should match `~/.ssh/id_ed25519_signing.pub`

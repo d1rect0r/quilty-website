@@ -48,7 +48,7 @@ describe('makeServerConsentReader', () => {
     it('keeps functional enabled but denies sale/share categories for a GPC visitor without a cookie', async () => {
       // GPC opts out of sale/share (analytics/marketing/personalization)
       // only, not first-party functional cookies — so the no-cookie+GPC
-      // reader state must match what proxy.ts / cf-functions persist on the
+      // reader state must match what proxy.ts persists on the
       // same request (functional:true). This pins the distinction from the
       // no-signal default-deny path above (functional:false).
       const reader = makeServerConsentReader(makeInput('1', null));
