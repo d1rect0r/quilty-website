@@ -331,7 +331,7 @@ async function defineSiteResources(stage: string) {
   // reconciled to apex-only first + the founder's includeSubDomains call (see
   // docs/runbooks/hsts-ramp.md). The map mirrors @quilty/security buildHstsValue
   // max-ages by value (not imported — keeps Next.js deps out of the SST/Pulumi config).
-  const HSTS_PHASE = 'short-ramp';
+  const HSTS_PHASE = 'medium-ramp';
   const HSTS_APEX_ONLY_MAX_AGE: Record<string, number> = {
     scaffold: 300,
     'short-ramp': 86400,
