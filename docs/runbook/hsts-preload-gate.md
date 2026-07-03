@@ -24,7 +24,7 @@ The Chromium policy at `https://chromium.googlesource.com/chromium/hstspreload` 
 | `long-ramp`   | `max-age=31536000; includeSubDomains`          | After 60 days clean at `medium-ramp` (1 year)               |
 | `preload`     | `max-age=63072000; includeSubDomains; preload` | After 30 days clean at `long-ramp` + this gate is satisfied |
 
-The phase value lives in env-var `HSTS_PHASE` (consumed by `buildHstsValue()` + `currentHstsPhase()` at `packages/security/src/domain/headers-builder.ts`; the resolved string is stamped on every response by `buildSecurityHeaders()` and applied via the `applySecurityHeaders()` wrapper in `apps/web/proxy.ts`). Tier flips happen in single env-var deploys, NOT code edits.
+The phase's single source of truth is the `HSTS_PHASE` **const in `sst.config.ts`** (T2-6): it drives BOTH the SSR Lambda's `HSTS_PHASE` env (consumed by `buildHstsValue()` + `currentHstsPhase()` at `packages/security/src/domain/headers-builder.ts` and stamped on every response via `applySecurityHeaders()` in `apps/web/proxy.ts`) AND the edge ResponseHeadersPolicy max-age, plus the www-301 injection's HSTS. A tier flip is a one-const edit + redeploy — see `quilty-aws docs/runbooks/hsts-ramp.md` for the advance procedure.
 
 `includeSubDomains` first appears at the `long-ramp` tier — which is also when the subdomain HSTS coverage check (section 2 below) becomes mandatory rather than informational. The Chromium reviewer requires `includeSubDomains` to have been emitted in production before the preload directive is added.
 
