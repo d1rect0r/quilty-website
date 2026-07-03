@@ -57,7 +57,16 @@
 
 const DEPLOY_GATE_ENV = 'SST_DEPLOY_GATE_PASSED';
 const WAF_ACL_ARN_ENV = 'WAF_WEB_ACL_ARN';
-const PSEUDONYM_PEPPER_ENV = 'QUILTY_PSEUDONYM_PEPPER';
+// CSP report sink (Sentry security endpoint) — wired into both CSP tiers'
+// report-uri/report-to + the Reporting-Endpoints header by the app. A hard
+// gate on durable stages: report-only CSP with no sink accumulates ZERO
+// evidence for the launch enforce-flip, silently.
+const CSP_REPORT_URI_ENV = 'SENTRY_CSP_REPORT_URI';
+// DynamoDB activation envs (SSM /quilty/website/{rate-limit,idempotency}-table
+// via the deploy wrapper). Presence selects the distributed adapters over the
+// in-memory ones (composition root + lib/idempotency.ts).
+const RATE_LIMIT_TABLE_ENV = 'QUILTY_RATE_LIMIT_TABLE';
+const IDEMPOTENCY_TABLE_ENV = 'QUILTY_IDEMPOTENCY_TABLE';
 
 // --- M2 (ADR-0071) cross-repo monitoring contract ----------------------------
 // These three values are produced by quilty-aws/website-baseline/ as SSM
@@ -197,23 +206,13 @@ async function defineSiteResources(stage: string) {
     );
   }
 
-  // Pseudonymisation pepper hard gate. The @quilty/security sanitizer
-  // falls back to plain SHA-256 (dev: namespace) when the env var is
-  // unset, which is fine for dev/test but a production deploy must
-  // ship with the per-stage HMAC pepper vended from AWS Secrets
-  // Manager (D63 + log-retention.md). The pepper is server-only —
-  // intentionally NOT a NEXT_PUBLIC_* var. The deploy workflow reads
-  // the SSM-pointer secret + exports it as QUILTY_PSEUDONYM_PEPPER.
-  const pseudonymPepper = process.env[PSEUDONYM_PEPPER_ENV];
-  if (!pseudonymPepper) {
-    throw new Error(
-      `${PSEUDONYM_PEPPER_ENV} is required at SST deploy time — ` +
-        'log-side pseudonymisation falls back to unsalted SHA-256 ' +
-        'without it (HIPAA + GDPR Art 4(5) pseudonymisation gap). ' +
-        'Vended from AWS Secrets Manager by quilty-aws/website-baseline/. ' +
-        'See docs/runbook/log-retention.md prerequisites.',
-    );
-  }
+  // NOTE on the pepper: it is RUNTIME-ONLY now. The deploy no longer reads or
+  // materializes QUILTY_PSEUDONYM_PEPPER — a plaintext env copy is readable
+  // via lambda:GetFunctionConfiguration and lands in IaC state, negating the
+  // T2-15 runtime-fetch design; availability is solved by the extension's
+  // stale-on-error caching + the sanitizer's retry-on-failure, not an env
+  // shadow copy. Seed-state verification (secret not placeholder) moved to
+  // the wrapper/preflight via DescribeSecret-era checks.
 
   const webDeployBoundaryArn = process.env.QUILTY_WEB_DEPLOY_BOUNDARY_ARN;
   // Fail fast in CI if the boundary ARN is missing — otherwise the deploy role's
@@ -277,7 +276,9 @@ async function defineSiteResources(stage: string) {
     // would then watch an empty DLQ and stay green. Called out as a post-SST-upgrade
     // check in the ops runbook (T2-14) so a version bump can't erode this silently.
     $transform(sst.aws.Queue, (queueArgs, _opts, name) => {
-      if (name === 'QuiltyWebRevalidationEvents') {
+      // queueArgs is optionally typed on the transform signature; a missing
+      // args object would be an SST platform change we must not mask.
+      if (queueArgs && name === 'QuiltyWebRevalidationEvents') {
         // retry=3 → maxReceiveCount: 1 primary + 2 retries rides out a transient
         // downstream/DB blip; a permanent failure dead-letters promptly. ISR is
         // best-effort (the page is already cached), so failing after 3 is the balance.
@@ -298,6 +299,39 @@ async function defineSiteResources(stage: string) {
         'stage — the live site is a monitoring anchor and its CloudFront/Lambda/' +
         'ACM alarms must route to a real SNS topic. Vended by ' +
         'quilty-aws/website-baseline/ (M1.1). See quilty-aws/docs/runbooks/track1-go-live.md.',
+    );
+  }
+
+  // CSP report sink — hard gate on durable stages. Report-only CSP with no
+  // sink accumulates ZERO violation evidence for the launch enforce-flip
+  // (and does it silently); the app emits report-uri + report-to +
+  // Reporting-Endpoints from this one value. Sourced by the deploy wrapper
+  // from the dedicated Sentry CSP project's security endpoint.
+  const cspReportUri = process.env[CSP_REPORT_URI_ENV];
+  if (durableStage && !cspReportUri) {
+    throw new Error(
+      `${CSP_REPORT_URI_ENV} is required at SST deploy time for the ${stage} ` +
+        'stage — report-only CSP without a report sink collects no evidence ' +
+        'for the launch enforce-flip. Use the dedicated Sentry CSP project ' +
+        'security endpoint (Project Settings → Security Headers). See ' +
+        'docs/runbook/launch-gate.md.',
+    );
+  }
+
+  // DynamoDB activation (rate-limit + idempotency) — hard gates on durable
+  // stages now that the tables exist (quilty-aws/website-baseline/dynamodb.tf;
+  // SSM /quilty/website/{rate-limit,idempotency}-table). Without them the app
+  // fails closed at container construction (ADR-0030) and the contact surface
+  // 500s — gate at deploy time instead of shipping that.
+  const rateLimitTable = process.env[RATE_LIMIT_TABLE_ENV];
+  const idempotencyTable = process.env[IDEMPOTENCY_TABLE_ENV];
+  if (durableStage && (!rateLimitTable || !idempotencyTable)) {
+    throw new Error(
+      `${RATE_LIMIT_TABLE_ENV} + ${IDEMPOTENCY_TABLE_ENV} are required at SST ` +
+        `deploy time for the ${stage} stage — the distributed abuse-control ` +
+        'adapters activate on them (in-memory is per-instance and the ' +
+        'fail-closed guard refuses it in production). Vended as SSM ' +
+        '/quilty/website/{rate-limit,idempotency}-table by quilty-aws/website-baseline/.',
     );
   }
 
@@ -407,26 +441,31 @@ async function defineSiteResources(stage: string) {
     },
   );
 
-  // T2-15 (B2-6) — fetch the pseudonym pepper at RUNTIME via the AWS Parameters-and-
-  // Secrets Lambda extension, so a pepper rotation is picked up WITHOUT a redeploy.
-  // The extension LAYER (added in the server transform below) exposes localhost:2773;
-  // @quilty/security getPepperKey() fetches the CURRENT pepper from it and falls back
-  // to the deploy-time QUILTY_PSEUDONYM_PEPPER env — which is deliberately RETAINED as
-  // a safety net, so an extension failure can never SILENTLY drop to unpeppered `dev:`
-  // hashing (a privacy regression). Durable stages only; the layer ARN resolves from
-  // the AWS-published SSM param (no hardcoded version), the CMK ARN from the quilty-aws
-  // cross-registry export. Secret ARN uses the wildcard random-suffix pattern.
+  // T2-15 + Wave-1 — runtime secrets via the AWS Parameters-and-Secrets Lambda
+  // extension (localhost:2773; LAYER added in the server transform below), so
+  // a rotation is picked up WITHOUT a redeploy: the pseudonym pepper
+  // (@quilty/security sanitizer — instance-lifetime cache, retry-on-failure)
+  // and the CSRF signing key (@quilty/security csrf-keys — AWSCURRENT +
+  // AWSPREVIOUS dual-label, 300s refresh, stale-on-error). NEITHER value is
+  // materialized as a Lambda env var anymore — env copies are readable via
+  // lambda:GetFunctionConfiguration and land in IaC state; availability is
+  // the extension's cache + the providers' retry/stale-on-error, per the AWS
+  // prescriptive pattern. Durable stages only; the layer ARN resolves from
+  // the AWS-published SSM param (no hardcoded version), the CMK ARN from the
+  // quilty-aws cross-registry export. Secret ARNs use the wildcard
+  // random-suffix pattern.
   const paramsSecretsLayerArn = durableStage
     ? aws.ssm.getParameterOutput({
         name: '/aws/service/aws-parameters-and-secrets-lambda-extension/arm64/latest',
       }).value
     : undefined;
-  const pepperRuntimePermissions = durableStage
+  const runtimePermissions = durableStage
     ? [
         {
           actions: ['secretsmanager:GetSecretValue'],
           resources: [
             $interpolate`arn:aws:secretsmanager:us-east-1:${aws.getCallerIdentityOutput().accountId}:secret:quilty/website/pseudonym-pepper-*`,
+            $interpolate`arn:aws:secretsmanager:us-east-1:${aws.getCallerIdentityOutput().accountId}:secret:quilty/website/csrf-secret-*`,
           ],
         },
         {
@@ -447,326 +486,491 @@ async function defineSiteResources(stage: string) {
             },
           ],
         },
+        // Distributed abuse-control tables (rate-limit sliding window +
+        // idempotency two-phase claim). Exactly the operations the adapters
+        // issue — no Scan/Query/Delete; TTL does the deleting.
+        {
+          // DescribeTable serves ONLY the /api/ready liveness probe.
+          actions: [
+            'dynamodb:GetItem',
+            'dynamodb:PutItem',
+            'dynamodb:UpdateItem',
+            'dynamodb:DescribeTable',
+          ],
+          resources: [
+            $interpolate`arn:aws:dynamodb:us-east-1:${aws.getCallerIdentityOutput().accountId}:table/${rateLimitTable ?? ''}`,
+            $interpolate`arn:aws:dynamodb:us-east-1:${aws.getCallerIdentityOutput().accountId}:table/${idempotencyTable ?? ''}`,
+          ],
+        },
       ]
     : [];
 
-  const site = new sst.aws.Nextjs('QuiltyWeb', {
-    path: 'apps/web',
-    // T2-15: runtime pepper fetch (extension layer added in the server transform).
-    permissions: pepperRuntimePermissions,
-    // Forces the SSR Lambda URL to IAM-auth via CloudFront OAC plus edge body signing, so the org non-public-Function-URL SCP permits the deploy (quilty-aws ADR-0071 sections 2 and 3).
-    protection: 'oac-with-edge-signing',
-    domain:
-      // The custom domain attaches only once quilty-aws has vended a validated
-      // ACM cert ARN (D-T1-5). `dns: false` without a `cert` makes SST's Cdn
-      // throw ("Need to provide a validated certificate when DNS is disabled"),
-      // so gating on acmCertArn is what keeps a pre-cert deploy valid: it
-      // serves on the raw CloudFront URL until Pattern A (quilty-aws/dns) lands
-      // the cert + apex/www alias records. preview-pr-* always uses the raw URL.
-      //
-      // Gated on `durableStage` (NOT a bare `stage === 'dev'`) so it stays in
-      // lock-step with the monitoring/access-logging predicate above. The
-      // documented marketing-prod migration flips the live stage name; if this
-      // used `=== 'dev'`, that rename would leave durableStage true (alarms +
-      // cert-expiry watch still deploy) while the domain silently fell back to
-      // the raw CloudFront URL — a green deploy with a dead my-quilty.com.
-      durableStage && acmCertArn
-        ? {
-            name: 'my-quilty.com',
-            redirects: ['www.my-quilty.com'],
-            // DNS records (ACM validation CNAME + apex/www alias) are written
-            // by quilty-aws/dns/ in a coordinated cross-account apply (U6
-            // Pattern A); SST must not try to manage them.
-            dns: false,
-            // Pre-validated us-east-1 cert from quilty-aws (the account that
-            // owns the my-quilty.com hosted zone). Required by SST when dns:false.
-            cert: acmCertArn,
-          }
-        : undefined, // raw CloudFront URL (pre-cert dev, or preview-pr-* stages)
-    environment: {
-      // NEXT_PUBLIC_SITE_URL must be a VALID URL on every stage: lib/env.ts
-      // (ADR-0030) validates it via createEnv when next.config.ts loads at
-      // `next start` boot, so '' (→ undefined under emptyStringAsUndefined)
-      // crashes the server before any localhost fallback can run. A preview
-      // stage can't self-reference its own CloudFront `url` Output inside its
-      // constructor args, so it falls back to the apex — benign, since
-      // preview stages are noindex (canonical pointing at prod is harmless).
-      // The wildcard preview custom domain is the proper long-term fix (see
-      // docs/runbook/sst-deploy.md).
-      NEXT_PUBLIC_SITE_URL: 'https://my-quilty.com',
-      NEXT_PUBLIC_SENTRY_DSN: sentryDsn,
-      // T2-6 (E2-5) — server-only HSTS ramp phase read by proxy.ts (currentHstsPhase →
-      // buildHstsValue) so SSR documents carry the SAME apex-only max-age the edge RHP
-      // sets above. Single source = the HSTS_PHASE const; advancing the ramp is a bump of
-      // that const + redeploy (see docs/runbooks/hsts-ramp.md).
-      HSTS_PHASE,
-      // Server-only — never expose to the client bundle. The Next.js
-      // build replaces unprefixed env vars with undefined in browser
-      // chunks, so the sanitizer's client-side path always lands on
-      // the `dev:` namespace as designed.
-      QUILTY_PSEUDONYM_PEPPER: pseudonymPepper,
-      // T2-15: signals @quilty/security that the Parameters-and-Secrets extension
-      // layer is attached (set ONLY on durable stages, where the server transform adds
-      // paramsSecretsLayerArn), so the sanitizer fetches the CURRENT pepper at runtime.
-      // Absent on preview => env-only, no wasted localhost call + no false fallback warn.
-      ...(durableStage ? { QUILTY_PEPPER_VIA_EXTENSION: '1' } : {}),
-      // Pre-launch SEO fail-safe. Sourced from the deploy-step env so the
-      // same value reaches `next build` (the authoritative X-Robots-Tag
-      // header in next.config.ts) and the Lambda runtime (layout.tsx meta
-      // robots, for dynamically-rendered routes). Absent => 'false' =>
-      // indexable (safe default). CI sets it 'true' for preview stages
-      // (never index a preview) and from the SITE_FORCE_NOINDEX repo var for
-      // prod ('true' during the placeholder phase, removed at launch).
-      SITE_FORCE_NOINDEX: process.env.SITE_FORCE_NOINDEX ?? 'false',
-    },
-    server: {
-      // arm64 ~20% cheaper than x86_64 at the same perf. OpenNext +
-      // SST 4.14 ARM64 compatibility is documented; verify on first
-      // deploy.
-      architecture: 'arm64',
-      memory: '1024 MB',
-      timeout: '15 seconds',
-    },
-    // Image optimization (next/image via the Sharp-based OpenNext function).
-    // 1536 MB matches the component default and gives Sharp enough vCPU to
-    // keep transform latency + billed duration low. `staticEtag` makes the
-    // function emit an ETag derived from (href, width, quality, buildId) so
-    // an unchanged image returns 304 instead of re-running Sharp on every
-    // request — set via the component flag, NOT the OPENNEXT_STATIC_ETAG env
-    // var (the component injects that internally when this is true).
-    imageOptimization: {
-      memory: '1536 MB',
-      staticEtag: true,
-    },
-    // Keep 2 SSR execution environments warm via the OpenNext EventBridge
-    // warmer. Two (not one) so that a pair of concurrent first-byte requests
-    // during an idle period don't both pay a cold start — material now that
-    // AWS bills the Lambda INIT phase. Far cheaper than provisioned
-    // concurrency for this bursty marketing + portal traffic profile;
-    // revisit (provisioned concurrency) only if cold-start rate exceeds ~5%
-    // or p99 TTFB regresses post-launch.
-    warm: 2,
-    // Deploy-time CloudFront invalidation. `paths: 'all'` issues a single
-    // `/*` (one invalidation unit, inside the free tier) so un-hashed HTML
-    // is never served stale after a deploy; content-hashed `_next/static`
-    // assets are immutable and need no invalidation. `wait: true` blocks the
-    // deploy until the invalidation completes, so a green deploy guarantees
-    // the edges are serving the new build.
-    invalidation: {
-      paths: 'all',
-      wait: true,
-    },
-    transform: {
-      cdn(args) {
-        args.tags = { ...args.tags, ...siteTagsFor(stage) };
-        // CLAUDE.md NEVER list: no public hostname without WAF + rate
-        // limit. The ARN is a runtime gate (see above) so this is always
-        // populated when the cdn transform runs. The CdnArgs field is
-        // `webAclArn` — the Cdn component maps it to the distribution's
-        // confusingly-named `webAclId`. Setting `webAclId` directly on
-        // CdnArgs is a silent no-op that would leave the distribution
-        // unprotected, so the WAF ARN must be assigned to `webAclArn`.
-        args.webAclArn = wafAclArn;
-        // Distribution-level edge settings CdnArgs doesn't expose directly.
-        args.transform = {
-          ...(typeof args.transform === 'object' ? args.transform : {}),
-          distribution(distArgs) {
-            // US/EU/Israel edges for US-focused DTC traffic. A flat-rate
-            // plan, if adopted later, overrides this (a Phase C decision).
-            distArgs.priceClass = 'PriceClass_100';
-            // Cdn omits this, so CloudFront's API default (false) applies.
-            // Enable IPv6 so IPv6-only clients resolve without NAT64; the
-            // apex/www AAAA records are added by quilty-aws/dns/ (Pattern A).
-            distArgs.isIpv6Enabled = true;
-            // Negotiate HTTP/3 (QUIC) in addition to HTTP/2 — CloudFront's
-            // default is HTTP/2 only. Purely additive (HTTP/2 clients are
-            // unaffected) and cuts TTFB on lossy mobile links; HTTP/3
-            // requires TLS 1.3, which the policy below permits.
-            distArgs.httpVersion = 'http2and3';
-            // Pin the viewer TLS floor explicitly so it can't silently
-            // change under a component-default shift, and so there is one
-            // clear line to bump. This equals SST's current default
-            // (TLSv1.2_2021) and is a Security-Hub-passing policy. The newer
-            // TLSv1.2_2025 policy (drops CBC, adds hybrid post-quantum) is
-            // verified NOT accepted by the bundled @pulumi/aws@7.20.0 (its
-            // CloudFront enum tops out at TLSv1.2_2021), so setting it would
-            // fail the deploy — that upgrade is gated on a provider bump
-            // (deployment plan T3-28). Only set on the ACM branch — the
-            // default cert (preview stages) ignores a minimum-protocol policy.
-            distArgs.viewerCertificate = $output(distArgs.viewerCertificate).apply((cert) =>
-              cert && !cert.cloudfrontDefaultCertificate
-                ? { ...cert, minimumProtocolVersion: 'TLSv1.2_2021' }
-                : cert,
-            );
-            // M2.5 / O8 — CloudFront STANDARD (v1) access logging into the
-            // TF-owned bucket (quilty-aws M1.7). The Logging.Bucket field wants
-            // the bucket's DNS domain (<name>.s3.<region>.amazonaws.com), which
-            // is exactly what the SSM param exports — no string-munging here.
-            // `includeCookies: false` keeps session/PHI hygiene (request headers
-            // are never in v1 logs anyway; cookies are the only opt-in field).
-            // Gated: a stage without the bucket domain ships without logging
-            // rather than failing the deploy.
-            if (cfLogBucketDomain) {
-              distArgs.loggingConfig = {
-                bucket: cfLogBucketDomain,
-                includeCookies: false,
-                prefix: 'cf/',
-              };
-            }
-            // T2-5 (E2-1) — custom error responses for CloudFront-GENERATED origin
-            // failures only. 502 (Lambda origin unreachable / OAC-signature / malformed
-            // response) and 504 (SSR exceeded the 20s originReadTimeout) are the only codes
-            // CloudFront synthesises — the SSR Lambda itself renders BRANDED pages for
-            // 404/500/410/451/503 (not-found.tsx / error.tsx / (errors)/* routes), so those
-            // are deliberately NOT intercepted (a customErrorResponse without a page is a
-            // no-op for them; one WITH a page would clobber the branded body).
-            // The win: CloudFront's DEFAULT error-cache TTL is 300s, so a transient origin
-            // blip would serve errors to everyone for 5 min. errorCachingMinTtl: 5 recovers
-            // in ~5s while still shielding a struggling origin from a per-request retry storm.
-            // Codes are preserved (no responseCode remap) so 502 vs 504 stays visible in the
-            // access logs / 5xx metrics. A BRANDED static origin-down page (responsePagePath
-            // → an S3 `_next/static/*` object, served even when the Lambda origin is down) is
-            // a deliberate Track-3 upgrade — deferred here per the enterprise verdict for a
-            // low-traffic marketing site (502/504 are rare; revisit if telemetry shows >~1%).
-            distArgs.customErrorResponses = [
-              { errorCode: 502, errorCachingMinTtl: 5 },
-              { errorCode: 504, errorCachingMinTtl: 5 },
-            ];
-            // Attach the edge security-header baseline to EVERY cache behavior —
-            // the default (→ SSR) plus the static/image ordered behaviors — so
-            // _next/static assets and CloudFront error responses carry the
-            // headers, not just SSR documents. `?? policyId` preserves any policy
-            // SST might attach in future (only one ResponseHeadersPolicy is
-            // allowed per behavior); SST currently sets none.
-            const policyId = securityHeadersPolicy.id;
-            distArgs.defaultCacheBehavior = $output(distArgs.defaultCacheBehavior).apply((b) => ({
-              ...b,
-              responseHeadersPolicyId: b.responseHeadersPolicyId ?? policyId,
-            }));
-            if (distArgs.orderedCacheBehaviors) {
-              distArgs.orderedCacheBehaviors = $output(distArgs.orderedCacheBehaviors).apply(
-                (behaviors) =>
-                  (behaviors ?? []).map((b) => ({
-                    ...b,
-                    responseHeadersPolicyId: b.responseHeadersPolicyId ?? policyId,
-                  })),
-              );
-            }
-          },
-        };
-      },
-      server(args) {
-        const tags = siteTagsFor(stage);
-        args.tags = { ...args.tags, ...tags };
-        // T2-15: attach the AWS Parameters-and-Secrets extension so proxy.ts /
-        // @quilty/security can fetch the pepper at runtime (durable stages only;
-        // the layer ARN resolves from the AWS-published SSM param, no hardcoded
-        // version). The matching secretsmanager/kms IAM is on the `permissions`
-        // prop above; the deploy-time env stays as the fallback.
-        if (paramsSecretsLayerArn) {
-          args.layers = [
-            ...(Array.isArray(args.layers) ? args.layers : []),
-            paramsSecretsLayerArn,
-          ];
-        }
-        // Reserved concurrency is OPT-IN via SSR_RESERVED_CONCURRENCY, UNSET by
-        // default. AWS rejects any reservation that drops the account's unreserved
-        // pool below the mandated floor of 10 — a brand-new account starts AT 10, so
-        // a hardcoded reservation makes `sst deploy` fail with
-        // InvalidParameterValueException. Also, marketing-prod is the website's
-        // DEDICATED account (the Rust auth Lambdas live in the production account),
-        // so there is no cross-workload pool to isolate against here. Once a Lambda
-        // concurrency quota increase lands, set SSR_RESERVED_CONCURRENCY (e.g. 100)
-        // to cap the SSR Lambda.
-        const ssrReserved = process.env.SSR_RESERVED_CONCURRENCY;
-        if (ssrReserved && Number(ssrReserved) > 0) {
-          args.concurrency = {
-            ...(typeof args.concurrency === 'object' ? args.concurrency : {}),
-            reserved: Number(ssrReserved),
-          };
-        }
-        // 6yr retention satisfies 45 CFR §164.530(j)(2); the D67 PHI
-        // sanitizer chokepoint at wrapLogger/wrapErrorReporter is what
-        // makes long retention safe. `format: 'json'` produces OTel-
-        // shaped logs the Logs-Insights queries in
-        // docs/runbook/log-retention.md depend on.
-        args.logging = {
-          ...(typeof args.logging === 'object' ? args.logging : {}),
-          retention: '6 years',
-          format: 'json',
-        };
-        // CloudWatch LogGroup tag propagation + retain-on-delete. The
-        // Nextjs component does NOT route AWS:Logs:LogGroup through its
-        // app-level `removal: 'retain'` allowlist, so without this the
-        // log group is deleted on `sst remove --stage dev` regardless
-        // of the 6-year audit clock. The nested transform reaches the
-        // inner Function's LogGroup args directly.
-        args.transform = {
-          ...(typeof args.transform === 'object' ? args.transform : {}),
-          logGroup(lgArgs, opts) {
-            lgArgs.tags = { ...lgArgs.tags, ...tags };
-            // Audit-clock protection: any stage that could host real
-            // auth/consent/step-up events must retain the log group on
-            // teardown. The closed-enum guard matches exactly `dev`,
-            // `production`, and `prod` — prefix-matching `prod*` was
-            // tempting but would silently retain ad-hoc `prod-hotfix`
-            // ephemeral clones we may want to teardown freely. Add new
-            // audit-bearing stage names here explicitly.
-            const isAuditStage = stage === 'dev' || stage === 'production' || stage === 'prod';
-            if (isAuditStage) {
-              opts.retainOnDelete = true;
-            }
-          },
-        };
-      },
-      assets(args) {
-        // T2-3 (C2-5): enable versioning on durable stages so overwritten
-        // stable-path assets (BUILD_ID, .well-known/*) accrue noncurrent versions
-        // that the lifecycle rule (added after the component, below) expires after
-        // 30 days — the house hardened-bucket convention (versioned + noncurrent
-        // lifecycle). Immutable hashed _next/static/* keys are never overwritten, so
-        // their CURRENT objects are never versioned away — safe for clients holding
-        // cached HTML that still references old chunk hashes.
-        if (durableStage) {
-          args.versioning = true;
-        }
-        // SST's `BucketArgs` exposes a nested `transform.bucket` for
-        // the underlying Pulumi s3.Bucket — that's where tags + the
-        // dev-stage forceDestroy guard land. Setting `args.tags` or
-        // `args.forceDestroy` at this level is silently discarded
-        // because the SST abstraction has no such fields.
-        args.transform = {
-          ...(typeof args.transform === 'object' ? args.transform : {}),
-          bucket(bArgs) {
-            bArgs.tags = { ...bArgs.tags, ...siteTagsFor(stage) };
-            if (stage === 'dev') {
-              // Preserves the dev assets bucket across `sst remove
-              // --stage dev` invocations. The app-level `removal:
-              // retain` covers S3 buckets but `forceDestroy: false` is
-              // the belt-and-braces guard against an explicit destroy.
-              bArgs.forceDestroy = false;
-            }
-          },
-        };
-      },
-    },
+  // Deferred handle for the assets-bucket policy transform below: the policy
+  // is authored while `new Nextjs(...)` is still constructing (before `site`
+  // exists), but the SourceArn condition needs the distribution ARN. Pulumi
+  // Outputs are lazy, so wrapping a promise resolved right after construction
+  // works without a dependency cycle.
+  let resolveDistributionArn: (arn: $util.Input<string>) => void = () => undefined;
+  let rejectDistributionArn: (err: unknown) => void = () => undefined;
+  const deferredDistributionArn = new Promise<$util.Input<string>>((resolve, reject) => {
+    resolveDistributionArn = resolve;
+    rejectDistributionArn = reject;
   });
+  // If construction throws BEFORE the assets policy transform ever consumes
+  // this promise, the rejection would otherwise surface as unhandled-promise
+  // noise masking the real error. The transform's own consumption still sees
+  // the rejection (multiple consumers are fine).
+  deferredDistributionArn.catch(() => undefined);
+
+  // Construction is wrapped so ANY throw (mid-construction or the handle
+  // guard below) REJECTS the deferred ARN promise — a permanently-pending
+  // Output input would otherwise surface as a Pulumi promise-leak/hang that
+  // masks the real exception.
+  let site: sst.aws.Nextjs;
+  try {
+    site = new sst.aws.Nextjs('QuiltyWeb', {
+      path: 'apps/web',
+      // Runtime secrets (extension layer added in the server transform) +
+      // abuse-control DynamoDB tables.
+      permissions: runtimePermissions,
+      // Forces the SSR Lambda URL to IAM-auth via CloudFront OAC plus edge body signing, so the org non-public-Function-URL SCP permits the deploy (quilty-aws ADR-0071 sections 2 and 3).
+      protection: 'oac-with-edge-signing',
+      domain:
+        // The custom domain attaches only once quilty-aws has vended a validated
+        // ACM cert ARN (D-T1-5). `dns: false` without a `cert` makes SST's Cdn
+        // throw ("Need to provide a validated certificate when DNS is disabled"),
+        // so gating on acmCertArn is what keeps a pre-cert deploy valid: it
+        // serves on the raw CloudFront URL until Pattern A (quilty-aws/dns) lands
+        // the cert + apex/www alias records. preview-pr-* always uses the raw URL.
+        //
+        // Gated on `durableStage` (NOT a bare `stage === 'dev'`) so it stays in
+        // lock-step with the monitoring/access-logging predicate above. The
+        // documented marketing-prod migration flips the live stage name; if this
+        // used `=== 'dev'`, that rename would leave durableStage true (alarms +
+        // cert-expiry watch still deploy) while the domain silently fell back to
+        // the raw CloudFront URL — a green deploy with a dead my-quilty.com.
+        durableStage && acmCertArn
+          ? {
+              name: 'my-quilty.com',
+              // www is an ALIAS on the MAIN distribution (301'd to the apex by
+              // the viewer-request injection below) — NOT `redirects`, which
+              // creates a second, unhardenable distribution (TLSv1 floor, no
+              // WAF/logging/headers, PriceClass_All, no transform hook). As an
+              // alias, www inherits the main distro's WAF + TLS floor + access
+              // logging + ResponseHeadersPolicy for free, and the DNS records
+              // (already pointing at this distro's domain) need no change. The
+              // cert quilty-aws vends carries the www SAN.
+              // CUTOVER NOTE: the old `redirects` distribution holds the www
+              // alias in CloudFront's account-wide alias registry — run
+              // `aws cloudfront associate-alias` to MOVE it to this
+              // distribution BEFORE the deploy that applies this config, then
+              // disable+delete the orphaned redirect distro + bucket (dev-stage
+              // removal:'retain' keeps them). See the go-live runbook.
+              aliases: ['www.my-quilty.com'],
+              // DNS records (ACM validation CNAME + apex/www alias) are written
+              // by quilty-aws/dns/ in a coordinated cross-account apply (U6
+              // Pattern A); SST must not try to manage them.
+              dns: false,
+              // Pre-validated us-east-1 cert from quilty-aws (the account that
+              // owns the my-quilty.com hosted zone). Required by SST when dns:false.
+              cert: acmCertArn,
+            }
+          : undefined, // raw CloudFront URL (pre-cert dev, or preview-pr-* stages)
+      // www→apex 301 at the edge, spliced into the main distro's viewer-request
+      // CloudFront Function BEFORE the router code (the platform-sanctioned
+      // single-distribution replacement for `domain.redirects`). Emits HSTS on
+      // the 301 itself — required for eventual preload eligibility (hstspreload
+      // demands the header on every HTTPS redirect hop) and unreachable via the
+      // ResponseHeadersPolicy alone on some function-generated paths. Path +
+      // query are preserved. Keep this snippet small: the whole function has a
+      // 10KB limit.
+      edge: {
+        viewerRequest: {
+          injection: `
+          if (event.request.headers.host && event.request.headers.host.value.toLowerCase() === "www.my-quilty.com") {
+            // Keys/values arrive AS SENT on the wire (CloudFront Functions do
+            // not percent-decode the querystring), so they are passed through
+            // verbatim — re-encoding would double-encode e.g. %20 into %2520.
+            var redirectQs = "";
+            var qsKeys = Object.keys(event.request.querystring);
+            for (var qi = 0; qi < qsKeys.length; qi++) {
+              var qk = qsKeys[qi];
+              var qe = event.request.querystring[qk];
+              var vals = qe.multiValue ? qe.multiValue : [qe];
+              for (var vi = 0; vi < vals.length; vi++) {
+                redirectQs += (redirectQs === "" ? "?" : "&") + qk + (vals[vi].value !== "" ? "=" + vals[vi].value : "");
+              }
+            }
+            return {
+              statusCode: 301,
+              statusDescription: "Moved Permanently",
+              headers: {
+                "location": { value: "https://my-quilty.com" + event.request.uri + redirectQs },
+                "strict-transport-security": { value: "max-age=${HSTS_MAX_AGE_SECONDS}" },
+                "cache-control": { value: "max-age=3600" }
+              }
+            };
+          }
+        `,
+        },
+      },
+      environment: {
+        // NEXT_PUBLIC_SITE_URL must be a VALID URL on every stage: lib/env.ts
+        // (ADR-0030) validates it via createEnv when next.config.ts loads at
+        // `next start` boot, so '' (→ undefined under emptyStringAsUndefined)
+        // crashes the server before any localhost fallback can run. A preview
+        // stage can't self-reference its own CloudFront `url` Output inside its
+        // constructor args, so it falls back to the apex — benign, since
+        // preview stages are noindex (canonical pointing at prod is harmless).
+        // The wildcard preview custom domain is the proper long-term fix (see
+        // docs/runbook/sst-deploy.md).
+        NEXT_PUBLIC_SITE_URL: 'https://my-quilty.com',
+        NEXT_PUBLIC_SENTRY_DSN: sentryDsn,
+        // T2-6 (E2-5) — server-only HSTS ramp phase read by proxy.ts (currentHstsPhase →
+        // buildHstsValue) so SSR documents carry the SAME apex-only max-age the edge RHP
+        // sets above. Single source = the HSTS_PHASE const; advancing the ramp is a bump of
+        // that const + redeploy (see docs/runbooks/hsts-ramp.md).
+        HSTS_PHASE,
+        // CSP report sink — drives report-uri + report-to + Reporting-Endpoints
+        // in @quilty/security csp-builder. Gated hard above on durable stages;
+        // empty on preview (no reporting from throwaway stages).
+        ...(cspReportUri ? { SENTRY_CSP_REPORT_URI: cspReportUri } : {}),
+        // Extension-attached flags (set ONLY on durable stages, where the server
+        // transform adds paramsSecretsLayerArn): the sanitizer fetches the
+        // CURRENT pepper and the CSRF provider fetches AWSCURRENT+AWSPREVIOUS at
+        // runtime via localhost:2773. NO deploy-time secret values — the env
+        // vars carry only the fact that the extension exists. Absent on preview
+        // => no wasted localhost call + no false fallback warn.
+        ...(durableStage
+          ? { QUILTY_PEPPER_VIA_EXTENSION: '1', QUILTY_CSRF_VIA_EXTENSION: '1' }
+          : {}),
+        // DynamoDB activation envs (deploy-gated above on durable stages) —
+        // presence flips the composition root / lib/idempotency.ts to the
+        // distributed adapters. Gated on durableStage IN LOCK-STEP with the
+        // IAM grant + extension layer: a preview stage inheriting the table
+        // envs without the grant would fail idempotency claims CLOSED
+        // (AccessDenied → every contact POST 502s).
+        ...(durableStage && rateLimitTable ? { QUILTY_RATE_LIMIT_TABLE: rateLimitTable } : {}),
+        ...(durableStage && idempotencyTable ? { QUILTY_IDEMPOTENCY_TABLE: idempotencyTable } : {}),
+        // ADR-0030 explicit interim opt-in for the two stores whose FEATURES
+        // are still dormant (consent banner persistence + guest sessions are
+        // M3+ UX work): their in-memory adapters must clear the fail-closed
+        // guard in the production runtime, or container construction throws
+        // and the whole contact surface 500s. Audit-logged once per process
+        // by the composition root. Remove when QUILTY_CONSENT_TABLE /
+        // QUILTY_GUEST_STATE_TABLE activate (launch-gate.md row).
+        QUILTY_ALLOW_INMEMORY_ADAPTERS: 'true',
+        // Pre-launch SEO fail-safe. Sourced from the deploy-step env so the
+        // same value reaches `next build` (the authoritative X-Robots-Tag
+        // header in next.config.ts) and the Lambda runtime (layout.tsx meta
+        // robots, for dynamically-rendered routes). Absent => 'false' =>
+        // indexable (safe default). CI sets it 'true' for preview stages
+        // (never index a preview) and from the SITE_FORCE_NOINDEX repo var for
+        // prod ('true' during the placeholder phase, removed at launch).
+        SITE_FORCE_NOINDEX: process.env.SITE_FORCE_NOINDEX ?? 'false',
+      },
+      server: {
+        // arm64 ~20% cheaper than x86_64 at the same perf. OpenNext +
+        // SST 4.14 ARM64 compatibility is documented; verify on first
+        // deploy.
+        architecture: 'arm64',
+        memory: '1024 MB',
+        timeout: '15 seconds',
+      },
+      // Image optimization (next/image via the Sharp-based OpenNext function).
+      // 1536 MB matches the component default and gives Sharp enough vCPU to
+      // keep transform latency + billed duration low. `staticEtag` makes the
+      // function emit an ETag derived from (href, width, quality, buildId) so
+      // an unchanged image returns 304 instead of re-running Sharp on every
+      // request — set via the component flag, NOT the OPENNEXT_STATIC_ETAG env
+      // var (the component injects that internally when this is true).
+      imageOptimization: {
+        memory: '1536 MB',
+        staticEtag: true,
+      },
+      // Keep 2 SSR execution environments warm via the OpenNext EventBridge
+      // warmer. Two (not one) so that a pair of concurrent first-byte requests
+      // during an idle period don't both pay a cold start — material now that
+      // AWS bills the Lambda INIT phase. Far cheaper than provisioned
+      // concurrency for this bursty marketing + portal traffic profile;
+      // revisit (provisioned concurrency) only if cold-start rate exceeds ~5%
+      // or p99 TTFB regresses post-launch.
+      warm: 2,
+      // Deploy-time CloudFront invalidation. `paths: 'all'` issues a single
+      // `/*` (one invalidation unit, inside the free tier) so un-hashed HTML
+      // is never served stale after a deploy; content-hashed `_next/static`
+      // assets are immutable and need no invalidation. `wait: true` blocks the
+      // deploy until the invalidation completes, so a green deploy guarantees
+      // the edges are serving the new build.
+      invalidation: {
+        paths: 'all',
+        wait: true,
+      },
+      transform: {
+        cdn(args) {
+          args.tags = { ...args.tags, ...siteTagsFor(stage) };
+          // CLAUDE.md NEVER list: no public hostname without WAF + rate
+          // limit. The ARN is a runtime gate (see above) so this is always
+          // populated when the cdn transform runs. The CdnArgs field is
+          // `webAclArn` — the Cdn component maps it to the distribution's
+          // confusingly-named `webAclId`. Setting `webAclId` directly on
+          // CdnArgs is a silent no-op that would leave the distribution
+          // unprotected, so the WAF ARN must be assigned to `webAclArn`.
+          args.webAclArn = wafAclArn;
+          // Distribution-level edge settings CdnArgs doesn't expose directly.
+          args.transform = {
+            ...(typeof args.transform === 'object' ? args.transform : {}),
+            distribution(distArgs) {
+              // US/EU/Israel edges for US-focused DTC traffic. A flat-rate
+              // plan, if adopted later, overrides this (a Phase C decision).
+              distArgs.priceClass = 'PriceClass_100';
+              // Cdn omits this, so CloudFront's API default (false) applies.
+              // Enable IPv6 so IPv6-only clients resolve without NAT64; the
+              // apex/www AAAA records are added by quilty-aws/dns/ (Pattern A).
+              distArgs.isIpv6Enabled = true;
+              // Negotiate HTTP/3 (QUIC) in addition to HTTP/2 — CloudFront's
+              // default is HTTP/2 only. Purely additive (HTTP/2 clients are
+              // unaffected) and cuts TTFB on lossy mobile links; HTTP/3
+              // requires TLS 1.3, which the policy below permits.
+              distArgs.httpVersion = 'http2and3';
+              // Pin the viewer TLS floor explicitly so it can't silently
+              // change under a component-default shift, and so there is one
+              // clear line to bump. This equals SST's current default
+              // (TLSv1.2_2021) and is a Security-Hub-passing policy. The newer
+              // TLSv1.2_2025 policy (drops CBC, adds hybrid post-quantum) is
+              // verified NOT accepted by the bundled @pulumi/aws@7.20.0 (its
+              // CloudFront enum tops out at TLSv1.2_2021), so setting it would
+              // fail the deploy — that upgrade is gated on a provider bump
+              // (deployment plan T3-28). Only set on the ACM branch — the
+              // default cert (preview stages) ignores a minimum-protocol policy.
+              distArgs.viewerCertificate = $output(distArgs.viewerCertificate).apply((cert) =>
+                cert && !cert.cloudfrontDefaultCertificate
+                  ? { ...cert, minimumProtocolVersion: 'TLSv1.2_2021' }
+                  : cert,
+              );
+              // M2.5 / O8 — CloudFront STANDARD (v1) access logging into the
+              // TF-owned bucket (quilty-aws M1.7). The Logging.Bucket field wants
+              // the bucket's DNS domain (<name>.s3.<region>.amazonaws.com), which
+              // is exactly what the SSM param exports — no string-munging here.
+              // `includeCookies: false` keeps session/PHI hygiene (request headers
+              // are never in v1 logs anyway; cookies are the only opt-in field).
+              // Gated: a stage without the bucket domain ships without logging
+              // rather than failing the deploy.
+              if (cfLogBucketDomain) {
+                distArgs.loggingConfig = {
+                  bucket: cfLogBucketDomain,
+                  includeCookies: false,
+                  prefix: 'cf/',
+                };
+              }
+              // T2-5 (E2-1) — custom error responses for CloudFront-GENERATED origin
+              // failures only. 502 (Lambda origin unreachable / OAC-signature / malformed
+              // response) and 504 (SSR exceeded the 20s originReadTimeout) are the only codes
+              // CloudFront synthesises — the SSR Lambda itself renders BRANDED pages for
+              // 404/500/410/451/503 (not-found.tsx / error.tsx / (errors)/* routes), so those
+              // are deliberately NOT intercepted (a customErrorResponse without a page is a
+              // no-op for them; one WITH a page would clobber the branded body).
+              // The win: CloudFront's DEFAULT error-cache TTL is 300s, so a transient origin
+              // blip would serve errors to everyone for 5 min. errorCachingMinTtl: 5 recovers
+              // in ~5s while still shielding a struggling origin from a per-request retry storm.
+              // Codes are preserved (no responseCode remap) so 502 vs 504 stays visible in the
+              // access logs / 5xx metrics. A BRANDED static origin-down page (responsePagePath
+              // → an S3 `_next/static/*` object, served even when the Lambda origin is down) is
+              // a deliberate Track-3 upgrade — deferred here per the enterprise verdict for a
+              // low-traffic marketing site (502/504 are rare; revisit if telemetry shows >~1%).
+              distArgs.customErrorResponses = [
+                { errorCode: 502, errorCachingMinTtl: 5 },
+                { errorCode: 504, errorCachingMinTtl: 5 },
+              ];
+              // Attach the edge security-header baseline to EVERY cache behavior —
+              // the default (→ SSR) plus the static/image ordered behaviors — so
+              // _next/static assets and CloudFront error responses carry the
+              // headers, not just SSR documents. `?? policyId` preserves any policy
+              // SST might attach in future (only one ResponseHeadersPolicy is
+              // allowed per behavior); SST currently sets none.
+              const policyId = securityHeadersPolicy.id;
+              distArgs.defaultCacheBehavior = $output(distArgs.defaultCacheBehavior).apply((b) => ({
+                ...b,
+                responseHeadersPolicyId: b.responseHeadersPolicyId ?? policyId,
+              }));
+              if (distArgs.orderedCacheBehaviors) {
+                distArgs.orderedCacheBehaviors = $output(distArgs.orderedCacheBehaviors).apply(
+                  (behaviors) =>
+                    (behaviors ?? []).map((b) => ({
+                      ...b,
+                      responseHeadersPolicyId: b.responseHeadersPolicyId ?? policyId,
+                    })),
+                );
+              }
+            },
+          };
+        },
+        server(args) {
+          const tags = siteTagsFor(stage);
+          args.tags = { ...args.tags, ...tags };
+          // T2-15: attach the AWS Parameters-and-Secrets extension so proxy.ts /
+          // @quilty/security can fetch the pepper at runtime (durable stages only;
+          // the layer ARN resolves from the AWS-published SSM param, no hardcoded
+          // version). The matching secretsmanager/kms IAM is on the `permissions`
+          // prop above; the deploy-time env stays as the fallback.
+          if (paramsSecretsLayerArn) {
+            args.layers = [
+              ...(Array.isArray(args.layers) ? args.layers : []),
+              paramsSecretsLayerArn,
+            ];
+          }
+          // Reserved concurrency is OPT-IN via SSR_RESERVED_CONCURRENCY, UNSET by
+          // default. AWS rejects any reservation that drops the account's unreserved
+          // pool below the mandated floor of 10 — a brand-new account starts AT 10, so
+          // a hardcoded reservation makes `sst deploy` fail with
+          // InvalidParameterValueException. Also, marketing-prod is the website's
+          // DEDICATED account (the Rust auth Lambdas live in the production account),
+          // so there is no cross-workload pool to isolate against here. Once a Lambda
+          // concurrency quota increase lands, set SSR_RESERVED_CONCURRENCY (e.g. 100)
+          // to cap the SSR Lambda.
+          const ssrReserved = process.env.SSR_RESERVED_CONCURRENCY;
+          if (ssrReserved && Number(ssrReserved) > 0) {
+            args.concurrency = {
+              ...(typeof args.concurrency === 'object' ? args.concurrency : {}),
+              reserved: Number(ssrReserved),
+            };
+          }
+          // 6yr retention satisfies 45 CFR §164.530(j)(2); the D67 PHI
+          // sanitizer chokepoint at wrapLogger/wrapErrorReporter is what
+          // makes long retention safe. `format: 'json'` produces OTel-
+          // shaped logs the Logs-Insights queries in
+          // docs/runbook/log-retention.md depend on.
+          args.logging = {
+            ...(typeof args.logging === 'object' ? args.logging : {}),
+            retention: '6 years',
+            format: 'json',
+          };
+          // CloudWatch LogGroup tag propagation + retain-on-delete. The
+          // Nextjs component does NOT route AWS:Logs:LogGroup through its
+          // app-level `removal: 'retain'` allowlist, so without this the
+          // log group is deleted on `sst remove --stage dev` regardless
+          // of the 6-year audit clock. The nested transform reaches the
+          // inner Function's LogGroup args directly.
+          args.transform = {
+            ...(typeof args.transform === 'object' ? args.transform : {}),
+            logGroup(lgArgs, opts) {
+              lgArgs.tags = { ...lgArgs.tags, ...tags };
+              // Audit-clock protection: any stage that could host real
+              // auth/consent/step-up events must retain the log group on
+              // teardown. The closed-enum guard matches exactly `dev`,
+              // `production`, and `prod` — prefix-matching `prod*` was
+              // tempting but would silently retain ad-hoc `prod-hotfix`
+              // ephemeral clones we may want to teardown freely. Add new
+              // audit-bearing stage names here explicitly.
+              const isAuditStage = stage === 'dev' || stage === 'production' || stage === 'prod';
+              if (isAuditStage) {
+                opts.retainOnDelete = true;
+              }
+            },
+          };
+        },
+        assets(args) {
+          // T2-3 (C2-5): enable versioning on durable stages so overwritten
+          // stable-path assets (BUILD_ID, .well-known/*) accrue noncurrent versions
+          // that the lifecycle rule (added after the component, below) expires after
+          // 30 days — the house hardened-bucket convention (versioned + noncurrent
+          // lifecycle). Immutable hashed _next/static/* keys are never overwritten, so
+          // their CURRENT objects are never versioned away — safe for clients holding
+          // cached HTML that still references old chunk hashes.
+          if (durableStage) {
+            args.versioning = true;
+          }
+          // SST's `BucketArgs` exposes a nested `transform.bucket` for
+          // the underlying Pulumi s3.Bucket — that's where tags + the
+          // dev-stage forceDestroy guard land. Setting `args.tags` or
+          // `args.forceDestroy` at this level is silently discarded
+          // because the SST abstraction has no such fields.
+          args.transform = {
+            ...(typeof args.transform === 'object' ? args.transform : {}),
+            bucket(bArgs) {
+              bArgs.tags = { ...bArgs.tags, ...siteTagsFor(stage) };
+              if (stage === 'dev') {
+                // Preserves the dev assets bucket across `sst remove
+                // --stage dev` invocations. The app-level `removal:
+                // retain` covers S3 buckets but `forceDestroy: false` is
+                // the belt-and-braces guard against an explicit destroy.
+                bArgs.forceDestroy = false;
+              }
+            },
+            // Confused-deputy scoping: SST's stock assets-bucket policy grants
+            // s3:GetObject to the GLOBAL `cloudfront.amazonaws.com` service
+            // principal with NO condition — any AWS account's OAC-enabled
+            // distribution could read (rehost / bandwidth-steal) the bucket.
+            // AWS's documented OAC policy requires `AWS:SourceArn` = the
+            // distribution ARN. The distribution doesn't exist when this policy
+            // is authored (bucket precedes Cdn in the component graph), so the
+            // ARN arrives via a deferred promise resolved right after `new
+            // Nextjs(...)` returns — Pulumi Outputs are lazy, so this creates
+            // no cycle; it only serializes the policy (and the asset upload
+            // gated on it) after the distribution, which is acceptable.
+            policy(pArgs) {
+              pArgs.policy = $util
+                .all([pArgs.policy, $util.output(deferredDistributionArn)])
+                .apply(([rawPolicy, distributionArn]) => {
+                  // The platform types the policy as string | PolicyDocument;
+                  // SST authors it as a JSON string today — parse either shape.
+                  const doc = (
+                    typeof rawPolicy === 'string' ? JSON.parse(rawPolicy) : rawPolicy
+                  ) as {
+                    Statement: {
+                      Effect?: string;
+                      Principal?: { Service?: string };
+                      Condition?: Record<string, Record<string, string>>;
+                    }[];
+                  };
+                  for (const statement of doc.Statement) {
+                    if (
+                      statement.Effect === 'Allow' &&
+                      statement.Principal?.Service === 'cloudfront.amazonaws.com'
+                    ) {
+                      statement.Condition = {
+                        ...statement.Condition,
+                        StringEquals: {
+                          ...statement.Condition?.['StringEquals'],
+                          'AWS:SourceArn': distributionArn,
+                        },
+                      };
+                    }
+                  }
+                  return JSON.stringify(doc);
+                });
+            },
+          };
+        },
+      },
+    });
+  } catch (err) {
+    rejectDistributionArn(err);
+    throw err;
+  }
 
   // The Cdn component exposes the distribution via `nodes.distribution` (an
   // aws.cloudfront.Distribution, which has `.id`) — it has no `.id` of its own.
   // `nodes.cdn` + `nodes.server` are optionally typed; a deployed Nextjs always
   // has both, so a missing handle means an SST component-API change — fail loud
   // rather than silently skip monitoring (the worst failure mode for an anchor).
-  const distributionId = site.nodes.cdn?.nodes.distribution.id;
+  const siteCdn = site.nodes.cdn;
+  const siteAssets = site.nodes.assets;
+  const distributionId = siteCdn?.nodes.distribution.id;
   const serverFunctionName = site.nodes.server?.name;
-  if (!distributionId || !serverFunctionName) {
-    throw new Error(
-      'SST did not expose the CloudFront distribution id and/or server Lambda ' +
-        'name (site.nodes.cdn / site.nodes.server) — the monitoring contract ' +
-        'cannot be authored. This indicates an SST Nextjs component API change; ' +
+  if (!siteCdn || !siteAssets || !distributionId || !serverFunctionName) {
+    const handleError = new Error(
+      'SST did not expose the CloudFront distribution, assets bucket, and/or ' +
+        'server Lambda handles (site.nodes.cdn / site.nodes.assets / ' +
+        'site.nodes.server) — the monitoring + bucket-policy contracts cannot ' +
+        'be authored. This indicates an SST Nextjs component API change; ' +
         'see infra/monitoring.ts.',
     );
+    rejectDistributionArn(handleError);
+    throw handleError;
   }
+  // Feed the assets-policy SourceArn transform (declared before construction).
+  resolveDistributionArn(siteCdn.nodes.distribution.arn);
 
   // T2-3 (C2-5) — lifecycle on the (now-versioned) assets bucket. SST's Bucket
   // lifecycle abstraction exposes only current-object `expiresIn`, so we author the
@@ -786,7 +990,7 @@ async function defineSiteResources(stage: string) {
     new aws.s3.BucketLifecycleConfiguration(
       'QuiltyWebAssetsLifecycle',
       {
-        bucket: site.nodes.assets.nodes.bucket.bucket,
+        bucket: siteAssets.nodes.bucket.bucket,
         rules: [
           {
             id: 'expire-noncurrent-asset-versions',

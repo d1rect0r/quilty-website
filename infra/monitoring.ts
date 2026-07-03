@@ -192,11 +192,12 @@ export function defineMonitoring(i: MonitoringInputs): void {
     treatMissingData: 'notBreaching',
   });
 
-  // M2.3 — server Lambda throttles (P1). reservedConcurrency = 100 caps the
-  // function; ANY sustained throttle means real users are getting 5xx because
-  // the cap is too low or a runaway is exhausting it.
+  // M2.3 — server Lambda throttles (P1). ANY sustained throttle means real
+  // users are getting 5xx — either the ACCOUNT concurrency pool is exhausted
+  // (no reservation is set until the quota increase lands; see
+  // website-concurrency.md) or a runaway is eating it.
   mkAlarm('server-throttles', {
-    alarmDescription: `[OWNER] platform [SEVERITY] P1 [FIRES_WHEN] server Lambda Throttles > 0 for 3 of 5 minutes (reserved-concurrency cap of 100 exhausted — users seeing 5xx). [INVESTIGATE] ConcurrentExecutions trend; raise reserved concurrency or investigate a request flood. [RUNBOOK] ${runbook}`,
+    alarmDescription: `[OWNER] platform [SEVERITY] P1 [FIRES_WHEN] server Lambda Throttles > 0 for 3 of 5 minutes (account concurrency pool or the reserved cap, once set, exhausted — users seeing 5xx). [INVESTIGATE] account ClaimedAccountConcurrency vs quota; raise the quota / reserved concurrency or investigate a request flood. [RUNBOOK] ${runbook}`,
     namespace: 'AWS/Lambda',
     metricName: 'Throttles',
     dimensions: lambdaDims,
@@ -225,18 +226,60 @@ export function defineMonitoring(i: MonitoringInputs): void {
     treatMissingData: 'notBreaching',
   });
 
-  // M2.3 — server Lambda concurrency (P2). Early warning at 90% of the reserved
-  // cap (100) so we raise the cap BEFORE throttles (P1) start.
+  // M2.3 — ACCOUNT concurrency headroom (P2), the AWS-recommended shape:
+  // 100 * ClaimedAccountConcurrency / SERVICE_QUOTA(ConcurrentExecutions).
+  // ClaimedAccountConcurrency (account-level, no dimensions) is what Lambda
+  // actually admits against — it includes reserved/provisioned carve-outs
+  // that raw ConcurrentExecutions misses — and SERVICE_QUOTA() tracks the
+  // LIVE applied quota, so the alarm self-adjusts when the pending
+  // L-B99A9384 increase (10 → 1000) lands instead of going stale at a
+  // hardcoded threshold. Early warning at 80% so the quota/reservation is
+  // raised BEFORE throttles (P1) start. A per-function reserved-cap alarm
+  // becomes worthwhile only once SSR_RESERVED_CONCURRENCY is actually set
+  // (website-concurrency.md).
   mkAlarm('server-concurrency', {
-    alarmDescription: `[OWNER] platform [SEVERITY] P2 [FIRES_WHEN] server Lambda ConcurrentExecutions > 90 (90% of the reserved cap of 100) for 3 of 3 minutes. [INVESTIGATE] traffic trend; raise reserved concurrency before throttles begin. [RUNBOOK] ${runbook}`,
-    namespace: 'AWS/Lambda',
-    metricName: 'ConcurrentExecutions',
-    dimensions: lambdaDims,
-    statistic: 'Maximum',
-    period: 60,
+    alarmDescription: `[OWNER] platform [SEVERITY] P2 [FIRES_WHEN] account Lambda concurrency exceeds 80% of the applied quota (ClaimedAccountConcurrency / SERVICE_QUOTA) for 3 of 3 minutes. [INVESTIGATE] traffic trend + quota status (L-B99A9384); raise the quota or set a reservation before throttles begin. [RUNBOOK] ${runbook}`,
+    metricQueries: [
+      {
+        id: 'claimed',
+        returnData: false,
+        metric: {
+          namespace: 'AWS/Lambda',
+          metricName: 'ClaimedAccountConcurrency',
+          stat: 'Maximum',
+          period: 60,
+        },
+      },
+      {
+        // SERVICE_QUOTA() is only valid over AWS/Usage metrics — this is the
+        // usage-metric handle whose quota is the account ConcurrentExecutions
+        // limit (the documented AWS pattern; feeding SERVICE_QUOTA a plain
+        // AWS/Lambda metric is rejected at PutMetricAlarm).
+        id: 'quota_base',
+        returnData: false,
+        metric: {
+          namespace: 'AWS/Usage',
+          metricName: 'ResourceCount',
+          dimensions: {
+            Service: 'Lambda',
+            Resource: 'ConcurrentExecutions',
+            Type: 'Resource',
+            Class: 'None',
+          },
+          stat: 'Maximum',
+          period: 60,
+        },
+      },
+      {
+        id: 'utilization',
+        expression: '100 * claimed / SERVICE_QUOTA(quota_base)',
+        label: 'Account concurrency utilization %',
+        returnData: true,
+      },
+    ],
     evaluationPeriods: 3,
     datapointsToAlarm: 3,
-    threshold: 90,
+    threshold: 80,
     comparisonOperator: 'GreaterThanThreshold',
     treatMissingData: 'notBreaching',
   });
@@ -314,6 +357,64 @@ export function defineMonitoring(i: MonitoringInputs): void {
       evaluationPeriods: 1,
       threshold: 1,
       comparisonOperator: 'GreaterThanOrEqualToThreshold',
+      treatMissingData: 'notBreaching',
+    });
+  }
+
+  // Runtime-degradation tripwires. The app's fail-open/fallback paths emit
+  // ONE structured warn per instance (secret-free, prefix-tagged) — without
+  // these filters a DynamoDB outage silently turns the rate limiter off and
+  // a Parameters-and-Secrets outage silently serves stale keys, with the
+  // only signal buried in the log group. Terms match BOTH the raw
+  // console.warn prefixes and the wrapped-logger event names. P3: degraded
+  // control, not user-facing outage (the fail-CLOSED variants surface as
+  // 5xx through the cloudfront-5xx / server-errors alarms).
+  const serverLogGroupName = $interpolate`/aws/lambda/${serverFunctionName}`;
+  const degradationSignals: readonly { key: string; pattern: string; what: string }[] = [
+    {
+      key: 'csrf-keys',
+      pattern: '"[csrf-keys]"',
+      what: 'CSRF signing keys served stale/fallback (extension refresh failing)',
+    },
+    {
+      key: 'pepper',
+      pattern: '"[pepper]"',
+      what: 'pseudonym pepper fell back from the extension (rotation freshness lost)',
+    },
+    {
+      key: 'rate-limit-open',
+      pattern: '?"[rate-limit]" ?rate_limiter_fail_open',
+      what: 'rate limiter failing OPEN (DynamoDB unavailable; WAF is the only limiter)',
+    },
+    {
+      key: 'idempotency',
+      pattern: '?"[idempotency]" ?contact_form_idempotency_unavailable',
+      what: 'idempotency store degraded (claims failing closed or stores best-effort-lost)',
+    },
+  ];
+  for (const signal of degradationSignals) {
+    const metricName = `RuntimeDegradation-${signal.key}`;
+    new aws.cloudwatch.LogMetricFilter(`${namePrefix}-degradation-${signal.key}`, {
+      name: `${namePrefix}-degradation-${signal.key}`,
+      logGroupName: serverLogGroupName,
+      pattern: signal.pattern,
+      metricTransformation: {
+        name: metricName,
+        namespace: 'Quilty/WebsiteRuntime',
+        value: '1',
+        // No defaultValue: absence of matches emits NO datapoint (missing →
+        // notBreaching below), which is cheaper than a constant zero stream.
+      },
+    });
+    mkAlarm(`degradation-${signal.key}`, {
+      alarmDescription: `[OWNER] platform [SEVERITY] P3 [FIRES_WHEN] the SSR runtime logged a degradation warn: ${signal.what}. [INVESTIGATE] the server log group around the datapoint; check the Parameters-and-Secrets extension / DynamoDB table health. [RUNBOOK] ${runbook}`,
+      namespace: 'Quilty/WebsiteRuntime',
+      metricName,
+      statistic: 'Sum',
+      period: 300,
+      evaluationPeriods: 1,
+      threshold: 0,
+      comparisonOperator: 'GreaterThanThreshold',
       treatMissingData: 'notBreaching',
     });
   }
